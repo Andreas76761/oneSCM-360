@@ -21,6 +21,13 @@ import editorial
 import library
 import media
 import language_workflow
+import publication
+import layouts
+import markdown_tools
+import renderers
+import orchestration
+import internal_knowledge
+from version import VERSION, RELEASE_DATE
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -52,7 +59,7 @@ def now():
 def profile():
     return {"role": "Retailer", "scope": "Standard", "market": "",
             "division": "Van", "language": "de", "release": "",
-            "approved_only": False, "show_notes": False}
+            "approved_only": False, "show_notes": False, "as_of": "", "environment": "prod"}
 
 
 def chapter(title, level=1, mandatory=False):
@@ -79,6 +86,10 @@ def hydrate_outline(data):
     data.setdefault("updated_at", "")
     data.setdefault("mapping_enabled", True)
     data.setdefault("scope_rules", editorial.scope_defaults())
+    data.setdefault("validity", [])
+    data.setdefault("layout", {})
+    data["profile"].setdefault("as_of", "")
+    data["profile"].setdefault("environment", "prod")
     data.setdefault("domain_catalog", dm.catalog())
     for c in data["chapters"]:
         c.setdefault("lineage_id", c["id"])
@@ -143,7 +154,9 @@ def validate_profile(p):
             "market": clean_text(p.get("market", ""), "Markt", 100).strip(),
             "release": clean_text(p.get("release", ""), "Release", 100).strip(),
             "show_notes": boolean(p.get("show_notes", False), "Vermerke"),
-            "approved_only": boolean(p.get("approved_only", False), "Freigabe")}
+            "approved_only": boolean(p.get("approved_only", False), "Freigabe"),
+            "as_of": publication.iso_date(p.get("as_of", ""), "Stichtag"),
+            "environment": choice(p.get("environment", "prod"), ["prod", "preprod"], "Umgebung")}
 
 
 def validate_outline(data):
@@ -152,6 +165,8 @@ def validate_outline(data):
     result = {"id": clean_text(data.get("id"), "ID", 100),
               "title": clean_text(data.get("title"), "Titel", 200).strip(),
               "metadata": validate_metadata(data.get("metadata", {})),
+              "validity": publication.validate_rules(data.get("validity", [])),
+              "layout": layouts.selection(data.get("layout", {})),
               "scope_rules": editorial.validate_scopes(data.get("scope_rules", editorial.scope_defaults())),
               "mapping_enabled": boolean(data.get("mapping_enabled", True), "Domänenmapping"),
               "profile": validate_profile(data.get("profile")), "chapters": []}
@@ -187,6 +202,7 @@ def validate_outline(data):
                 "goal": clean_text(c.get("goal", ""), "Kapitelziel"), "blocks": []}
         item["media"] = media.validate_assignments(c.get("media", []))
         item["media_snapshots"] = c.get("media_snapshots", {})
+        item["validity"] = publication.validate_rules(c.get("validity", []))
         item["config"] = editorial.validate_chapter(c)
         item["mandatory"] = item["config"]["inclusion"] == "Pflicht"
         for field in ["keywords", "labels", "topic"]:
@@ -296,7 +312,7 @@ def compare_outlines(left, right):
             values.append("renamed")
         if aid in moved:
             values.append("moved")
-        for field in ["mandatory", "goal", "keywords", "labels", "topic", "roles", "remarks", "config", "media", "media_snapshots"]:
+        for field in ["mandatory", "goal", "keywords", "labels", "topic", "roles", "remarks", "config", "media", "media_snapshots", "validity"]:
             if ac.get(field) != bc.get(field):
                 fields.append(field)
         if dm.signature(left, ac) != dm.signature(right, bc):
@@ -329,6 +345,9 @@ def compare_outlines(left, right):
         return roots
 
     changes = []
+    for key in ["validity", "layout"]:
+        if left.get(key) != right.get(key):
+            changes.append({"field": key, "left": left.get(key), "right": right.get(key)})
     if left.get("scope_rules", editorial.scope_defaults()) != right.get("scope_rules", editorial.scope_defaults()):
         changes.append({"field": "scope_rules", "left": left.get("scope_rules"), "right": right.get("scope_rules")})
     if left.get("mapping_enabled", True) != right.get("mapping_enabled", True):
@@ -419,23 +438,29 @@ def exclusion(b, p):
 
 
 def compose(outline, p):
-    return editorial.compose(outline, p)
+    plan = editorial.compose(outline, p)
+    plan["manifest"]["application"] = {"version": VERSION, "date": RELEASE_DATE}
+    return plan
 
 
 def profile_caption(p):
-    return f"{p['role']} · {p['scope']} · {p['division']} · {p['language'].upper()} · Markt: {p['market'] or 'offen'} · Release: {p['release'] or 'offen'}"
+    return f"{p['role']} · {p['scope']} · {p['division']} · {p['language'].upper()} · Markt: {p['market'] or 'offen'} · Release: {p['release'] or 'offen'} · {p.get('environment', 'prod')} · Stichtag: {p.get('as_of') or 'offen'}"
 
 
-def office_export(plan, fmt, media_loader=None):
+def office_export(plan, fmt, media_loader=None, template_bytes=None):
     output = io.BytesIO()
     caption = profile_caption(plan["profile"])
     output_label = "PRÜFAUSGABE" if plan.get("draft", True) else "FREIGEGEBENE AUSGABE"
     if fmt == "docx":
         from docx import Document
         from docx.shared import Pt, RGBColor, Inches
-        doc = Document()
+        doc = layouts.word_document(template_bytes) if template_bytes else Document()
         style = doc.styles["Normal"]
-        style.font.name, style.font.size = "Calibri", Pt(11)
+        design = layouts.theme(plan.get("layout", {}).get("theme"))
+        if not template_bytes:
+            style.font.name, style.font.size = design["font"], Pt(design["size"])
+            for level in range(1, 10):
+                doc.styles[f"Heading {level}"].font.color.rgb = RGBColor.from_string(design["primary"][1:])
         doc.add_heading(plan["title"], 0)
         doc.add_paragraph(output_label + " · Version " + plan["metadata"]["version"] + " · Revision " + str(plan["revision"]))
         doc.add_paragraph(caption)
@@ -450,8 +475,11 @@ def office_export(plan, fmt, media_loader=None):
             for b in c["blocks"]:
                 if plan["profile"]["division"] == "Beide" and b["division"] != "*":
                     doc.add_paragraph("Gilt für: " + b["division"], style="Caption")
-                for line in b["text"].splitlines():
-                    doc.add_paragraph(line)
+                if b.get("text_format") == "markdown":
+                    markdown_tools.append_word(doc, b["text"], min(6, c["level"]))
+                else:
+                    for line in b["text"].splitlines():
+                        doc.add_paragraph(line)
             for figure in c.get("figures", []):
                 if figure["title"]:
                     doc.add_paragraph(figure["title"], style="Caption")
@@ -463,28 +491,36 @@ def office_export(plan, fmt, media_loader=None):
                     caption = (f"Schritt {frame['step']}: " if figure["kind"] == "Klickstrecke" else "") + frame["caption"]
                     if caption:
                         doc.add_paragraph(caption, style="Caption")
-        doc.sections[0].footer.paragraphs[0].text = "oneSCM-360 · " + output_label
+        if not template_bytes:
+            doc.sections[0].footer.paragraphs[0].text = "oneSCM-360 · " + output_label
+        else:
+            doc.sections[0].footer.add_paragraph("oneSCM-360 · " + output_label)
         doc.save(output)
     elif fmt == "pptx":
         from pptx import Presentation
         from pptx.util import Inches, Pt
         import textwrap
-        prs = Presentation()
-        prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+        prs = layouts.slide_document(template_bytes) if template_bytes else Presentation()
+        if not template_bytes:
+            prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+        sx, sy = prs.slide_width / Inches(13.333), prs.slide_height / Inches(7.5)
+        X = lambda value: Inches(value * sx)
+        Y = lambda value: Inches(value * sy)
+        blank = min(prs.slide_layouts, key=lambda layout: len(layout.placeholders))
 
         def slide(title, body):
-            page = prs.slides.add_slide(prs.slide_layouts[6])
-            box = page.shapes.add_textbox(Inches(.65), Inches(.4), Inches(12), Inches(1.15))
+            page = prs.slides.add_slide(blank)
+            box = page.shapes.add_textbox(X(.65), Y(.4), X(12), Y(1.15))
             tf = box.text_frame
             tf.word_wrap = True
             tf.text = title
             tf.paragraphs[0].font.size = Pt(26)
-            bodybox = page.shapes.add_textbox(Inches(.65), Inches(1.7), Inches(12), Inches(4.9))
+            bodybox = page.shapes.add_textbox(X(.65), Y(1.7), X(12), Y(4.9))
             bodybox.text_frame.word_wrap = True
             bodybox.text_frame.text = body
             for paragraph in bodybox.text_frame.paragraphs:
                 paragraph.font.size = Pt(18)
-            footer = page.shapes.add_textbox(Inches(.65), Inches(7), Inches(12), Inches(.3))
+            footer = page.shapes.add_textbox(X(.65), Y(7), X(12), Y(.3))
             footer.text_frame.text = f"oneSCM-360 · {output_label} · Revision {plan['revision']} · {len(prs.slides)}"
             footer.text_frame.paragraphs[0].font.size = Pt(10)
 
@@ -492,7 +528,7 @@ def office_export(plan, fmt, media_loader=None):
             # Explicit pagination retains all text instead of silently truncating it.
             lines = []
             for line in text.splitlines() or [""]:
-                lines.extend(textwrap.wrap(line, width=80) or [""])
+                lines.extend(textwrap.wrap(line, width=max(25,int(80*sx))) or [""])
             for offset in range(0, len(lines), 12):
                 slide(title + (" · Fortsetzung" if offset else ""), "\n".join(lines[offset:offset + 12]))
 
@@ -517,10 +553,10 @@ def office_export(plan, fmt, media_loader=None):
                     heading = title + (f" · Schritt {frame['step']}" if figure["kind"] == "Klickstrecke" else "")
                     slide(heading, "")
                     page = prs.slides[-1]
-                    width = min(11.8, 4.4 * frame["width"] / frame["height"])
+                    width = min(11.8*sx, 4.4*sy * frame["width"] / frame["height"])
                     height = width * frame["height"] / frame["width"]
-                    page.shapes.add_picture(io.BytesIO(media_loader(frame["asset_id"], frame["revision"])), Inches((13.333-width)/2), Inches(1.65), width=Inches(width), height=Inches(height))
-                    caption = page.shapes.add_textbox(Inches(.65), Inches(6.2), Inches(12), Inches(.65))
+                    page.shapes.add_picture(io.BytesIO(media_loader(frame["asset_id"], frame["revision"])), Inches((13.333*sx-width)/2), Y(1.65), width=Inches(width), height=Inches(height))
+                    caption = page.shapes.add_textbox(X(.65), Y(6.2), X(12), Y(.65))
                     caption.text_frame.word_wrap = True
                     caption.text_frame.text = frame["caption"] if len(frame["caption"]) <= 240 else "Bildunterschrift auf der folgenden Folie."
                     for paragraph in caption.text_frame.paragraphs:
@@ -549,6 +585,9 @@ class Store:
         self.sources.init()
         self.library = library.Library(self)
         self.media = media.Media(self)
+        self.layouts = layouts.Layouts(self)
+        self.orchestrator = orchestration.Orchestrator(self)
+        self.internal = internal_knowledge.InternalKnowledge(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -609,6 +648,8 @@ class Store:
         mapping_supplied = "mapping_enabled" in data
         supplied_chapters = {c["id"] for c in data.get("chapters", []) if "mappings" in c}
         data = validate_outline(data)
+        for fmt in ["docx", "pptx"]:
+            if data["layout"].get(fmt): self.layouts.snapshot(data["layout"][fmt], fmt)
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT revision, payload FROM outlines WHERE id=?", (data["id"],)).fetchone()
@@ -726,7 +767,7 @@ def make_server(store, port=8765):
                 return self.send(403, {"error": "Nur lokaler Zugriff ist erlaubt."})
             path = urlparse(self.path).path
             if path == "/api/state":
-                return self.send(200, {"token": token, "outlines": store.all(), "domains": DOMAINS,
+                return self.send(200, {"token": token, "build": {"version": VERSION, "date": RELEASE_DATE}, "outlines": store.all(), "domains": DOMAINS,
                                        "taxonomy": store.taxonomy(),
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
@@ -737,6 +778,10 @@ def make_server(store, port=8765):
                       "/mapping.js": ("mapping.js", "text/javascript; charset=utf-8"),
                       "/mapping.css": ("mapping.css", "text/css; charset=utf-8"),
                       "/matrix.js": ("matrix.js", "text/javascript; charset=utf-8"),
+                      "/internal.js": ("internal.js", "text/javascript; charset=utf-8"),
+                      "/publishing.js": ("publishing.js", "text/javascript; charset=utf-8"),
+                      "/publishing.css": ("publishing.css", "text/css; charset=utf-8"),
+                      "/jobs.js": ("jobs.js", "text/javascript; charset=utf-8"),
                       "/media.js": ("media.js", "text/javascript; charset=utf-8"),
                       "/media.css": ("media.css", "text/css; charset=utf-8"),
                       "/library.js": ("library.js", "text/javascript; charset=utf-8"),
@@ -763,6 +808,56 @@ def make_server(store, port=8765):
                 if not isinstance(data, dict):
                     raise Invalid("Ungültige Anfrage.")
                 path = urlparse(self.path).path
+                if path == "/api/internal":
+                    return self.send(200, {"categories":store.internal.categories(),"entries":store.internal.listing()})
+                if path == "/api/internal/save":
+                    return self.send(200, store.internal.save(data))
+                if path == "/api/internal/categories":
+                    return self.send(200, store.internal.save_categories(data))
+                if path == "/api/internal/history":
+                    return self.send(200, store.internal.history(clean_text(data.get("id"), "Interne ID", 100)))
+                if path == "/api/internal/chatbot-preview":
+                    return self.send(200, store.internal.chatbot_preview(data))
+                if path == "/api/jobs":
+                    return self.send(200, store.orchestrator.listing())
+                if path == "/api/job/start":
+                    return self.send(200, store.orchestrator.start(data))
+                if path == "/api/job/get":
+                    return self.send(200, store.orchestrator.get(clean_text(data.get("id"), "Lauf-ID", 100)))
+                if path == "/api/job/step":
+                    return self.send(200, store.orchestrator.step(clean_text(data.get("id"), "Lauf-ID", 100)))
+                if path == "/api/job/cancel":
+                    return self.send(200, store.orchestrator.cancel(clean_text(data.get("id"), "Lauf-ID", 100)))
+                if path == "/api/job/report":
+                    job = store.orchestrator.get(clean_text(data.get("id"), "Lauf-ID", 100))
+                    if not job.get("report_markdown"):
+                        raise Invalid("Noch kein Dokumentationsbericht vorhanden.")
+                    return self.send(200, job["report_markdown"].encode(), "text/markdown; charset=utf-8", {"Content-Disposition": 'attachment; filename="Finalisierungsbericht.md"'})
+                if path == "/api/job/apply":
+                    return self.send(200, store.orchestrator.apply(data))
+                if path == "/api/layouts":
+                    return self.send(200, store.layouts.listing())
+                if path == "/api/layout/upload":
+                    return self.send(200, store.layouts.upload(data, base64.b64decode(data.get("base64", ""), validate=True)))
+                if path == "/api/markdown/convert":
+                    template = store.layouts.snapshot(data["template"], "docx")[1] if data.get("template") else None
+                    artifact, fmt = markdown_tools.batch(data.get("files"), data.get("combined") is True, data.get("title", "Markdown-Dokumente"), template)
+                    return self.send(200, artifact, renderers.MIME[fmt], {"Content-Disposition": f'attachment; filename="Markdown-Konvertierung.{fmt}"'})
+                if path == "/api/source/paste":
+                    fmt = choice(data.get("format", "txt"), ["txt", "html", "md"], "Zwischenablageformat")
+                    name = clean_text(data.get("name", "Zwischenablage"), "Name", 200) + "." + fmt
+                    raw = clean_text(data.get("text"), "Zwischenablage", 1_000_000).encode()
+                    return self.send(200, store.sources.upload(name, raw, data))
+                if path == "/api/timeline":
+                    with store.connect() as db:
+                        rows = []
+                        for oid,rev,created,raw in db.execute("SELECT id,revision,created,payload FROM history ORDER BY created DESC"):
+                            entry = hydrate_outline(json.loads(raw))
+                            rows.append({"id":oid,"revision":rev,"created":created,"title":entry["title"],"metadata":entry["metadata"],"profile":entry["profile"],"validity":entry.get("validity",[])})
+                    return self.send(200, rows)
+                if path == "/api/applicability":
+                    outline = validate_outline(store.media.resolve(store.library.resolve(data.get("outline"))))
+                    return self.send(200, publication.matrix(outline))
                 if path == "/api/sources":
                     return self.send(200, {"sources": store.sources.listing(), "chunk_index": store.sources.index()})
                 if path == "/api/source/upload":
@@ -790,7 +885,7 @@ def make_server(store, port=8765):
                 if path == "/api/media/extract":
                     return self.send(200, store.media.extract_source(clean_text(data.get("id"), "Quellen-ID", 100), data.get("language", "de")))
                 if path == "/api/media/upload":
-                    return self.send(200, store.media.upload(base64.b64decode(data.get("base64", ""), validate=True), data.get("name"), data.get("language", "de")))
+                    return self.send(200, store.media.upload(base64.b64decode(data.get("base64", ""), validate=True), data.get("name"), data.get("language", "de"), data.get("metadata", {})))
                 if path == "/api/media/save":
                     return self.send(200, store.media.save(data))
                 if path == "/api/media/ocr":
@@ -878,12 +973,18 @@ def make_server(store, port=8765):
                         if outline["metadata"]["status"] != "Freigegeben" or errors:
                             raise Invalid("Für eine Veröffentlichung zuerst alle Prüfpunkte bearbeiten und die Gliederung freigeben.")
                         plan["draft"] = False
-                    fmt = choice(data.get("format"), ["docx", "pptx"], "Format")
-                    artifact = office_export(plan, fmt, lambda aid, rev: store.media.image(aid, rev, "intern"))
+                    fmt = choice(data.get("format"), ["docx", "pptx", "html", "pdf"], "Format")
+                    loader = lambda aid, rev: store.media.image(aid, rev, "intern")
+                    template = None
+                    if fmt in ["docx", "pptx"] and outline.get("layout", {}).get(fmt):
+                        info, template = store.layouts.snapshot(outline["layout"][fmt], fmt)
+                        plan["manifest"]["template"] = info
+                        plan["manifest"]["template_version"] = info["version"]
+                    plan["manifest"]["theme"] = layouts.theme(outline.get("layout", {}).get("theme"))
+                    artifact = renderers.html_export(plan, loader) if fmt == "html" else renderers.pdf_export(plan, loader) if fmt == "pdf" else office_export(plan, fmt, loader, template)
                     eid = store.record_export(plan, fmt, artifact)
-                    return self.send(200, artifact, "application/vnd.openxmlformats-officedocument." +
-                                     ("wordprocessingml.document" if fmt == "docx" else "presentationml.presentation"),
-                                     {"Content-Disposition": f'attachment; filename="oneSCM-{eid[:8]}.{fmt}"'})
+                    return self.send(200, artifact, renderers.MIME[fmt], {"Content-Disposition": f'attachment; filename="oneSCM-{eid[:8]}.{fmt}"'})
+
                 self.send(404, {"error": "Nicht gefunden."})
             except Conflict as exc:
                 self.send(409, {"error": str(exc)})

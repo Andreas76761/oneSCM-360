@@ -7,7 +7,7 @@ function message(text, error = false) { $("message").textContent = text; $("mess
 async function api(path, data) {
   const response = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json", "X-Local-Token":meta.token}, body:JSON.stringify(data)});
   if (!response.ok) { const result = await response.json(); throw new Error(result.error); }
-  return ["/api/export", "/api/export/history"].includes(path) ? response : response.json();
+  return ["/api/export", "/api/export/history", "/api/markdown/convert", "/api/job/report"].includes(path) ? response : response.json();
 }
 function run(fn) { return async (...args) => { try { document.querySelectorAll(".dialog-error").forEach(el=>el.remove()); await fn(...args); } catch (e) { message(e.message, true); const dialog=[...document.querySelectorAll("dialog[open]")].at(-1); if(dialog){const error=document.createElement("p");error.className="warning dialog-error";error.setAttribute("role","alert");error.textContent=e.message;dialog.prepend(error);error.scrollIntoView({block:"nearest"});} } }; }
 function markDirty() { dirty = true; saveState(); }
@@ -38,7 +38,7 @@ function render() {
 function renderProfile() {
   const p = current.profile;
   renderScopeRules();
-  $("profile").innerHTML = selectField("Rolle", "role", meta.roles, p.role) + selectField("Umfang", "scope", meta.scopes, p.scope) + inputField("Markt", "market", p.market, 'placeholder="Noch offen" maxlength="100"') + selectField("Sparte", "division", ["Van","PC","Beide"], p.division) + selectField("Sprache", "language", meta.languages, p.language) + inputField("Release", "release", p.release, 'placeholder="Noch offen" maxlength="100"') + `<div class="muted">SK / KO sind vorläufig vorgesehen.</div><label class="check"><input type="checkbox" data-key="approved_only" ${p.approved_only ? "checked" : ""}>Nur freigegebene Bausteine</label><span class="muted">Interne Vermerke bleiben ausschließlich in der Redaktion.</span>`;
+  $("profile").innerHTML = selectField("Rolle", "role", meta.roles, p.role) + selectField("Umfang", "scope", meta.scopes, p.scope) + inputField("Markt", "market", p.market, 'placeholder="Noch offen" maxlength="100"') + selectField("Sparte", "division", ["Van","PC","Beide"], p.division) + selectField("Sprache", "language", meta.languages, p.language) + inputField("Release", "release", p.release, 'placeholder="Noch offen" maxlength="100"') + inputField("Stichtag", "as_of", p.as_of || "", 'type="date"') + selectField("Umgebung", "environment", ["prod","preprod"], p.environment || "prod") + `<div class="muted">SK / KO sind vorläufig vorgesehen.</div><label class="check"><input type="checkbox" data-key="approved_only" ${p.approved_only ? "checked" : ""}>Nur freigegebene Bausteine</label><span class="muted">Interne Vermerke bleiben ausschließlich in der Redaktion.</span>`;
   $("profile").querySelectorAll("[data-key]").forEach(el => el.onchange = run(async () => {
     p[el.dataset.key] = el.type === "checkbox" ? el.checked : el.value; markDirty();
     if (!$("preview").hidden) await preview();
@@ -65,6 +65,7 @@ function editor() {
     const b = c.blocks.find(x => x.id === el.dataset.id);
     el.querySelectorAll("[data-key]").forEach(field => field.oninput = () => { b[field.dataset.key] = field.type === "checkbox" ? field.checked : field.value; markDirty(); });
     renderBlockVariants(el,b);
+    renderPublication(el,b,markDirty);
     renderLibraryLink(el,b,c);
     el.querySelector(".remove-block").onclick = () => { if (!confirm("Diesen Baustein aus dem Kapitel entfernen?")) return; c.blocks = c.blocks.filter(x => x.id !== b.id); markDirty(); tree(); editor(); };
   });
@@ -158,6 +159,7 @@ $("save").onclick = run(async () => { await save(); message("Gliederung gespeich
 $("add-chapter").onclick = () => openChapterDialog(false);
 $("preview-tab").onclick = run(preview); $("edit-tab").onclick = () => { previewRequest++; showTab(false); };
 $("export-docx").onclick = run(() => exportFile("docx")); $("export-pptx").onclick = run(() => exportFile("pptx"));
+$("export-pdf").onclick = run(() => exportFile("pdf")); $("export-html").onclick = run(() => exportFile("html"));
 $("import-outline").onclick = () => { invalidateImport(); $("import-target").innerHTML = '<option value="">Neue Gliederung</option>' + meta.outlines.map(o => `<option value="${esc(o.id)}">${esc(o.title)} · R${o.revision}</option>`).join(""); resetReimport(); $("import-dialog").showModal(); };
 $("cancel-import").onclick = () => $("import-dialog").close();
 $("import-text").oninput = () => { $("import-file").value = ""; invalidateImport(); };
@@ -185,4 +187,4 @@ $("apply-import").onclick = run(async () => {
   $("import-dialog").close(); render(); message("Gliederung importiert. Bitte Pflichtkapitel und Struktur prüfen.");
 });
 window.addEventListener("beforeunload",e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
-window.addEventListener("DOMContentLoaded", run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); list(); openOverview(); }));
+window.addEventListener("DOMContentLoaded", run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); if (meta.build) $("app-version").textContent = `v${meta.build.version} · ${meta.build.date.split("-").reverse().join(".")}`; list(); openOverview(); }));

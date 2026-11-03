@@ -4,7 +4,7 @@ const assignmentLabels = {role:"Rolle",scope:"Umfang",market:"Markt",division:"S
 function renderLibraryLink(el,b,c) {
   const panel = document.createElement("section"); panel.className="library-link";
   if (b.library_ref) {
-    el.querySelectorAll("input,select,textarea").forEach(input => input.disabled = true);
+    el.querySelectorAll("input,select,textarea,.publication-panel button").forEach(input => input.disabled = true);
     panel.innerHTML = `<p>Zentraler Baustein · R${b.library_ref.revision} · ${esc(b.library_ref.id.slice(0,8))}. Änderungen erfolgen in der Bibliothek.</p><button class="library-update">Neueste Revision prüfen</button>`;
     panel.querySelector("button").onclick = run(async () => {
       const rows = await api("/api/library", {}), latest = rows.find(x => x.id === b.library_ref.id);
@@ -64,6 +64,7 @@ function editLibraryEntry(entry, block) {
   // This form edits the library independently of unsaved outline changes.
   $("library-variants").querySelector("[data-key]").onchange=e=>b.content_kind=e.target.value;
   $("library-variants").querySelectorAll("[data-variant]").forEach(row=>row.oninput=()=>{b.variants[row.dataset.variant]={text:row.querySelector("textarea").value,status:row.querySelector("select").value};});
+  $("library-publication").replaceChildren(); renderPublication($("library-publication"),b,()=>{});
   renderLanguageTools();
   $("library-edit-dialog").showModal();
 }
@@ -95,10 +96,12 @@ function startTranslation(entry) {
   libraryEdit.id=uuid(); libraryEdit.revision=0;libraryEdit.usage=[];
   libraryEdit.translation={source_id:source.id,source_revision:source.revision,source_language:source.block.language,target_language:source.block.language==="en"?"de":"en",method:"Manuell",reviewed:false};
   libraryEdit.block.id=uuid();libraryEdit.block.text="";libraryEdit.block.status="Entwurf";libraryEdit.block.variants={};libraryEdit.block.language=libraryEdit.translation.target_language;
+  invalidateEvidence(libraryEdit.block);
   $("library-text").value="";document.querySelector("#library-block-fields [data-key=language]").value=libraryEdit.block.language;document.querySelector("#library-block-fields [data-key=status]").value="Entwurf";
   $("library-variants").replaceChildren();renderBlockVariants($("library-variants"),libraryEdit.block);
   $("library-variants").querySelector("[data-key]").onchange=e=>libraryEdit.block.content_kind=e.target.value;
   $("library-variants").querySelectorAll("[data-variant]").forEach(row=>row.oninput=()=>{libraryEdit.block.variants[row.dataset.variant]={text:row.querySelector("textarea").value,status:row.querySelector("select").value};});
+  $("library-publication").replaceChildren(); renderPublication($("library-publication"),libraryEdit.block,()=>{});
   renderLanguageTools(source);
 }
 function renderLanguageTools(source) {
@@ -114,6 +117,7 @@ function renderLanguageTools(source) {
     const result=await api("/api/library/language",{...ref,mode,target,model:$("language-model").value});
     if(libraryEdit.id!==id)return;
     if(!confirm("KI-Vorschlag in das Bearbeitungsformular übernehmen? Die aktuelle Eingabe in dieser Fassung wird ersetzt; gespeichert wird erst über Bausteinrevision speichern."))return;
+    invalidateEvidence(libraryEdit.block);
     if(mode==="translate") {$("library-title").value=result.title;$("library-text").value=result.text;libraryEdit.translation.method=result.method;libraryEdit.translation.reviewed=false;$("translation-reviewed").checked=false;document.querySelector("#library-block-fields [data-key=status]").value="Entwurf";}
     else {libraryEdit.block.variants[target]={text:result.text,status:"Entwurf"};const row=[...$("library-variants").querySelectorAll("[data-variant]")].find(x=>x.dataset.variant===target);row.querySelector("textarea").value=result.text;row.querySelector("select").value="Entwurf";}
     $("language-progress").textContent=`Ungeprüfter Vorschlag aus R${result.source_revision}. Inhalt, Fachbegriffe, Voraussetzungen und Schritte prüfen.`;

@@ -139,8 +139,9 @@ class Media:
             row["usage"] = usage.get(row["id"], [])
         return rows
 
-    def upload(self, raw, name, language="de"):
+    def upload(self, raw, name, language="de", metadata=None):
         from app import uid, now, block, clean_text, choice, LANGUAGES
+        metadata = metadata or {}
         image = read_image(raw)
         normalized = png(image)
         digest = hashlib.sha256(normalized).hexdigest()
@@ -156,6 +157,13 @@ class Media:
                     "redactions": [], "markers": [], "archived": False, "updated": now()}
             item["classification"] = {"roles": [], "domain_ids": [], "keywords": [], "labels": [], "topic": ""}
             item["profile"]["language"] = choice(language, LANGUAGES, "Bildsprache")
+            from app import ROLES, SCOPES
+            for key, choices in [("role", ["*"]+ROLES), ("scope", ["*"]+SCOPES), ("division", ["*", "Van", "PC"])]:
+                item["profile"][key] = choice(metadata.get(key, "*"), choices, key)
+            item["profile"]["market"] = clean_text(metadata.get("market", "*"), "Land", 100).strip() or "*"
+            item["priority"] = choice(metadata.get("priority", "Normal"), ["Hoch", "Normal", "Niedrig"], "Priorität")
+            from sources import validate_labels
+            item["classification"] = validate_labels(metadata.get("classification", item["classification"]), {d["id"] for d in self.store.get_catalog()})
             raw_json = json.dumps(item, ensure_ascii=False)
             db.execute("INSERT INTO media VALUES(?,?,?,?,?)", (item["id"], 1, raw_json, normalized, digest))
             db.execute("INSERT INTO media_history VALUES(?,?,?,?)", (item["id"], 1, raw_json, None))
@@ -249,7 +257,7 @@ class Media:
             ("role", ["*"]+ROLES), ("scope", ["*"]+SCOPES), ("division", ["*", "Van", "PC"]), ("language", LANGUAGES)]}
         for k in ["market", "release"]:
             profile[k] = clean_text(p.get(k, "*"), k, 100).strip()
-        item = {**old, "profile": profile, "redactions": data.get("redactions", []), "markers": data.get("markers", []),
+        item = {**old, "priority": choice(data.get("priority", "Normal"), ["Hoch", "Normal", "Niedrig"], "Priorität"), "profile": profile, "redactions": data.get("redactions", []), "markers": data.get("markers", []),
                 "title": clean_text(data.get("title"), "Bildtitel", 300), "caption": clean_text(data.get("caption", ""), "Bilduntertitel", 2000),
                 "note": clean_text(data.get("note", ""), "Bildvermerk", 5000), "status": choice(data.get("status"), ["Entwurf", "Freigegeben"], "Bildstatus"),
                 "pii_reviewed": boolean(data.get("pii_reviewed", False), "PII-Prüfung"), "archived": boolean(data.get("archived", False), "Archiv"),

@@ -1,6 +1,6 @@
 # Funktionsstand: Gliederungsverwaltung und Dokumentstudio
 
-Stand: 03.11.2026. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
+Stand: **v0.4.0 · 03.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
 Kernpunkten sowie die anschließende Aufforderung, offene Punkte weiter umzusetzen.
 „Vorher“ bezeichnet den Repository-Stand `ba2e937` vor diesem Ausbau.
 „Umgesetzt“ bezieht sich auf den lokalen Einzelbenutzer-Prototyp, nicht auf ein
@@ -44,7 +44,7 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | 5.2 | Zentrale wiederverwendbare Textbibliothek | Offen | Umgesetzt | Eigene Revisionen, Archiv, Herkunft und Verwendungslisten |
 | 5.3 | Filter nach Domäne, Rolle, Markt, Sparte, Release, Sprache, Status | Teilweise | Umgesetzt | Zusätzlich Stichwort und Umfang |
 | 5.4 | Reihenfolge und Gültigkeit je Textverwendung | Teilweise | Umgesetzt | Positionspfeile und zusätzliche Bedingungen |
-| 5.5 | Leserinhalt, interner Vermerk, Steuerungsfelder trennen | Umgesetzt | Umgesetzt | Alle Vermerke bleiben aus Word/PPTX ausgeschlossen |
+| 5.5 | Leserinhalt, interner Vermerk, Steuerungsfelder trennen | Umgesetzt | Umgesetzt | Alle Vermerke bleiben aus DOCX/PPTX/PDF/HTML ausgeschlossen |
 | 5.6 | Vermerke an Kapitel, Text, Bild und Zuordnung | Teilweise | Umgesetzt | Einschließlich farbiger Kapitel-/Rollen-/Domänenmatrix |
 | 5.7 | Zuordnung darf Originalgültigkeit nur einschränken | Offen | Umgesetzt | Schnittmenge; gebundene Originalrevision wird serverseitig aufgelöst |
 | 5.8 | Zentrale Textänderung kontrolliert übernehmen | Offen | Umgesetzt | Bestehende Verwendungen behalten Revision; Aktualisierung ausdrücklich prüfen |
@@ -72,8 +72,8 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | 8.4 | Text-, Sprach- und Bildrevisionen nachweisen | Teilweise | Umgesetzt | Kennungen, Textfingerabdrücke, zentrale Revisionen, Übersetzungsherkunft, Bildrevisionen |
 | 8.5 | Übersetzungen mit Ausgangsrevision und Prüfstatus | Offen | Umgesetzt | Manuelle Sprachfassungen; Warnung bei neuer Quellrevision |
 | 8.6 | KI-Übersetzungsvorschlag | Offen | Teilweise | Lokaler Adapter und Fehlerfälle getestet; echter Modelllauf/Sprachqualität offen |
-| 8.7 | Templateversion und Vermerksregel im Nachweis | Teilweise | Umgesetzt | Festes Template `onescm-office-2`; Vermerke immer ausgeschlossen |
-| 8.8 | Eigene hochladbare Layouttemplates / Corporate Design | Offen | Offen | Beispieltemplates noch nicht bereitgestellt; Upload-/Templateauswahl noch zu bauen |
+| 8.7 | Templateversion und Vermerksregel im Nachweis | Teilweise | Umgesetzt | Renderer `onescm-publishing-3`, Anwendungsversion und gebundene Templaterevision; Vermerke immer ausgeschlossen |
+| 8.8 | Eigene hochladbare Layouttemplates / Corporate Design | Offen | Teilweise | Versionierter DOCX-/PPTX-Upload und Auswahl umgesetzt; konkrete Markenmuster, beliebige Platzhalter und Windows-Office-Abnahme offen |
 | 9.1 | Struktur → Import → Regeln → Zuordnung → Vorschau → Revision → Office | Teilweise | Umgesetzt | Durchgängiger bedienbarer Ablauf für Texte und Medien |
 | 9.2 | Verschieben erhält Inhalte; Varianten aus gemeinsamer Basis | Teilweise | Umgesetzt | Modell- und Browserabnahme |
 | 9.3 | Pflichtregeln, interne Vermerke und Reimport ohne Zuordnungsverlust | Teilweise | Umgesetzt | Automatisierte Abnahme einschließlich Office-Dateiinhalten |
@@ -89,21 +89,40 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | OCR → Kapitel-/Domänen-/Rollenvorschlag | Umgesetzt | Lokale Regeln erzeugen prüfbare Vorschläge; Labels ausdrücklich übernehmen, Kapitel/Rollen als interne Hinweise |
 | Automatisierte PII-Vollständigkeitsgarantie | Offen | Keine vollständige Erkennung behauptet; visuelle Prüfung bleibt erforderlich |
 | Echte Benutzerrechte und geschützte Originalablage | Offen | Erst bei Mehrbenutzerbetrieb Authentifizierung und serverseitige ACL ergänzen |
-| Templateimport und professionelles Layout | Offen | DOCX-Stile/Kopf-Fußzeilen und PPTX-Master versioniert übernehmen; konkrete Muster prüfen |
-| PDF-/HTML-Ausgabe | Offen | Word/PPTX bleiben Priorität 1; weitere Renderer mit gleichen Auswahlregeln anbinden |
-| Direkte Jira-/Confluence-/SharePoint-Anbindung | Offen | Derzeit Dateiimport; Zugang und gewünschte API-/Exportkonventionen später festlegen |
-| Markt-/Sparten-Blueprint mit Vererbungs-/Konfliktregeln | Teilweise | Exakte Gültigkeitsfilter vorhanden; zeitliche Vorrangregeln und Konflikterkennung fehlen |
-| Preprod-/Prod-Releasepromotion | Offen | Releasefeld vorhanden; kein automatischer Vierwochen-Workflow |
-| Mehrere Fachagenten mit Orchestrator | Offen | Einzelne lokale KI-Aufrufe vorhanden; kein Agentenlauf mit Aufgaben-/Qualitätsschritten |
+| Templateimport und professionelles Layout | Teilweise | DOCX-Stile/Kopf-Fußzeilen und PPTX-Master versioniert nutzbar; Firmenmuster und komplexe Seitenlayouts noch abnehmen |
+| PDF-/HTML-Ausgabe | Umgesetzt | Gleiche Auswahl- und Freigaberegeln; eigenes portables Layout, keine pixelgenaue Office-Konvertierung |
+| Direkte Jira-/Confluence-Anbindung | Aus Umfang genommen | Auf Benutzerwunsch ausschließlich HTML-/Word-Exporte und Zwischenablage; keine Zugangsdaten oder Synchronisation |
+| Markt-/Sparten-Blueprint mit Vererbungs-/Konfliktregeln | Teilweise | Profilfilter und zeitliche Vorrang-/Konfliktregeln vorhanden; vollständige Blueprint-Vererbung noch offen |
+| Preprod-/Prod-Releasepromotion | Offen | Version, Stichtag, Prod/Preprod und Zeitregeln vorhanden; kein automatischer Vierwochen-Workflow |
+| Mehrere Fachagenten mit Orchestrator | Teilweise | Persistente sequenzielle Läufe, Review und Übernahme, Vier-Agenten-Finalisierung mit Bericht umgesetzt; Hintergrundworker und echte Modellqualitätsabnahme offen |
 | Wiederherstellen alter Gliederungen | Offen | Historie ist lesbar/vergleichbar; Wiederherstellung als neue Revision noch zu ergänzen |
 | Integrierte Sicherung / Wiederherstellung | Offen | Manuell bei beendeter Anwendung Datenordner kopieren |
 
+## Ergänzungen in Version 0.4.0
+
+| Funktion | Stand | Grenze / Verhalten |
+|---|---|---|
+| Quellen aus Zwischenablage (Text, HTML, Markdown) | Umgesetzt | Eigene Quelle mit Herkunft, Release und Chunks |
+| Alte DOC-Exporte | Teilweise | HTML-basierte DOC direkt; binäre DOC benötigen Antiword oder vorherige DOCX-Konvertierung |
+| Markdown-Dateistapel nach Word | Umgesetzt | Einzeldokumente als ZIP oder Sammeldokument; lokale Bilder und Fußnoten noch offen |
+| Jira-Verifikation je Text | Umgesetzt | Ticketnummer, Status, Typ, Datum, Prüfvermerk; Änderung des Inhalts setzt Prüfstatus zurück; keine Live-Abfrage |
+| Manual-/Releaseletter-/Quick-Reference-Eignung | Umgesetzt | Aktivierung pro Text und Übersicht der tatsächlichen profilabhängigen Verwendung |
+| Zeitliche Gültigkeit nach Jahr, Land, Rolle, Sparte | Umgesetzt | Stichtag, Version, Umgebung, Status und widersprüchliche Regeln werden geprüft |
+| Versionsverlauf | Umgesetzt | Filter über gespeicherte Gliederungsstände; keine automatische Releasepromotion |
+| Screens mit Uploadlabels, Priorität, Filtern und Sortierung | Umgesetzt | Länder-/Rollen-/Sparten-/Umfangsfilter; Duplikate überschreiben keine Metadaten |
+| Vier-Agenten-Finalisierung | Umgesetzt | Finalisierung, Validierung, technische Renderprobe, interner Markdown-Bericht; keine automatische Freigabe |
+| Separates Register Testing / UI / Steuerung / IT | Umgesetzt | Eigene Unterthemen, Mehrfachzuordnung, Suche, Archivstatus, Revisionen; in keiner Leserausgabe, auch nicht HQ/intern |
+| FAQ-Basis für internen Chatbot | Teilweise | Freigegebene, vorgemerkte Frage-Antwort-Paare mit Profilfilter und lokaler Suchvorschau; antwortgenerierender Chatbot fehlt |
+| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.4.0 · 03.11.2026, serverseitige Buildinformation |
+
+[Bedienungsanleitung](docs/BEDIENUNG.md) · [Restarbeiten mit Priorität und Aufwand](docs/VERBESSERUNGEN.md)
+
 ## Prüfung und praktische Grenzen
 
-- 53 erfolgreiche automatisierte Modell-/HTTP-Tests für Import, Regeln, Revisionen, Bibliothek,
+- 78 erfolgreiche automatisierte Modell-/HTTP-Tests für Import, Regeln, Revisionen, Bibliothek,
   Übersetzungsherkunft, Medien, OCR, Löschschutz und echte Office-Dateiinhalte.
-- Fünf erfolgreiche Browserabnahmen in `tests/browser_smoke.py`, `browser_management.py`,
-  `browser_sources.py`, `browser_editorial.py`, `browser_media.py`.
+- Sechs Browserabnahmen in `tests/browser_smoke.py`, `browser_management.py`,
+  `browser_sources.py`, `browser_editorial.py`, `browser_media.py`, `browser_publishing.py`.
 - Tesseract wurde tatsächlich mit synthetischen Bilddaten aufgerufen.
 - Ollama-Adapter mit simulierten Antworten geprüft; kein Modell installiert,
   daher keine behauptete Endabnahme von Übersetzungs- oder Kürzungsqualität.

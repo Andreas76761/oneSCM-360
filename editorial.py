@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import publication
 
 KINDS = ["Redaktionell", "Fachlich", "Automatisch", "Zusammengestellt"]
 CONTENT_KINDS = ["Anleitung", "Ziel", "Voraussetzung", "Schritt", "Warnhinweis", "Hintergrund", "Sonderfall", "FAQ", "Glossarbegriff"]
@@ -49,7 +50,7 @@ def validate_chapter(c):
         raise Invalid("Ungültige Kapitelbedingungen.")
     result["conditions"] = {}
     for key, values in conditions.items():
-        if not isinstance(values, list) or len(values) > 100:
+        if not isinstance(values, list) or len(values) > 100 or any(not isinstance(v, str) for v in values):
             raise Invalid("Bedingungen müssen Listen sein.")
         result["conditions"][key] = [clean_text(v, key, 100).strip() for v in values if v]
         choices = {"role": ROLES, "scope": SCOPES, "language": LANGUAGES, "division": ["Van", "PC"]}.get(key)
@@ -73,6 +74,8 @@ def validate_block(b):
             "variants": {k: {"text": clean_text(v.get("text", ""), "Fassung", 100000),
                              "status": choice(v.get("status", "Entwurf"), ["Entwurf", "Freigegeben"], "Fassungsstatus")}
                          for k, v in variants.items()}}
+    result.update(publication.validate_block(b))
+    result["text_format"] = choice(b.get("text_format", "plain"), ["plain", "markdown"], "Textformat")
     if b.get("library_ref"):
         ref = b["library_ref"]
         if not isinstance(ref, dict) or type(ref.get("revision")) is not int or ref["revision"] < 1:
@@ -100,11 +103,24 @@ def compose(outline, p):
     p = validate_profile(p)
     rows, warnings, stack = [], [], []
     manifest, image_manifest = [], []
+    keys = [e["key"] for c in outline["chapters"] for b in c["blocks"] for e in b.get("evidence", [])]
+    outline_validity = publication.effective(outline.get("validity", []), p)
+    if not outline_validity["matches"]:
+        warnings.append(outline_validity["reason"])
+    elif outline_validity["state"] not in [None, "Freigegeben"]:
+        warnings.append("Zeitlicher Gliederungsstatus ist nicht freigegeben.")
     for c in outline["chapters"]:
         config = validate_chapter(c)
         while stack and stack[-1][0] >= c["level"]:
             stack.pop()
-        allowed = eligible(config, p) and all(x[1] for x in stack)
+        temporal_profile = p
+        if p["division"] == "Beide" and len(config["conditions"].get("division", [])) == 1:
+            temporal_profile = {**p, "division": config["conditions"]["division"][0]}
+        cv = publication.effective(c.get("validity", []), temporal_profile)
+        profile_allowed = outline_validity["matches"] and eligible(config, p) and all(x[1] for x in stack)
+        allowed = profile_allowed and cv["matches"]
+        if profile_allowed and (cv.get("conflict") or cv.get("requires_date") or (allowed and cv["state"] not in [None, "Freigegeben"])):
+            warnings.append(f"Kapitel „{c['title']}“: Zeitstatus prüfen. " + cv["reason"])
         stack.append((c["level"], allowed))
         mandatory = config["inclusion"] == "Pflicht"
         title = config["titles"].get(p["language"]) or c["title"]
@@ -114,29 +130,49 @@ def compose(outline, p):
                 b = copy.deepcopy(original)
                 extra = validate_block(b)
                 variant = extra["variants"].get(p["scope"])
-                if variant and variant["text"].strip():
+                variant_active = bool(variant and variant["text"].strip())
+                if variant_active:
                     b["text"] = variant["text"]
                     if variant["status"] != "Freigegeben":
                         b["status"] = "Entwurf"
                 # Essential instructions are retained even in compact scope.
-                if extra["content_kind"] in ESSENTIAL or variant:
+                if extra["content_kind"] in ESSENTIAL or variant_active:
                     b["scope"] = "*"
                 reason = exclusion(b, p)
+                document_type = outline.get("metadata", {}).get("document_type", "Handbuch")
+                if document_type in publication.DOCUMENTS and not extra["uses"][document_type]:
+                    reason = "Für diese Dokumentart nicht ausgewählt."
                 scopes = outline.get("scope_rules", scope_defaults())
-                if extra["content_kind"] not in ESSENTIAL and extra["content_kind"] not in scopes[p["scope"]] and not variant:
+                if extra["content_kind"] not in ESSENTIAL and extra["content_kind"] not in scopes[p["scope"]] and not variant_active:
                     reason = "Inhaltstyp ist für diesen Umfang nicht ausgewählt."
                 if not eligible({"inclusion": "Bedingt", "conditions": extra["assignment"]["conditions"]}, p):
                     reason = "Gültigkeit dieser Kapitelzuordnung passt nicht zum Ausgabeprofil."
+                if not reason:
+                    block_profile = {**p, "division": b["division"]} if p["division"] == "Beide" and b["division"] in ["Van", "PC"] else temporal_profile
+                    bv = publication.effective(extra["validity"], block_profile)
+                    if not bv["matches"]:
+                        reason = bv["reason"]
+                        if bv.get("conflict") or bv.get("requires_date"):
+                            warnings.append(f"Kapitel „{c['title']}“: " + reason)
+                    elif bv["state"] not in [None, "Freigegeben"]:
+                        b["status"] = "Entwurf"
+                        reason = exclusion(b, p)
+                if not reason:
+                    b["text"] = publication.public_text(b["text"], keys)
+                    if not b["text"].strip():
+                        reason = "Baustein enthält nach Entfernen interner Ticketverweise keinen Lesertext."
                 if reason:
                     excluded.append({"id": b["id"], "reason": reason})
                 else:
                     public = {k: b[k] for k in ["text", "source", "status", "division"]}
-                    public.update(note="", id=b["id"], content_kind=extra["content_kind"])
+                    public.update(note="", id=b["id"], content_kind=extra["content_kind"], text_format=extra["text_format"])
+                    if extra["evidence"] and any(not e["verified"] for e in extra["evidence"]):
+                        warnings.append(f"Kapitel „{c['title']}“: interner Textnachweis noch nicht geprüft.")
                     if extra["content_kind"] in ["Glossarbegriff", "FAQ"] and b.get("library_title"):
                         public["text"] = b["library_title"] + "\n" + public["text"]
                     included.append(public)
                     manifest.append({"chapter_id": c["id"], "block_id": b["id"],
-                                     "content_hash": fingerprint(original), "variant": p["scope"] if variant else "Basis",
+                                     "validity_decision": bv, "content_hash": fingerprint(original), "variant": p["scope"] if variant_active else "Basis",
                                      "language": b["language"], "status": b["status"], "library_ref": original.get("library_ref"), "translation": original.get("translation") })
         from media import compose_chapter
         figures, media_warnings, image_refs = compose_chapter(c, p) if allowed else ([], [], [])
@@ -178,10 +214,13 @@ def compose(outline, p):
     for row in rows:
         if row["generated"]:
             row["blocks"].append({"text": toc, "source": "Ausgabestruktur", "status": "Freigegeben", "division": "*", "note": ""})
-    return {"outline_id": outline["id"], "title": outline["title"], "revision": outline["revision"],
+    plan = {"outline_id": outline["id"], "title": outline["title"], "revision": outline["revision"],
             "metadata": outline["metadata"], "profile": p, "chapters": rows, "warnings": warnings, "draft": True,
-            "manifest": {"template_version": "onescm-office-2", "internal_notes": "always_excluded",
+            "manifest": {"template_version": "onescm-publishing-3", "validity_decision": outline_validity, "internal_notes": "always_excluded",
                          "texts": manifest, "images": image_manifest, "title_hash": fingerprint([(c["id"], c["title"], c.get("config", {}).get("titles", {})) for c in outline["chapters"]])}}
+
+    plan["layout"] = outline.get("layout", {})
+    return publication.sanitize_plan(plan, keys)
 
 
 def release_errors(plan):

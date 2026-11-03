@@ -66,7 +66,28 @@ def extract(name, raw):
                     raise ValueError("Die entpackte Office-Datei ist größer als 32 MB.")
         except zipfile.BadZipFile as exc:
             raise ValueError("Ungültige Office-Datei.") from exc
-    if ext == ".docx":
+    if ext == ".doc":
+        if raw.lstrip().lower().startswith((b"<html", b"<!doctype", b"<meta")):
+            parser = HTMLText(); parser.feed(raw.decode("utf-8-sig", errors="replace"))
+            pages = [("Word-HTML-Export", "".join(parser.parts))]
+            warnings.append("HTML-basierter Word-Export erkannt.")
+        elif raw.startswith(b"PK"):
+            return extract(str(PurePath(name).with_suffix(".docx")), raw)
+        else:
+            import shutil, subprocess, tempfile
+            from pathlib import Path
+            binary = shutil.which("antiword")
+            if not binary:
+                raise ValueError("Für binäre DOC-Dateien lokal Antiword installieren oder in Word als DOCX speichern. HTML-basierte DOC-Exporte werden direkt unterstützt.")
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "source.doc"; path.write_bytes(raw)
+                try:
+                    result = subprocess.run([binary, "-m", "UTF-8.txt", str(path)], capture_output=True, timeout=30, check=True)
+                except (subprocess.SubprocessError, OSError) as exc:
+                    raise ValueError("DOC konnte nicht gelesen werden. Bitte als DOCX exportieren.") from exc
+            pages = [("Word-DOC", result.stdout.decode("utf-8", errors="replace"))]
+            warnings.append("Binäres DOC als Text extrahiert; Bilder separat übernehmen.")
+    elif ext == ".docx":
         from docx import Document
         from docx.text.paragraph import Paragraph
         doc = Document(io.BytesIO(raw))
@@ -122,7 +143,7 @@ def extract(name, raw):
         else:
             pages = [("Text", text)]
     else:
-        raise ValueError("Unterstützt: TXT, MD, HTML, DOCX, PPTX, PDF, CSV und JSON.")
+        raise ValueError("Unterstützt: TXT, MD, HTML, DOC/DOCX, PPTX, PDF, CSV und JSON.")
     if sum(len(text) for _, text in pages) > 2_000_000:
         raise ValueError("Zu viel Text für einen Import. Bitte die Quelle aufteilen.")
     chunks = [c for location, text in pages for c in text_chunks(text, location)]

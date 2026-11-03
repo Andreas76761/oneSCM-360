@@ -2,13 +2,17 @@
 let mediaEntries=[],assetEdit=null,assetImage=null,assetPointer=null,mediaAssignment=null,mediaChapter=null,assetPreviewValid=false;
 const mediaRole=()=>$("media-working-role").value;
 async function openMedia() {
-  mediaEntries=await api("/api/media",{}); renderMediaList(); $("media-dialog").showModal();
+  mediaEntries=await api("/api/media",{}); renderMediaTools(); renderMediaList(); $("media-dialog").showModal();
 }
 function renderMediaList() {
   const q=$("media-search").value.toLocaleLowerCase();
+  const filters={};$("media-filters").querySelectorAll("[data-filter]").forEach(el=>filters[el.dataset.filter]=el.value);
+  const filtered=mediaEntries.filter(a=>Object.entries(filters).every(([key,value])=>!value || (key==="priority"?(a.priority||"Normal")===value : a.profile[key]==="*" || a.profile[key].toLowerCase()===value.toLowerCase())));
+  const sort=$("media-sort")?.value || "title", rank={Hoch:0,Normal:1,Niedrig:2};
+  filtered.sort((a,b)=>sort==="priority"?(rank[a.priority||"Normal"]-rank[b.priority||"Normal"]):String(sort==="title"?a.title:a.profile[sort]).localeCompare(String(sort==="title"?b.title:b.profile[sort]),"de"));
   const editable=["HQ","intern"].includes(mediaRole());
   $("media-upload").disabled=!editable;
-  $("media-list").innerHTML=mediaEntries.filter(a=>[a.title,a.caption,...Object.values(a.profile),...(a.classification?.keywords || []),...(a.classification?.labels || [])].join(" ").toLocaleLowerCase().includes(q)).map(a=>`<article class="source-card"><h3>${esc(a.title)} · R${a.revision}</h3><p>${esc(a.status)} · ${a.pii_reviewed ? "PII-Prüfung bestätigt" : "PII-Prüfung offen"}${a.archived ? " · Archiviert" : ""} · ${a.width} × ${a.height}</p><p>${esc(a.caption)}</p><p>${esc(Object.values(a.profile).join(" · "))}</p><button data-edit-asset="${esc(a.id)}" ${editable ? "" : "disabled"}>Bearbeiten / OCR / PII</button><button data-delete-asset="${esc(a.id)}" ${editable ? "" : "disabled"}>Endgültig löschen</button><details><summary>${a.usage.length} Verwendungen</summary><ul>${a.usage.map(u=>`<li>${esc(u.outline)} → ${esc(u.chapter)} · R${u.revision}</li>`).join("")}</ul></details></article>`).join("") || '<p>Noch keine passenden Bilder.</p>';
+  $("media-list").innerHTML=filtered.filter(a=>[a.title,a.caption,...Object.values(a.profile),...(a.classification?.keywords || []),...(a.classification?.labels || [])].join(" ").toLocaleLowerCase().includes(q)).map(a=>`<article class="source-card"><h3>${esc(a.title)} · R${a.revision}</h3><p>${esc(a.status)} · Priorität ${esc(a.priority||"Normal")} · ${a.pii_reviewed ? "PII-Prüfung bestätigt" : "PII-Prüfung offen"}${a.archived ? " · Archiviert" : ""} · ${a.width} × ${a.height}</p><p>${esc(a.caption)}</p><p>${esc(Object.values(a.profile).join(" · "))}</p><button data-edit-asset="${esc(a.id)}" ${editable ? "" : "disabled"}>Bearbeiten / OCR / PII</button><button data-delete-asset="${esc(a.id)}" ${editable ? "" : "disabled"}>Endgültig löschen</button><details><summary>${a.usage.length} Verwendungen</summary><ul>${a.usage.map(u=>`<li>${esc(u.outline)} → ${esc(u.chapter)} · R${u.revision}</li>`).join("")}</ul></details></article>`).join("") || '<p>Noch keine passenden Bilder.</p>';
   $("media-list").querySelectorAll("[data-delete-asset]").forEach(el=>el.onclick=run(async()=>{if(!confirm("Bild mit Original und allen Bildrevisionen endgültig löschen? Nur ohne Verwendung in gespeicherten Gliederungsständen möglich."))return;await api("/api/media/delete",{id:el.dataset.deleteAsset,working_role:mediaRole()});mediaEntries=await api("/api/media",{});renderMediaList();}));
   $("media-list").querySelectorAll("[data-edit-asset]").forEach(el=>el.onclick=run(()=>editAsset(mediaEntries.find(a=>a.id===el.dataset.editAsset))));
 }
@@ -20,7 +24,7 @@ $("media-upload").onclick=run(async()=>{
       if(file.size>10*1024*1024) throw new Error("Maximal 10 MB je Bild.");
       const bytes=new Uint8Array(await file.arrayBuffer()); let binary="";
       for(let i=0;i<bytes.length;i+=8192) binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
-      await api("/api/media/upload",{name:file.name,base64:btoa(binary),language:current.profile.language,working_role:mediaRole()});
+      await api("/api/media/upload",{name:file.name,base64:btoa(binary),language:current.profile.language,working_role:mediaRole(),metadata:mediaUploadMetadata()});
     }
     $("media-files").value=""; mediaEntries=await api("/api/media",{}); renderMediaList(); message("Bilder importiert. PII-Prüfung und Freigabe sind noch offen.");
   } finally {$("media-upload").disabled=false;}
@@ -30,7 +34,7 @@ async function editAsset(asset) {
   $("asset-domains").innerHTML=allTargets().map(d=>`<option value="${esc(d.id)}" ${assetEdit.classification.domain_ids.includes(d.id)?"selected":""}>${esc(d.name)}</option>`).join("");
   $("asset-keywords").value=assetEdit.classification.keywords.join(", "); $("asset-labels").value=assetEdit.classification.labels.join(", "); assetImage=null; assetPreviewValid=false;
   $("asset-title").value=asset.title; $("asset-caption").value=asset.caption; $("asset-note").value=asset.note;
-  $("asset-status").value=asset.status; $("asset-archived").checked=asset.archived;
+  $("asset-priority").value=asset.priority||"Normal";$("asset-status").value=asset.status; $("asset-archived").checked=asset.archived;
   $("asset-pii-reviewed").checked=false; $("asset-pii-reviewed").disabled=true;
   $("asset-progress").textContent="Original wird geladen …"; $("asset-ocr-text").textContent="";
   $("asset-profile").innerHTML=selectField("Rolle","role",meta.roles,asset.profile.role,"",true)+selectField("Umfang","scope",meta.scopes,asset.profile.scope,"",true)+selectField("Sparte","division",["Van","PC"],asset.profile.division,"",true)+inputField("Markt","market",asset.profile.market)+inputField("Release","release",asset.profile.release)+selectField("Sprache","language",meta.languages,asset.profile.language);
@@ -83,7 +87,7 @@ $("asset-ocr").onclick=run(async()=>{
 });
 $("asset-save").onclick=run(async()=>{
   if($("asset-pii-reviewed").checked && !assetPreviewValid)throw new Error("Anonymisierte Fassung zuerst prüfen.");
-  const data={...assetEdit,title:$("asset-title").value,caption:$("asset-caption").value,note:$("asset-note").value,status:$("asset-status").value,archived:$("asset-archived").checked,pii_reviewed:$("asset-pii-reviewed").checked,working_role:mediaRole()};
+  const data={...assetEdit,priority:$("asset-priority").value,title:$("asset-title").value,caption:$("asset-caption").value,note:$("asset-note").value,status:$("asset-status").value,archived:$("asset-archived").checked,pii_reviewed:$("asset-pii-reviewed").checked,working_role:mediaRole()};
   $("asset-profile").querySelectorAll("[data-key]").forEach(el=>data.profile[el.dataset.key]=el.value);
   data.classification={...assetEdit.classification,domain_ids:[...$("asset-domains").selectedOptions].map(o=>o.value),keywords:splitLabels($("asset-keywords").value),labels:splitLabels($("asset-labels").value)};
   await api("/api/media/save",data);$("media-edit-dialog").close();assetEdit=null;mediaEntries=await api("/api/media",{});renderMediaList();message("Bildrevision gespeichert. Vorhandene Zuordnungen behalten ihre alte Revision.");
@@ -144,3 +148,10 @@ $("media-create-path").onclick=run(()=>{const c=selectedChapter()||current.chapt
 $("media-add-frame").onclick=()=>{if(mediaAssignment.frames.length>=50)return;mediaAssignment.frames.push({caption:"",variants:[]});$("media-assignment-kind").value="Klickstrecke";renderMediaFrames();};
 $("media-assignment-cancel").onclick=()=>$("media-assignment-dialog").close();
 for(const id of ["asset-title","asset-caption"])$(id).oninput=invalidateAssetPreview;
+
+function renderMediaTools(){
+  $("media-upload-meta").innerHTML='<h3>Metadaten für neue Uploads</h3>'+inputField("Land (* = alle)","market","*")+selectField("Rolle","role",meta.roles,"*","",true)+selectField("Sparte","division",["Van","PC"],"*","",true)+selectField("Umfang","scope",meta.scopes,"*","",true)+selectField("Priorität","priority",["Hoch","Normal","Niedrig"],"Normal")+inputField("Labels (Komma getrennt)","labels","");
+  $("media-filters").innerHTML='<label>Land<input data-filter="market"></label>'+[["role","Rolle",meta.roles],["division","Sparte",["Van","PC"]],["scope","Umfang",meta.scopes],["priority","Priorität",["Hoch","Normal","Niedrig"]]].map(([k,title,values])=>`<label>${title}<select data-filter="${k}"><option value="">Alle</option>${options(values,"")}</select></label>`).join("")+'<label>Sortieren nach<select id="media-sort"><option value="title">Titel</option><option value="market">Land</option><option value="role">Rolle</option><option value="division">Sparte</option><option value="scope">Umfang</option><option value="priority">Priorität</option></select></label>';
+  $("media-filters").querySelectorAll("input,select").forEach(el=>el.oninput=renderMediaList);
+}
+function mediaUploadMetadata(){const data={};$("media-upload-meta").querySelectorAll("[data-key]").forEach(el=>data[el.dataset.key]=el.value);data.classification={roles:[],domain_ids:[],keywords:[],labels:splitLabels(data.labels||""),topic:""};delete data.labels;return data;}

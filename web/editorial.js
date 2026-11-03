@@ -11,6 +11,10 @@ function renderChapterConfig(c) {
   $("chapter-config").querySelectorAll("[data-language]").forEach(el => el.oninput = () => { q.titles[el.dataset.language] = el.value; markDirty(); });
   $("chapter-config").querySelectorAll("[data-expected]").forEach(el => el.onchange = () => { q.expected = [...$("chapter-config").querySelectorAll("[data-expected]:checked")].map(x => x.dataset.expected); markDirty(); });
   $("chapter-config").querySelector("[data-config]").onchange = e => { q.selected = e.target.checked; markDirty(); };
+  c.validity ||= [];
+  const temporal=document.createElement("details");temporal.className="chapter-settings chapter-validity";
+  temporal.innerHTML='<summary>Zeitliche Gültigkeit des Kapitels</summary><div></div>';
+  renderValidity(temporal.querySelector("div"),c.validity,markDirty);$("chapter-config").append(temporal);
 }
 function renderBlockVariants(el,b) {
   b.variants ||= {};
