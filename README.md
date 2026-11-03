@@ -38,6 +38,14 @@ Die aktive Datenbank nicht in einem Synchronisations- oder Netzlaufwerk ablegen.
 - Kapitel und Unterkapitel (bis Ebene 6) über einen Dialog direkt anlegen;
   aufklappbarer Ordnerbaum, Pflichtkapitel, Ziele und Domänen.
 - Verschieben vollständiger Teilbäume mit stabilen Kapitelkennungen.
+- Mehrfachzuordnungen Kapitel ↔ Domänen/Unterdomänen, pro Zuordnung und pro
+  Gliederung aktivierbar. Zusätzlicher aufklappbarer Domänenbaum.
+- Kapitel-/Rollen-/Domänenmatrix mit farbigen internen Bemerkungen sowie Suche
+  nach Stichwörtern, Labels, Rolle und Thema.
+- Quellenübersicht mit Upload, Duplikaterkennung, Text-/Tabellenextraktion,
+  Chunks und Löschung. Unterstützt TXT, MD, HTML, DOCX, PPTX, PDF, CSV und JSON.
+- Prüfbare Triage-Vorschläge per lokalen Regeln oder optional lokalem Ollama;
+  bestätigte Chunk-Zuordnungen mit Zählern je Kapitel, Domäne und Rolle.
 - Textbausteine mit Rolle, Markt, Sparte, Sprache, Release, Umfang, Quelle,
   Status und internen Vermerken.
 - Nachvollziehbare Vorschau mit Ausschlussgründen und fehlenden Pflichtinhalten.
@@ -89,6 +97,82 @@ als entfernt/neu erscheinen. Eine manuelle Zuordnung solcher Treffer folgt spät
 „Geändert“ kennzeichnet Unterschiede an Pflichtregel, Domäne, Kapitelziel oder
 Textbausteinen; es ist noch kein zeilenweiser Textvergleich.
 
+## Domänenmapping und interne Matrix
+
+Im Kapitel-Editor unter **Domänen & Unterdomänen** mehrere Zuordnungen ergänzen.
+Jede Zuordnung hat ihren eigenen Aktiv-Schalter. **Mapping dieser Gliederung
+aktiv** pausiert beziehungsweise reaktiviert die gesamte Zuordnung, ohne sie zu
+löschen. Die Ansicht **Domänen → Kapitel** gruppiert dieselben Kapitel unter
+allen zugeordneten Domänen. Kapitel werden dabei nicht kopiert. Unterkapitel
+erhalten eigene Zuordnungen; es gibt keine automatische Vererbung.
+
+**Unterdomänen verwalten** pflegt die Begriffe zentral für alle Gliederungen.
+Die acht Hauptdomänen sind fest vorgegeben; Domäne 8 bleibt als Platzhalter
+verfügbar. Unterdomänen können angelegt und umbenannt werden. Ihre Kennungen
+bleiben erhalten. Das Entfernen oder Verschieben bestehender Unterdomänen ist
+noch nicht vorgesehen. Gliederungsrevisionen halten den verwendeten Namensstand
+fest; ältere Revisionen werden bei Umbenennungen nicht umgeschrieben.
+
+Die Matrix **Kapitel · Rolle · Domäne** zeigt Kombinationen mit aktiven und
+inaktiven Zuordnungen. Bemerkungen können für alle oder einzelne Rollen/Domänen
+gelten und die Farben Gelb, Blau, Grün, Rot oder Violett haben. Sie werden zusammen
+mit der Gliederung gespeichert. **Interne Bemerkungen und Bausteinvermerke
+erscheinen niemals in Word-/PowerPoint-Ausgaben**, auch nicht für HQ/intern und
+auch nicht bei einem aus älteren Versionen gespeicherten Vermerkschalter.
+
+Die Rollen-/Domänenangaben des Kapitels dienen der Redaktion und Navigation.
+Die Ausgabeauswahl wird weiterhin durch die Gültigkeit der Textbausteine bestimmt.
+
+## Quellen, Triage und Chunk-Zuordnungen
+
+1. **Quellen & Chunks** öffnen. Dateien auswählen, Quellenart, Herkunft und
+   gegebenenfalls Release ergänzen und hochladen. Exporte aus Jira, Confluence,
+   Mural oder Transkriptionswerkzeugen werden als unterstützte Dateien importiert;
+   direkte API-Connectoren sind noch nicht enthalten.
+2. **Zielgliederung** und Verarbeitungsmodus wählen; bei der Datei **KI Triage**
+   anklicken. Die Zielgliederung muss zuvor gespeichert sein.
+3. Vorschläge unter **Triage-Vorschlag prüfen** kontrollieren. Rollen, Domänen,
+   Stichwörter, Labels, Thema und Kapitelzuordnungen bearbeiten und bestätigen.
+4. In Kapitelbaum, Domänenbaum und Matrix die bestätigten Zuordnungen verfolgen.
+
+Der Modus **Lokale Regeln (keine KI)** ist ohne Modell nutzbar. Er verwendet
+Wortüberschneidungen und einfache deutsch-/englischsprachige Begriffshinweise.
+Die Ergebnisse sind Vorschläge und keine fachliche Freigabe. Eine erneute Triage
+überschreibt keine bereits bestätigten Labels oder Zuordnungen.
+
+Für **Lokale KI über Ollama** muss Ollama auf demselben Rechner unter Port 11434
+laufen und das eingetragene Modell bereits installiert sein. Die Anwendung lädt
+kein Modell herunter. Sie sendet Chunktext und einen begrenzten Kandidatenkatalog
+an diesen lokalen Dienst: bis zu 25 anhand der Begriffe vorgewählte Kapitel,
+acht Hauptdomänen und bis zu 20 Unterdomänen. Ungültige Rollen/Kapitelkennungen
+werden zurückgewiesen. Bei einem KI-Fehler erfolgt kein stiller Regel-Fallback.
+Die Modellanbindung wurde mit simulierten Antworten geprüft; ein realer
+Modelllauf wurde in der Entwicklungsumgebung mangels installiertem Modell noch
+nicht durchgeführt. Modellqualität und Laufzeit sind auf dem Zielrechner zu prüfen.
+
+Imports sind auf 10 MB pro Datei, 300 PDF-Seiten, 2 Millionen extrahierte Zeichen
+und 2000 Chunks begrenzt. Office-Dateien dürfen entpackt höchstens 32 MB groß sein.
+Fundstellen benennen beispielsweise PDF-Seite, Folie oder CSV-Zeile. Identische
+Dateiinhalte werden anhand ihrer Prüfsumme als bereits vorhanden erkannt.
+Für gescannte PDFs, Bilder und PPTX-Sprechernotizen ist die Extraktion noch nicht
+vollständig; entsprechende Hinweise erscheinen in der Quellenübersicht.
+
+**Zählregeln:** Vorschläge zählen erst nach Bestätigung. Direktzuordnungen und
+die Summe inklusive Unterkapiteln zählen eindeutige Chunks, keine wiederholten
+Verknüpfungen. Die Domänenzähler zählen die Chunks der dort zugeordneten Kapitel;
+die Domänenlabels am Chunk bleiben separat gepflegte Quellenmetadaten. Der
+Rollenfilter verwendet bestätigte Chunk-Rollen. Chunks ohne Rolle zählen nur in
+„Alle Rollen“. Die Matrix zählt je Kapitel und Rolle; ein Chunk kann in mehreren
+Domänenzeilen erscheinen. Kopien von Gliederungen übernehmen vorhandene bestätigte
+Chunk-Verknüpfungen. Die Chunk-Zähler zeigen den aktuellen Zuordnungsstand und
+sind noch keine historische Auswertung alter Gliederungsrevisionen.
+
+Chunks bleiben Quellmaterial und werden nicht automatisch in Office-Ausgaben
+übernommen. Die redaktionell geprüften Dokumenttexte werden weiterhin als
+Textbausteine gepflegt. **Datei löschen** entfernt Original, Chunks, Vorschläge
+und deren Zuordnungen gemeinsam. Bereits erzeugte Dokumentausgaben und manuell
+übernommene Texte werden dadurch nicht rückwirkend geändert.
+
 ## Bestehende Installation aktualisieren
 
 Anwendung beenden, die neue ZIP in einen neuen Programmordner entpacken und dort
@@ -109,7 +193,7 @@ sind noch nicht implementiert. SK und KO sind vorläufige Sprachoptionen.
 Inhalte werden nicht automatisch übersetzt.
 
 Interne Inhalte werden nur in HQ-/intern-Varianten aufgenommen. Interne Vermerke
-erscheinen zusätzlich nur bei aktiviertem Vermerkschalter. **Dies ist eine
+bleiben ausschließlich in der Redaktion. **Dies ist eine
 Ausgaberegel, keine Anmeldung oder Zugriffskontrolle:** Die Person am lokalen
 Arbeitsplatz kann alle Quelldaten sehen. Der Prototyp ist noch kein geschütztes
 Mehrbenutzersystem und soll nicht über das Netzwerk bereitgestellt werden.
@@ -118,7 +202,7 @@ Mehrbenutzersystem und soll nicht über das Netzwerk bereitgestellt werden.
 
 Noch nicht implementiert: Bildverwaltung und PII-Bereinigung, OCR,
 Klickstrecken, zentrale projektübergreifende Bausteinbibliothek,
-Quellenextraktion aus PDF/PPTX, Jira-/Confluence-Connectoren, KI-Agenten,
+direkte Jira-/Confluence-Connectoren, mehrere orchestrierte KI-Agenten,
 automatische Glossar-/FAQ-Erzeugung, Übersetzungsworkflow, vollständige
 Freigabeverfahren, PDF/HTML-Export und eigene hochladbare Layouttemplates.
 Gliederungsrevisionen lassen sich vergleichen; eine Wiederherstellung alter
@@ -158,5 +242,10 @@ Server und verwendet eine temporäre Datenbank; er verändert keine Benutzerdate
 Anlegen von Kapiteln, Filter, Baumdarstellung sowie Gliederungs-/Revisionsvergleiche.
 Die Modelltests umfassen auch bestehende Datenbanken ohne Metadaten und mehrdeutige
 Kapitelbezeichnungen.
+`python tests/browser_sources.py` prüft den gesamten neuen Ablauf: Mapping,
+Unterdomänen, farbige Matrixbemerkungen, Filter, Quellenimport, lokale Regel-Triage,
+bestätigte Zuordnungen, deduplizierte Zähler, Löschung und vermerkfreie Exporte.
+Die Modelltests prüfen zusätzlich die Ollama-Anbindung mit simulierten Antworten,
+den Erhalt von Verknüpfungen beim Speichern sowie das kaskadierende Löschen.
 Der vorhandene Checkout ist bereits isoliert; zusätzliche Git-Worktrees sind
 für den normalen Entwicklungsablauf nicht erforderlich.

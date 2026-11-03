@@ -73,7 +73,7 @@ class ModelTests(unittest.TestCase):
         self.content["internal"] = True
         self.assertEqual(app.compose(self.outline, p)["chapters"][0]["blocks"], [])
         p["role"] = "HQ"
-        self.assertEqual(app.compose(self.outline, p)["chapters"][0]["blocks"][0]["note"], self.content["note"])
+        self.assertEqual(app.compose(self.outline, p)["chapters"][0]["blocks"][0]["note"], "")
         p["show_notes"] = False
         self.assertEqual(app.compose(self.outline, p)["chapters"][0]["blocks"][0]["note"], "")
 

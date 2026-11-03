@@ -29,31 +29,35 @@ function list() {
 }
 function render() {
   previewRequest++;
+  $("sources-view").hidden = true;
   $("overview").hidden = true; $("comparison").hidden = true;
   list(); $("empty").hidden = !!current; $("studio").hidden = !current;
   if (!current) return;
-  $("outline-title").value = current.title; saveState(); renderMetadata(); renderProfile(); tree(); editor(); showTab(false);
+  $("outline-title").value = current.title; saveState(); renderMetadata(); renderProfile(); renderMappingControls(); tree(); editor(); showTab(false);
 }
 function renderProfile() {
   const p = current.profile;
-  $("profile").innerHTML = selectField("Rolle", "role", meta.roles, p.role) + selectField("Umfang", "scope", meta.scopes, p.scope) + inputField("Markt", "market", p.market, 'placeholder="Noch offen" maxlength="100"') + selectField("Sparte", "division", ["Van","PC","Beide"], p.division) + selectField("Sprache", "language", meta.languages, p.language) + inputField("Release", "release", p.release, 'placeholder="Noch offen" maxlength="100"') + `<div class="muted">SK / KO sind vorläufig vorgesehen.</div><label class="check"><input type="checkbox" data-key="approved_only" ${p.approved_only ? "checked" : ""}>Nur freigegebene Bausteine</label><label class="check"><input type="checkbox" data-key="show_notes" ${p.show_notes ? "checked" : ""}>Interne Vermerke (HQ / intern)</label>`;
+  $("profile").innerHTML = selectField("Rolle", "role", meta.roles, p.role) + selectField("Umfang", "scope", meta.scopes, p.scope) + inputField("Markt", "market", p.market, 'placeholder="Noch offen" maxlength="100"') + selectField("Sparte", "division", ["Van","PC","Beide"], p.division) + selectField("Sprache", "language", meta.languages, p.language) + inputField("Release", "release", p.release, 'placeholder="Noch offen" maxlength="100"') + `<div class="muted">SK / KO sind vorläufig vorgesehen.</div><label class="check"><input type="checkbox" data-key="approved_only" ${p.approved_only ? "checked" : ""}>Nur freigegebene Bausteine</label><span class="muted">Interne Vermerke bleiben ausschließlich in der Redaktion.</span>`;
   $("profile").querySelectorAll("[data-key]").forEach(el => el.onchange = run(async () => {
     p[el.dataset.key] = el.type === "checkbox" ? el.checked : el.value; markDirty();
     if (!$("preview").hidden) await preview();
+    tree();
   }));
 }
 function tree() {
-  renderChapterTree();
+  renderMappingControls();
+  if ($("tree-mode").value === "domains") run(renderDomainTree)();
+  else { domainTreeRequest++; renderChapterTree(); }
 }
 function selectedChapter() { return current.chapters.find(c => c.id === selected); }
 function editor() {
   const c = selectedChapter();
   if (!c) { $("chapter-editor").innerHTML = '<p class="muted">Wähle ein Kapitel oder lege ein neues an.</p>'; return; }
-  $("chapter-editor").innerHTML = `<div class="eyebrow">KAPITEL BEARBEITEN</div><label>Titel<input id="chapter-title" value="${esc(c.title)}" maxlength="300"></label><div class="form-grid">${selectField("Domäne", "domain", ["",...meta.domains], c.domain)}<label class="check"><input id="mandatory" type="checkbox" ${c.mandatory ? "checked" : ""}>Pflichtkapitel</label></div><label>Kapitelziel<textarea id="chapter-goal" rows="2">${esc(c.goal)}</textarea></label><div class="chapter-controls"><button data-action="up">↑ Nach oben</button><button data-action="down">↓ Nach unten</button><button data-action="out">← Höhere Ebene</button><button data-action="in">→ Unterkapitel</button><button data-action="delete" class="danger">Entfernen</button></div><div class="panel-heading"><h3>Textbausteine</h3><span class="muted">„*“ = alle · leer = ungeklärt</span></div><div id="blocks"></div><button id="add-block" class="full">+ Textbaustein zuordnen</button>`;
+  $("chapter-editor").innerHTML = `<div class="eyebrow">KAPITEL BEARBEITEN</div><label>Titel<input id="chapter-title" value="${esc(c.title)}" maxlength="300"></label><label class="check"><input id="mandatory" type="checkbox" ${c.mandatory ? "checked" : ""}>Pflichtkapitel</label><label>Kapitelziel<textarea id="chapter-goal" rows="2">${esc(c.goal)}</textarea></label><section id="chapter-mapping"></section><div class="chapter-controls"><button data-action="up">↑ Nach oben</button><button data-action="down">↓ Nach unten</button><button data-action="out">← Höhere Ebene</button><button data-action="in">→ Unterkapitel</button><button data-action="delete" class="danger">Entfernen</button></div><div class="panel-heading"><h3>Textbausteine</h3><span class="muted">„*“ = alle · leer = ungeklärt</span></div><div id="blocks"></div><button id="add-block" class="full">+ Textbaustein zuordnen</button>`;
   $("chapter-title").oninput = e => { c.title = e.target.value; markDirty(); tree(); };
   $("chapter-goal").oninput = e => { c.goal = e.target.value; markDirty(); };
   $("mandatory").onchange = e => { c.mandatory = e.target.checked; markDirty(); tree(); };
-  $("chapter-editor").querySelector('[data-key="domain"]').onchange = e => { c.domain = e.target.value; markDirty(); };
+  renderChapterMapping(c);
   $("chapter-editor").querySelectorAll("[data-action]").forEach(b => b.onclick = () => chapterAction(b.dataset.action));
   $("blocks").innerHTML = c.blocks.map((b,i) => `<article class="block" data-id="${esc(b.id)}"><div class="block-top"><strong>Baustein ${i+1}</strong><button class="remove-block danger">Entfernen</button></div><label>Text<textarea data-key="text" rows="6">${esc(b.text)}</textarea></label><div class="block-filters">${selectField("Rolle","role",meta.roles,b.role,"",true)}${selectField("Umfang","scope",meta.scopes,b.scope,"",true)}${selectField("Sparte","division",["Van","PC"],b.division,"",true)}${inputField("Markt (* = alle)","market",b.market,'maxlength="100"')}${inputField("Release (* = alle)","release",b.release,'maxlength="100"')}${selectField("Sprache","language",meta.languages,b.language)}${selectField("Status","status",["Entwurf","Freigegeben"],b.status)}</div><label class="check"><input type="checkbox" data-key="internal" ${b.internal ? "checked" : ""}>Interner Inhalt: nur für HQ und intern</label>${inputField("Quelle oder redaktionelle Herkunft","source",b.source)}<label>Interner Vermerk<textarea data-key="note" rows="2">${esc(b.note)}</textarea></label></article>`).join("");
   $("blocks").querySelectorAll(".block").forEach(el => {
@@ -96,13 +100,15 @@ async function save() {
     dirty = JSON.stringify(current) !== JSON.stringify(snapshot);
     current.revision = saved.revision;
     current.created_at = saved.created_at; current.updated_at = saved.updated_at;
+    current.domain_catalog = saved.domain_catalog;
     const byId = new Map(saved.chapters.map(c => [c.id,c]));
     current.chapters.forEach(c => { if (byId.has(c.id)) c.lineage_id = byId.get(c.id).lineage_id; });
     saveState();
   }
+  await refreshSourceIndex();
   list(); return saved;
 }
-function showTab(isPreview) { $("editing").hidden = isPreview; $("preview").hidden = !isPreview; $("edit-tab").classList.toggle("active",!isPreview); $("preview-tab").classList.toggle("active",isPreview); }
+function showTab(isPreview) { $("matrix-view").hidden = true; $("matrix-tab").classList.remove("active"); $("editing").hidden = isPreview; $("preview").hidden = !isPreview; $("edit-tab").classList.toggle("active",!isPreview); $("preview-tab").classList.toggle("active",isPreview); }
 async function preview() {
   const request = ++previewRequest;
   const plan = await api("/api/compose", {outline:current});
@@ -135,12 +141,12 @@ $("outline-title").oninput = e => { current.title = e.target.value; markDirty();
 $("new-outline").onclick = run(async () => {
   if (dirty && !confirm("Ungespeicherte Änderungen verwerfen?")) return;
   const title = prompt("Name der neuen Gliederung", "Neues Handbuch"); if (!title?.trim()) return;
-  current = await api("/api/create", {title}); meta.outlines.push(current); selected = current.chapters[0].id; dirty = false; render();
+  current = await api("/api/create", {title}); meta.outlines.push(structuredClone(current)); selected = current.chapters[0].id; dirty = false; render();
 });
 $("copy-outline").onclick = run(async () => {
   if (dirty) await save();
   if (dirty) throw new Error("Bitte die während des Speicherns entstandenen Änderungen zuerst speichern.");
-  current = await api("/api/copy",{id:current.id}); meta.outlines.push(current); selected = current.chapters[0]?.id; dirty = false; render();
+  current = await api("/api/copy",{id:current.id}); meta.outlines.push(structuredClone(current)); selected = current.chapters[0]?.id; dirty = false; await refreshSourceIndex(); render();
 });
 $("save").onclick = run(async () => { await save(); message("Gliederung gespeichert."); });
 $("add-chapter").onclick = () => openChapterDialog(false);
@@ -168,8 +174,8 @@ $("apply-import").onclick = run(async () => {
   if (!importRows) return;
   if (dirty && !confirm("Ungespeicherte Änderungen der aktuellen Gliederung verwerfen?")) return;
   const outline = {id:uuid(),title:$("import-title").value,revision:0,profile:{role:"Retailer",scope:"Standard",market:"",division:"Van",language:"de",release:"",approved_only:false,show_notes:false},chapters:importRows};
-  current = await api("/api/save",outline); meta.outlines.push(current); selected = current.chapters[0]?.id; dirty = false;
+  current = await api("/api/save",outline); meta.outlines.push(structuredClone(current)); selected = current.chapters[0]?.id; dirty = false;
   $("import-dialog").close(); render(); message("Gliederung importiert. Bitte Pflichtkapitel und Struktur prüfen.");
 });
 window.addEventListener("beforeunload",e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
-run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); list(); openOverview(); })();
+window.addEventListener("DOMContentLoaded", run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); list(); openOverview(); }));

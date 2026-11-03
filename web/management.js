@@ -5,7 +5,7 @@ const compareSelection = new Set(), collapsedChapters = new Set();
 let comparisonData = null, comparisonRequest = 0, comparisonSetup = 0;
 const revisionRequests = {left:0,right:0};
 const diffLabels = {added:"Neu",removed:"Entfernt",renamed:"Umbenannt",moved:"Verschoben",changed:"Geändert",unchanged:"Unverändert"};
-const fieldLabels = {mandatory:"Pflichtkapitel",domain:"Domäne",goal:"Kapitelziel",blocks:"Textbausteine",title:"Titel",
+const fieldLabels = {keywords:"Stichwörter",labels:"Labels",topic:"Thema",roles:"Kapitelrollen",remarks:"Interne Bemerkungen",mandatory:"Pflichtkapitel",domain:"Domäne",mappings:"Domänenzuordnungen",mapping_enabled:"Domänenmapping aktiv",goal:"Kapitelziel",blocks:"Textbausteine",title:"Titel",
   "metadata.version":"Gliederungsversion","metadata.document_type":"Dokumentart","metadata.status":"Status",
   "metadata.owner":"Verantwortlich","metadata.description":"Beschreibung","metadata.tags":"Tags",
   "profile.role":"Rolle","profile.scope":"Umfang","profile.market":"Markt","profile.release":"Produktrelease",
@@ -19,6 +19,7 @@ function openOutline(id) {
   selected = current.chapters[0]?.id; dirty = false; render();
 }
 function openOverview() {
+  $("sources-view").hidden = true;
   previewRequest++;
   $("message").hidden = true;
   $("studio").hidden = true; $("empty").hidden = true; $("comparison").hidden = true; $("overview").hidden = false;
@@ -78,7 +79,7 @@ function renderChapterTree() {
   function branch(items) {
     return `<ul class="folder-tree">${items.map(({chapter:c,number,children}) => {
       const collapsed = collapsedChapters.has(c.id);
-      return `<li><div class="tree-node">${children.length ? `<button class="node-toggle" data-toggle="${esc(c.id)}" aria-expanded="${!collapsed}" aria-label="${esc(c.title)} ${collapsed ? "aufklappen" : "zuklappen"}">${collapsed ? "▸" : "▾"}</button>` : '<span class="node-leaf" aria-hidden="true">·</span>'}<button class="chapter-row ${c.id === selected ? "selected" : ""}" data-id="${esc(c.id)}">${esc(number)} ${esc(c.title)}<small>${c.blocks.length} Bausteine${c.mandatory ? " · Pflicht" : ""}</small></button></div>${children.length ? `<div ${collapsed ? "hidden" : ""}>${branch(children)}</div>` : ""}</li>`;
+      return `<li><div class="tree-node">${children.length ? `<button class="node-toggle" data-toggle="${esc(c.id)}" aria-expanded="${!collapsed}" aria-label="${esc(c.title)} ${collapsed ? "aufklappen" : "zuklappen"}">${collapsed ? "▸" : "▾"}</button>` : '<span class="node-leaf" aria-hidden="true">·</span>'}<button class="chapter-row ${c.id === selected ? "selected" : ""}" data-id="${esc(c.id)}">${esc(number)} ${esc(c.title)}<small>${c.blocks.length} Bausteine${c.mandatory ? " · Pflicht" : ""}</small>${chapterMappingBadges(c)}</button></div>${children.length ? `<div ${collapsed ? "hidden" : ""}>${branch(children)}</div>` : ""}</li>`;
     }).join("")}</ul>`;
   }
   $("chapter-tree").innerHTML = nodes.length ? branch(nodes) : '<p class="muted">Noch keine Kapitel.</p>';
@@ -99,7 +100,7 @@ $("chapter-form").onsubmit = e => {
   e.preventDefault();
   const title = $("new-chapter-title").value.trim(); if (!title) return;
   const parent = current.chapters.find(c => c.id === $("new-chapter-parent").value);
-  const id = uuid(), c = {id,lineage_id:id,title,level:parent ? parent.level+1 : 1,mandatory:$("new-chapter-mandatory").checked,domain:parent?.domain || "",goal:"",blocks:[]};
+  const id = uuid(), c = {id,lineage_id:id,title,level:parent ? parent.level+1 : 1,mandatory:$("new-chapter-mandatory").checked,domain:"",mappings:[],goal:"",blocks:[]};
   const insert = parent ? subtreeEnd(current.chapters,current.chapters.indexOf(parent)) : current.chapters.length;
   current.chapters.splice(insert,0,c); selected = c.id;
   // Reveal the new node, including any previously collapsed ancestor.
@@ -109,8 +110,8 @@ $("chapter-form").onsubmit = e => {
 };
 $("cancel-chapter").onclick = () => $("chapter-dialog").close();
 $("add-subchapter").onclick = () => openChapterDialog(true);
-$("expand-tree").onclick = () => { current.chapters.forEach(c => collapsedChapters.delete(c.id)); tree(); };
-$("collapse-tree").onclick = () => { current.chapters.forEach(c => collapsedChapters.add(c.id)); tree(); };
+$("expand-tree").onclick = () => { if ($("tree-mode").value === "domains") setDomainExpansion(true); else {current.chapters.forEach(c => collapsedChapters.delete(c.id)); tree();} };
+$("collapse-tree").onclick = () => { if ($("tree-mode").value === "domains") setDomainExpansion(false); else {current.chapters.forEach(c => collapsedChapters.add(c.id)); tree();} };
 
 function clearComparison() { comparisonRequest++; comparisonData = null; $("compare-results").innerHTML = '<p class="muted">Auswahl geändert. Bitte den Vergleich aktualisieren.</p>'; }
 async function loadRevisions(side, previous = false) {
@@ -124,6 +125,7 @@ async function loadRevisions(side, previous = false) {
   select.disabled = false;
 }
 async function openComparison(left, right, history = false) {
+  $("sources-view").hidden = true;
   if (!meta.outlines.length) return message("Lege zuerst eine Gliederung an.");
   const setup = ++comparisonSetup;
   $("message").hidden = true;

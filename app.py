@@ -15,6 +15,8 @@ import threading
 import uuid
 import webbrowser
 import zipfile
+import domain_mapping as dm
+import sources as source_module
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -23,10 +25,8 @@ ROOT = Path(__file__).resolve().parent
 ROLES = ["Retailer", "Markt", "MO", "HQ", "intern"]
 SCOPES = ["Kompakt", "Standard", "Ausführlich"]
 LANGUAGES = ["de", "en", "fr", "it", "sk", "ko"]
-DOMAINS = ["Product Management", "Contract Generation", "Contract Management",
-           "Customer Management", "Finance Management", "Market Setting",
-           "Admin Section", "Domäne 8 – reserviert"]
-MAX_BODY = 8 * 1024 * 1024
+DOMAINS = dm.DOMAIN_NAMES
+MAX_BODY = 16 * 1024 * 1024
 
 
 class Invalid(ValueError):
@@ -58,6 +58,7 @@ def chapter(title, level=1, mandatory=False):
 
 def new_outline(title):
     return {"id": uid(), "title": title, "revision": 0, "profile": profile(),
+            "mapping_enabled": True,
             "metadata": outline_metadata(),
             "chapters": [chapter(t, mandatory=True) for t in ["Einleitung", "Glossar", "FAQ"]]}
 
@@ -72,8 +73,17 @@ def hydrate_outline(data):
     data["metadata"] = {**outline_metadata(), **data.get("metadata", {})}
     data.setdefault("created_at", "")
     data.setdefault("updated_at", "")
+    data.setdefault("mapping_enabled", True)
+    data.setdefault("domain_catalog", dm.catalog())
     for c in data["chapters"]:
         c.setdefault("lineage_id", c["id"])
+        if "mappings" not in c:
+            c["mappings"] = dm.legacy_mappings(c)
+        c.setdefault("keywords", "")
+        c.setdefault("labels", "")
+        c.setdefault("topic", "")
+        c.setdefault("roles", [])
+        c.setdefault("remarks", [])
     return data
 
 
@@ -134,6 +144,7 @@ def validate_outline(data):
     result = {"id": clean_text(data.get("id"), "ID", 100),
               "title": clean_text(data.get("title"), "Titel", 200).strip(),
               "metadata": validate_metadata(data.get("metadata", {})),
+              "mapping_enabled": boolean(data.get("mapping_enabled", True), "Domänenmapping"),
               "profile": validate_profile(data.get("profile")), "chapters": []}
     if not result["title"]:
         raise Invalid("Bitte einen Titel eingeben.")
@@ -163,7 +174,24 @@ def validate_outline(data):
         item = {"id": cid, "lineage_id": lineage, "title": clean_text(c.get("title"), "Kapiteltitel", 300).strip(),
                 "level": level, "mandatory": boolean(c.get("mandatory", False), "Pflichtkapitel"),
                 "domain": choice(c.get("domain", ""), [""] + DOMAINS, "Domäne"),
+                "mappings": dm.validate_mappings(dm.legacy_mappings(c)),
                 "goal": clean_text(c.get("goal", ""), "Kapitelziel"), "blocks": []}
+        for field in ["keywords", "labels", "topic"]:
+            item[field] = clean_text(c.get(field, ""), field, 2000)
+        roles = c.get("roles", [])
+        if not isinstance(roles, list) or len(roles) > len(ROLES) or any(r not in ROLES for r in roles):
+            raise Invalid("Ungültige Kapitelrollen.")
+        item["roles"] = list(dict.fromkeys(roles))
+        remarks = c.get("remarks", [])
+        if not isinstance(remarks, list) or len(remarks) > 100:
+            raise Invalid("Maximal 100 interne Bemerkungen je Kapitel.")
+        item["remarks"] = []
+        for remark in remarks:
+            item["remarks"].append({"id": clean_text(remark.get("id"), "Bemerkungs-ID", 100),
+                "text": clean_text(remark.get("text"), "Bemerkung", 5000),
+                "color": choice(remark.get("color"), ["gelb", "blau", "grün", "rot", "violett"], "Farbe"),
+                "role": choice(remark.get("role", "*"), ["*"] + ROLES, "Rolle"),
+                "domain_id": clean_text(remark.get("domain_id", "*"), "Domäne", 100)})
         if not item["title"]:
             raise Invalid("Ein Kapitel hat keinen Titel.")
         blocks = c.get("blocks", [])
@@ -254,9 +282,11 @@ def compare_outlines(left, right):
             values.append("renamed")
         if aid in moved:
             values.append("moved")
-        for field in ["mandatory", "domain", "goal"]:
-            if ac[field] != bc[field]:
+        for field in ["mandatory", "goal", "keywords", "labels", "topic", "roles", "remarks"]:
+            if ac.get(field) != bc.get(field):
                 fields.append(field)
+        if dm.signature(left, ac) != dm.signature(right, bc):
+            fields.append("mappings")
         blocks_a = [{k: v for k, v in x.items() if k != "id"} for x in ac["blocks"]]
         blocks_b = [{k: v for k, v in x.items() if k != "id"} for x in bc["blocks"]]
         if blocks_a != blocks_b:
@@ -285,6 +315,9 @@ def compare_outlines(left, right):
         return roots
 
     changes = []
+    if left.get("mapping_enabled", True) != right.get("mapping_enabled", True):
+        changes.append({"field": "mapping_enabled", "left": left.get("mapping_enabled", True),
+                        "right": right.get("mapping_enabled", True)})
     for field, before, after in [("title", left["title"], right["title"])]:
         if before != after:
             changes.append({"field": field, "left": before, "right": after})
@@ -381,7 +414,7 @@ def compose(outline, p):
                 excluded.append({"id": b["id"], "reason": reason})
             else:
                 public = {k: b[k] for k in ["text", "source", "status", "division"]}
-                public["note"] = b["note"] if p["show_notes"] and p["role"] in ["HQ", "intern"] else ""
+                public["note"] = ""  # Internal annotations are never document content.
                 included.append(public)
         rows.append({"id": c["id"], "title": c["title"], "level": c["level"],
                      "mandatory": c["mandatory"], "blocks": included, "excluded": excluded,
@@ -405,8 +438,6 @@ def compose(outline, p):
                 warnings.append(f"Pflichtkapitel „{row['title']}“ hat keinen passenden Inhalt.")
         else:
             row["number"] = ""
-    if p["show_notes"] and p["role"] not in ["HQ", "intern"]:
-        warnings.append("Interne Vermerke werden nur für HQ und intern ausgegeben.")
     return {"title": outline["title"], "revision": outline["revision"],
             "metadata": outline.get("metadata", outline_metadata()),
             "profile": p, "chapters": rows, "warnings": warnings,
@@ -442,9 +473,6 @@ def office_export(plan, fmt):
                     doc.add_paragraph("Gilt für: " + b["division"], style="Caption")
                 for line in b["text"].splitlines():
                     doc.add_paragraph(line)
-                if b["note"]:
-                    run = doc.add_paragraph("Interner Vermerk: " + b["note"]).runs[0]
-                    run.font.color.rgb = RGBColor.from_string("A65112")
         doc.sections[0].footer.paragraphs[0].text = "oneSCM-360 · Prüfausgabe"
         doc.save(output)
     elif fmt == "pptx":
@@ -490,8 +518,6 @@ def office_export(plan, fmt):
                 if plan["profile"]["division"] == "Beide" and b["division"] != "*":
                     parts.append("Gilt für: " + b["division"])
                 parts.append(b["text"])
-                if b["note"]:
-                    parts.append("Interner Vermerk: " + b["note"])
             pages(title, "\n\n".join(parts) or "[Inhalt ergänzen]")
         prs.save(output)
     else:
@@ -508,10 +534,33 @@ class Store:
                 CREATE TABLE IF NOT EXISTS outlines(id TEXT PRIMARY KEY, revision INTEGER NOT NULL, payload TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS history(id TEXT, revision INTEGER, created TEXT, payload TEXT, PRIMARY KEY(id, revision));
                 CREATE TABLE IF NOT EXISTS exports(id TEXT PRIMARY KEY, created TEXT, format TEXT, plan TEXT, artifact BLOB);
+                CREATE TABLE IF NOT EXISTS taxonomy(singleton INTEGER PRIMARY KEY CHECK(singleton=1), revision INTEGER NOT NULL, payload TEXT NOT NULL);
+                INSERT OR IGNORE INTO taxonomy VALUES(1, 0, '[]');
             """)
+        self.sources = source_module.Sources(self)
+        self.sources.init()
 
     def connect(self):
-        return sqlite3.connect(self.path, timeout=10)
+        db = sqlite3.connect(self.path, timeout=10)
+        db.execute("PRAGMA foreign_keys=ON")
+        return db
+
+    def taxonomy(self):
+        with self.connect() as db:
+            revision, payload = db.execute("SELECT revision, payload FROM taxonomy WHERE singleton=1").fetchone()
+        return {"revision": revision, "subdomains": json.loads(payload), "domains": dm.MAIN_DOMAINS}
+
+    def save_taxonomy(self, data):
+        if type(data.get("revision")) is not int:
+            raise Invalid("Die Revision der Unterdomänen fehlt.")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            rev, payload = db.execute("SELECT revision, payload FROM taxonomy WHERE singleton=1").fetchone()
+            if rev != data["revision"]:
+                raise Conflict("Die Unterdomänen wurden inzwischen geändert. Bitte den Dialog schließen und erneut öffnen.")
+            rows = dm.validate_subdomains(data.get("subdomains"), json.loads(payload))
+            db.execute("UPDATE taxonomy SET revision=?, payload=? WHERE singleton=1", (rev + 1, json.dumps(rows, ensure_ascii=False)))
+        return {"revision": rev + 1, "subdomains": rows, "domains": dm.MAIN_DOMAINS}
 
     def all(self):
         with self.connect() as db:
@@ -543,6 +592,8 @@ class Store:
 
     def save(self, data):
         metadata_supplied = "metadata" in data
+        mapping_supplied = "mapping_enabled" in data
+        supplied_chapters = {c["id"] for c in data.get("chapters", []) if "mappings" in c}
         data = validate_outline(data)
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -552,13 +603,31 @@ class Store:
             previous = hydrate_outline(json.loads(row[1])) if row else None
             if previous and not metadata_supplied:
                 data["metadata"] = previous["metadata"]
+            if previous and not mapping_supplied:
+                data["mapping_enabled"] = previous["mapping_enabled"]
+            old_chapters = {c["id"]: c for c in previous["chapters"]} if previous else {}
+            for c in data["chapters"]:
+                if c["id"] not in supplied_chapters and c["id"] in old_chapters:
+                    old = old_chapters[c["id"]]
+                    if "mappings" in old and c["domain"] != old["domain"]:
+                        raise Conflict("Die Domänenzuordnung wurde in einer älteren Oberfläche geändert. Bitte die Seite neu laden und Mehrfachzuordnungen verwenden.")
+                    c["mappings"] = old["mappings"]
+            subdomains = json.loads(db.execute("SELECT payload FROM taxonomy WHERE singleton=1").fetchone()[0])
+            data["domain_catalog"] = dm.catalog(subdomains)
+            valid_targets = {d["id"] for d in data["domain_catalog"]}
+            for c in data["chapters"]:
+                c["mappings"] = dm.validate_mappings(c["mappings"], valid_targets)
             stamp = now()
             data["created_at"] = previous["created_at"] if previous else stamp
             data["updated_at"] = stamp
             data["revision"] += 1
             payload = json.dumps(data, ensure_ascii=False)
-            db.execute("INSERT OR REPLACE INTO outlines VALUES(?,?,?)", (data["id"], data["revision"], payload))
+            db.execute("INSERT INTO outlines VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision, payload=excluded.payload", (data["id"], data["revision"], payload))
             db.execute("INSERT INTO history VALUES(?,?,?,?)", (data["id"], data["revision"], now(), payload))
+            valid_chapters = {c["id"] for c in data["chapters"]}
+            for (cid,) in db.execute("SELECT DISTINCT chapter_id FROM assignments WHERE outline_id=?", (data["id"],)).fetchall():
+                if cid not in valid_chapters:
+                    db.execute("DELETE FROM assignments WHERE outline_id=? AND chapter_id=?", (data["id"], cid))
         return data
 
     def copy(self, oid):
@@ -566,11 +635,18 @@ class Store:
         data["id"], data["revision"] = uid(), 0
         data["title"] = data["title"][:190] + " – Kopie"
         data["metadata"]["status"] = "Entwurf"
+        chapter_ids = {}
         for c in data["chapters"]:
+            old_id = c["id"]
             c["id"] = uid()  # lineage_id is retained for reliable comparisons.
+            chapter_ids[old_id] = c["id"]
             for b in c["blocks"]:
                 b["id"] = uid()
-        return self.save(data)
+        saved = self.save(data)
+        with self.connect() as db:
+            for old, new in chapter_ids.items():
+                db.execute("INSERT INTO assignments SELECT chunk_id, ?, ? FROM assignments WHERE outline_id=? AND chapter_id=?", (saved["id"], new, oid, old))
+        return saved
 
     def record_export(self, plan, fmt, artifact):
         eid = uid()
@@ -610,11 +686,17 @@ def make_server(store, port=8765):
             path = urlparse(self.path).path
             if path == "/api/state":
                 return self.send(200, {"token": token, "outlines": store.all(), "domains": DOMAINS,
+                                       "taxonomy": store.taxonomy(),
+                                       "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/": ("index.html", "text/html; charset=utf-8"),
                       "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                       "/management.js": ("management.js", "text/javascript; charset=utf-8"),
                       "/management.css": ("management.css", "text/css; charset=utf-8"),
+                      "/mapping.js": ("mapping.js", "text/javascript; charset=utf-8"),
+                      "/mapping.css": ("mapping.css", "text/css; charset=utf-8"),
+                      "/matrix.js": ("matrix.js", "text/javascript; charset=utf-8"),
+                      "/sources.js": ("sources.js", "text/javascript; charset=utf-8"),
                       "/style.css": ("style.css", "text/css; charset=utf-8")}
             if path in static:
                 name, mime = static[path]
@@ -630,15 +712,39 @@ def make_server(store, port=8765):
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= MAX_BODY:
-                    raise Invalid("Anfrage fehlt oder ist größer als 8 MB.")
+                    raise Invalid("Anfrage fehlt oder ist größer als 16 MB.")
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise Invalid("Ungültige Anfrage.")
                 path = urlparse(self.path).path
+                if path == "/api/sources":
+                    return self.send(200, {"sources": store.sources.listing(), "chunk_index": store.sources.index()})
+                if path == "/api/source/upload":
+                    raw = base64.b64decode(data.get("base64", ""), validate=True)
+                    return self.send(200, store.sources.upload(data.get("name"), raw, data))
+                if path == "/api/source/chunks":
+                    return self.send(200, store.sources.chunks(clean_text(data.get("id"), "Quellen-ID", 100)))
+                if path == "/api/source/delete":
+                    store.sources.delete(clean_text(data.get("id"), "Quellen-ID", 100))
+                    return self.send(200, {"deleted": True})
+                if path == "/api/source/review":
+                    return self.send(200, store.sources.review(data, {d["id"] for d in dm.catalog(store.taxonomy()["subdomains"])}))
+                if path == "/api/source/triage":
+                    return self.send(200, store.sources.triage(clean_text(data.get("id"), "Quellen-ID", 100),
+                        store.get(clean_text(data.get("outline_id"), "Gliederungs-ID", 100)),
+                        dm.catalog(store.taxonomy()["subdomains"]), data.get("mode"), data.get("model", ""), data.get("offset", 0)))
                 if path == "/api/create":
                     return self.send(200, store.save(new_outline(clean_text(data.get("title"), "Titel", 200))))
                 if path == "/api/save":
                     return self.send(200, store.save(data))
+                if path == "/api/taxonomy":
+                    return self.send(200, store.taxonomy())
+                if path == "/api/taxonomy/save":
+                    return self.send(200, store.save_taxonomy(data))
+                if path == "/api/domain-map":
+                    outline = validate_outline(data.get("outline"))
+                    return self.send(200, dm.grouped(outline, dm.catalog(store.taxonomy()["subdomains"]),
+                                                     boolean(data.get("include_inactive", False), "Inaktive Zuordnungen")))
                 if path == "/api/copy":
                     return self.send(200, store.copy(clean_text(data.get("id"), "ID", 100)))
                 if path == "/api/history":

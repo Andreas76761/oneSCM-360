@@ -31,8 +31,7 @@ try:
         expect(page.locator("#preview")).to_contain_text("Öffnen Sie die Vertragsübersicht")
         expect(page.locator("#preview")).not_to_contain_text("INTERNER-VERMERK-TEST")
         page.locator('#profile [data-key="role"]').select_option("HQ")
-        page.locator('#profile [data-key="show_notes"]').check()
-        expect(page.locator("#preview")).to_contain_text("INTERNER-VERMERK-TEST")
+        expect(page.locator("#preview")).not_to_contain_text("INTERNER-VERMERK-TEST")
         page.locator('#profile [data-key="role"]').select_option("Retailer")
         expect(page.locator("#preview")).not_to_contain_text("INTERNER-VERMERK-TEST")
         for button, suffix in [("↓ Word", "docx"), ("↓ PowerPoint", "pptx")]:
