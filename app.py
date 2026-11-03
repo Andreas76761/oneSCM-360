@@ -17,6 +17,10 @@ import webbrowser
 import zipfile
 import domain_mapping as dm
 import sources as source_module
+import editorial
+import library
+import media
+import language_workflow
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -74,6 +78,7 @@ def hydrate_outline(data):
     data.setdefault("created_at", "")
     data.setdefault("updated_at", "")
     data.setdefault("mapping_enabled", True)
+    data.setdefault("scope_rules", editorial.scope_defaults())
     data.setdefault("domain_catalog", dm.catalog())
     for c in data["chapters"]:
         c.setdefault("lineage_id", c["id"])
@@ -84,6 +89,9 @@ def hydrate_outline(data):
         c.setdefault("topic", "")
         c.setdefault("roles", [])
         c.setdefault("remarks", [])
+        c.setdefault("config", editorial.defaults(c))
+        c.setdefault("media", [])
+        c.setdefault("media_snapshots", {})
     return data
 
 
@@ -144,6 +152,7 @@ def validate_outline(data):
     result = {"id": clean_text(data.get("id"), "ID", 100),
               "title": clean_text(data.get("title"), "Titel", 200).strip(),
               "metadata": validate_metadata(data.get("metadata", {})),
+              "scope_rules": editorial.validate_scopes(data.get("scope_rules", editorial.scope_defaults())),
               "mapping_enabled": boolean(data.get("mapping_enabled", True), "Domänenmapping"),
               "profile": validate_profile(data.get("profile")), "chapters": []}
     if not result["title"]:
@@ -176,6 +185,10 @@ def validate_outline(data):
                 "domain": choice(c.get("domain", ""), [""] + DOMAINS, "Domäne"),
                 "mappings": dm.validate_mappings(dm.legacy_mappings(c)),
                 "goal": clean_text(c.get("goal", ""), "Kapitelziel"), "blocks": []}
+        item["media"] = media.validate_assignments(c.get("media", []))
+        item["media_snapshots"] = c.get("media_snapshots", {})
+        item["config"] = editorial.validate_chapter(c)
+        item["mandatory"] = item["config"]["inclusion"] == "Pflicht"
         for field in ["keywords", "labels", "topic"]:
             item[field] = clean_text(c.get(field, ""), field, 2000)
         roles = c.get("roles", [])
@@ -214,6 +227,7 @@ def validate_outline(data):
             for name in ["market", "release"]:
                 out[name] = clean_text(b.get(name, ""), name, 100).strip()
             out["internal"] = boolean(b.get("internal", False), "Interner Inhalt")
+            out.update(editorial.validate_block(b))
             item["blocks"].append(out)
         result["chapters"].append(item)
     return result
@@ -282,7 +296,7 @@ def compare_outlines(left, right):
             values.append("renamed")
         if aid in moved:
             values.append("moved")
-        for field in ["mandatory", "goal", "keywords", "labels", "topic", "roles", "remarks"]:
+        for field in ["mandatory", "goal", "keywords", "labels", "topic", "roles", "remarks", "config", "media", "media_snapshots"]:
             if ac.get(field) != bc.get(field):
                 fields.append(field)
         if dm.signature(left, ac) != dm.signature(right, bc):
@@ -315,6 +329,8 @@ def compare_outlines(left, right):
         return roots
 
     changes = []
+    if left.get("scope_rules", editorial.scope_defaults()) != right.get("scope_rules", editorial.scope_defaults()):
+        changes.append({"field": "scope_rules", "left": left.get("scope_rules"), "right": right.get("scope_rules")})
     if left.get("mapping_enabled", True) != right.get("mapping_enabled", True):
         changes.append({"field": "mapping_enabled", "left": left.get("mapping_enabled", True),
                         "right": right.get("mapping_enabled", True)})
@@ -403,62 +419,25 @@ def exclusion(b, p):
 
 
 def compose(outline, p):
-    p = validate_profile(p)
-    rows, warnings = [], []
-    counts = [0] * 6
-    for c in outline["chapters"]:
-        included, excluded = [], []
-        for b in c["blocks"]:
-            reason = exclusion(b, p)
-            if reason:
-                excluded.append({"id": b["id"], "reason": reason})
-            else:
-                public = {k: b[k] for k in ["text", "source", "status", "division"]}
-                public["note"] = ""  # Internal annotations are never document content.
-                included.append(public)
-        rows.append({"id": c["id"], "title": c["title"], "level": c["level"],
-                     "mandatory": c["mandatory"], "blocks": included, "excluded": excluded,
-                     "visible": bool(included) or c["mandatory"]})
-    # Retain ancestors of visible children, then number the resulting structure.
-    stack = []
-    for i, row in enumerate(rows):
-        while stack and rows[stack[-1]]["level"] >= row["level"]:
-            stack.pop()
-        if row["visible"]:
-            for ancestor in stack:
-                rows[ancestor]["visible"] = True
-        stack.append(i)
-    for row in rows:
-        if row["visible"]:
-            idx = row["level"] - 1
-            counts[idx] += 1
-            counts[idx + 1:] = [0] * (5 - idx)
-            row["number"] = ".".join(str(n) for n in counts[:idx + 1])
-            if row["mandatory"] and not row["blocks"]:
-                warnings.append(f"Pflichtkapitel „{row['title']}“ hat keinen passenden Inhalt.")
-        else:
-            row["number"] = ""
-    return {"title": outline["title"], "revision": outline["revision"],
-            "metadata": outline.get("metadata", outline_metadata()),
-            "profile": p, "chapters": rows, "warnings": warnings,
-            "draft": True}
+    return editorial.compose(outline, p)
 
 
 def profile_caption(p):
     return f"{p['role']} · {p['scope']} · {p['division']} · {p['language'].upper()} · Markt: {p['market'] or 'offen'} · Release: {p['release'] or 'offen'}"
 
 
-def office_export(plan, fmt):
+def office_export(plan, fmt, media_loader=None):
     output = io.BytesIO()
     caption = profile_caption(plan["profile"])
+    output_label = "PRÜFAUSGABE" if plan.get("draft", True) else "FREIGEGEBENE AUSGABE"
     if fmt == "docx":
         from docx import Document
-        from docx.shared import Pt, RGBColor
+        from docx.shared import Pt, RGBColor, Inches
         doc = Document()
         style = doc.styles["Normal"]
         style.font.name, style.font.size = "Calibri", Pt(11)
         doc.add_heading(plan["title"], 0)
-        doc.add_paragraph("PRÜFAUSGABE · Version " + plan["metadata"]["version"] + " · Revision " + str(plan["revision"]))
+        doc.add_paragraph(output_label + " · Version " + plan["metadata"]["version"] + " · Revision " + str(plan["revision"]))
         doc.add_paragraph(caption)
         for warning in plan["warnings"]:
             doc.add_paragraph("Prüfpunkt: " + warning)
@@ -466,14 +445,25 @@ def office_export(plan, fmt):
             if not c["visible"]:
                 continue
             doc.add_heading(c["number"] + " " + c["title"], c["level"])
-            if not c["blocks"] and c["mandatory"]:
+            if not c["blocks"] and not c.get("figures") and c["mandatory"]:
                 doc.add_paragraph("[Inhalt ergänzen]")
             for b in c["blocks"]:
                 if plan["profile"]["division"] == "Beide" and b["division"] != "*":
                     doc.add_paragraph("Gilt für: " + b["division"], style="Caption")
                 for line in b["text"].splitlines():
                     doc.add_paragraph(line)
-        doc.sections[0].footer.paragraphs[0].text = "oneSCM-360 · Prüfausgabe"
+            for figure in c.get("figures", []):
+                if figure["title"]:
+                    doc.add_paragraph(figure["title"], style="Caption")
+                for frame in figure["frames"]:
+                    if not media_loader:
+                        raise Invalid("Bilddaten für Ausgabe fehlen.")
+                    width = min(6.0, 8.0 * frame["width"] / frame["height"])
+                    doc.add_picture(io.BytesIO(media_loader(frame["asset_id"], frame["revision"])), width=Inches(width))
+                    caption = (f"Schritt {frame['step']}: " if figure["kind"] == "Klickstrecke" else "") + frame["caption"]
+                    if caption:
+                        doc.add_paragraph(caption, style="Caption")
+        doc.sections[0].footer.paragraphs[0].text = "oneSCM-360 · " + output_label
         doc.save(output)
     elif fmt == "pptx":
         from pptx import Presentation
@@ -495,7 +485,7 @@ def office_export(plan, fmt):
             for paragraph in bodybox.text_frame.paragraphs:
                 paragraph.font.size = Pt(18)
             footer = page.shapes.add_textbox(Inches(.65), Inches(7), Inches(12), Inches(.3))
-            footer.text_frame.text = f"oneSCM-360 · PRÜFAUSGABE · Revision {plan['revision']} · {len(prs.slides)}"
+            footer.text_frame.text = f"oneSCM-360 · {output_label} · Revision {plan['revision']} · {len(prs.slides)}"
             footer.text_frame.paragraphs[0].font.size = Pt(10)
 
         def pages(title, text):
@@ -518,7 +508,25 @@ def office_export(plan, fmt):
                 if plan["profile"]["division"] == "Beide" and b["division"] != "*":
                     parts.append("Gilt für: " + b["division"])
                 parts.append(b["text"])
-            pages(title, "\n\n".join(parts) or "[Inhalt ergänzen]")
+            if parts or not c.get("figures"):
+                pages(title, "\n\n".join(parts) or "[Inhalt ergänzen]")
+            for figure in c.get("figures", []):
+                for frame in figure["frames"]:
+                    if not media_loader:
+                        raise Invalid("Bilddaten für Ausgabe fehlen.")
+                    heading = title + (f" · Schritt {frame['step']}" if figure["kind"] == "Klickstrecke" else "")
+                    slide(heading, "")
+                    page = prs.slides[-1]
+                    width = min(11.8, 4.4 * frame["width"] / frame["height"])
+                    height = width * frame["height"] / frame["width"]
+                    page.shapes.add_picture(io.BytesIO(media_loader(frame["asset_id"], frame["revision"])), Inches((13.333-width)/2), Inches(1.65), width=Inches(width), height=Inches(height))
+                    caption = page.shapes.add_textbox(Inches(.65), Inches(6.2), Inches(12), Inches(.65))
+                    caption.text_frame.word_wrap = True
+                    caption.text_frame.text = frame["caption"] if len(frame["caption"]) <= 240 else "Bildunterschrift auf der folgenden Folie."
+                    for paragraph in caption.text_frame.paragraphs:
+                        paragraph.font.size = Pt(14)
+                    if len(frame["caption"]) > 240:
+                        pages(heading + " · Bildunterschrift", frame["caption"])
         prs.save(output)
     else:
         raise Invalid("Ausgabeformat muss docx oder pptx sein.")
@@ -539,11 +547,16 @@ class Store:
             """)
         self.sources = source_module.Sources(self)
         self.sources.init()
+        self.library = library.Library(self)
+        self.media = media.Media(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
         db.execute("PRAGMA foreign_keys=ON")
         return db
+
+    def get_catalog(self):
+        return dm.catalog(self.taxonomy()["subdomains"])
 
     def taxonomy(self):
         with self.connect() as db:
@@ -590,7 +603,8 @@ class Store:
             raise Invalid("Die ausgewählte Revision existiert nicht.")
         return hydrate_outline(json.loads(row[0]))
 
-    def save(self, data):
+    def save(self, data, releasing=False):
+        data = self.media.resolve(self.library.resolve(data))
         metadata_supplied = "metadata" in data
         mapping_supplied = "mapping_enabled" in data
         supplied_chapters = {c["id"] for c in data.get("chapters", []) if "mappings" in c}
@@ -613,10 +627,24 @@ class Store:
                         raise Conflict("Die Domänenzuordnung wurde in einer älteren Oberfläche geändert. Bitte die Seite neu laden und Mehrfachzuordnungen verwenden.")
                     c["mappings"] = old["mappings"]
             subdomains = json.loads(db.execute("SELECT payload FROM taxonomy WHERE singleton=1").fetchone()[0])
+            for c in data["chapters"]:
+                for item in c["media"]:
+                    for frame in item["frames"]:
+                        for ref in frame["variants"]:
+                            if not db.execute("SELECT 1 FROM media_history WHERE id=? AND revision=?", (ref["asset_id"], ref["revision"])).fetchone():
+                                raise Conflict("Eine Bildrevision wurde inzwischen gelöscht. Medienzuordnung erneut prüfen.")
             data["domain_catalog"] = dm.catalog(subdomains)
             valid_targets = {d["id"] for d in data["domain_catalog"]}
             for c in data["chapters"]:
                 c["mappings"] = dm.validate_mappings(c["mappings"], valid_targets)
+            if releasing:
+                errors = editorial.release_errors(compose(data, data["profile"]))
+                if errors:
+                    raise Invalid("Freigabe nicht möglich: " + " | ".join(errors))
+                data["metadata"]["status"] = "Freigegeben"
+            elif data["metadata"]["status"] == "Freigegeben":
+                # Content edits always start a new draft revision; approval is explicit.
+                data["metadata"]["status"] = "Entwurf"
             stamp = now()
             data["created_at"] = previous["created_at"] if previous else stamp
             data["updated_at"] = stamp
@@ -648,6 +676,19 @@ class Store:
                 db.execute("INSERT INTO assignments SELECT chunk_id, ?, ? FROM assignments WHERE outline_id=? AND chapter_id=?", (saved["id"], new, oid, old))
         return saved
 
+    def usage(self, oid):
+        self.get(oid)
+        with self.connect() as db:
+            exports = []
+            for eid, created, fmt, raw in db.execute("SELECT id, created, format, plan FROM exports ORDER BY created DESC"):
+                plan = json.loads(raw)
+                if plan.get("outline_id") == oid:
+                    exports.append({"id": eid, "created": created, "format": fmt,
+                                    "revision": plan["revision"], "profile": plan["profile"],
+                                    "draft": plan.get("draft", True), "manifest": plan.get("manifest", {})})
+            links = db.execute("SELECT a.chapter_id, c.id, s.name FROM assignments a JOIN chunks c ON c.id=a.chunk_id JOIN sources s ON s.id=c.source_id WHERE a.outline_id=?", (oid,)).fetchall()
+        return {"exports": exports, "chunks": [{"chapter_id": r[0], "chunk_id": r[1], "source": r[2]} for r in links]}
+
     def record_export(self, plan, fmt, artifact):
         eid = uid()
         with self.connect() as db:
@@ -670,7 +711,7 @@ def make_server(store, port=8765):
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'")
+            self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'")
             for key, value in (headers or {}).items():
                 self.send_header(key, value)
             self.end_headers()
@@ -696,6 +737,11 @@ def make_server(store, port=8765):
                       "/mapping.js": ("mapping.js", "text/javascript; charset=utf-8"),
                       "/mapping.css": ("mapping.css", "text/css; charset=utf-8"),
                       "/matrix.js": ("matrix.js", "text/javascript; charset=utf-8"),
+                      "/media.js": ("media.js", "text/javascript; charset=utf-8"),
+                      "/media.css": ("media.css", "text/css; charset=utf-8"),
+                      "/library.js": ("library.js", "text/javascript; charset=utf-8"),
+                      "/editorial.js": ("editorial.js", "text/javascript; charset=utf-8"),
+                      "/editorial.css": ("editorial.css", "text/css; charset=utf-8"),
                       "/sources.js": ("sources.js", "text/javascript; charset=utf-8"),
                       "/style.css": ("style.css", "text/css; charset=utf-8")}
             if path in static:
@@ -733,6 +779,66 @@ def make_server(store, port=8765):
                     return self.send(200, store.sources.triage(clean_text(data.get("id"), "Quellen-ID", 100),
                         store.get(clean_text(data.get("outline_id"), "Gliederungs-ID", 100)),
                         dm.catalog(store.taxonomy()["subdomains"]), data.get("mode"), data.get("model", ""), data.get("offset", 0)))
+                if path == "/api/media":
+                    return self.send(200, store.media.listing())
+                if path in ["/api/media/upload", "/api/media/save", "/api/media/ocr", "/api/media/preview", "/api/media/extract", "/api/media/delete"]:
+                    if data.get("working_role") not in ["HQ", "intern"]:
+                        raise Invalid("Medienbearbeitung erfordert Redaktionsrolle HQ oder intern.")
+                if path == "/api/media/delete":
+                    store.media.delete(clean_text(data.get("id"), "Bild-ID", 100))
+                    return self.send(200, {"deleted": True})
+                if path == "/api/media/extract":
+                    return self.send(200, store.media.extract_source(clean_text(data.get("id"), "Quellen-ID", 100), data.get("language", "de")))
+                if path == "/api/media/upload":
+                    return self.send(200, store.media.upload(base64.b64decode(data.get("base64", ""), validate=True), data.get("name"), data.get("language", "de")))
+                if path == "/api/media/save":
+                    return self.send(200, store.media.save(data))
+                if path == "/api/media/ocr":
+                    result = store.media.ocr(clean_text(data.get("id"), "Bild-ID", 100))
+                    if data.get("outline_id"):
+                        outline = store.get(clean_text(data["outline_id"], "Gliederungs-ID", 100))
+                        result["classification"] = source_module.rules({"text": result["text"]}, outline, store.get_catalog())
+                        ids = set(result["classification"]["chapter_ids"])
+                        result["chapter_titles"] = [c["title"] for c in outline["chapters"] if c["id"] in ids]
+                    return self.send(200, result)
+                if path == "/api/media/preview":
+                    raw = media.render(store.media.original(clean_text(data.get("id"), "Bild-ID", 100)), data.get("redactions", []), data.get("markers", []))
+                    return self.send(200, {"image": "data:image/png;base64," + base64.b64encode(raw).decode()})
+                if path == "/api/media/image":
+                    raw = store.media.image(clean_text(data.get("id"), "Bild-ID", 100), data.get("revision"), data.get("working_role"), data.get("original") is True)
+                    return self.send(200, {"image": "data:image/png;base64," + base64.b64encode(raw).decode()})
+                if path == "/api/library":
+                    return self.send(200, store.library.listing())
+                if path == "/api/library/language":
+                    entry = store.library.snapshot({"id": data.get("id"), "revision": data.get("revision")})
+                    return self.send(200, language_workflow.generate(entry, data.get("mode"), data.get("target"), data.get("model")))
+                if path == "/api/library/collect":
+                    return self.send(200, store.library.collection(data.get("outline"), data.get("chapter_id")))
+                if path == "/api/library/save":
+                    return self.send(200, store.library.save(data))
+                if path == "/api/reimport":
+                    base = store.get(clean_text(data.get("id"), "ID", 100))
+                    if base["revision"] != data.get("revision"):
+                        raise Conflict("Gliederung wurde geändert. Import erneut prüfen.")
+                    result = editorial.reimport(base, data.get("chapters"), data.get("decisions"))
+                    if data.get("apply") is True:
+                        if result["unresolved"]:
+                            raise Invalid("Bitte alle unklaren Kapitelzuordnungen entscheiden.")
+                        return self.send(200, store.save(result["outline"]))
+                    return self.send(200, result)
+                if path == "/api/release":
+                    outline = store.get(clean_text(data.get("id"), "ID", 100))
+                    if outline["revision"] != data.get("revision"):
+                        raise Conflict("Gliederung wurde geändert. Freigabe erneut prüfen.")
+                    return self.send(200, store.save(outline, releasing=True))
+                if path == "/api/usage":
+                    return self.send(200, store.usage(clean_text(data.get("id"), "ID", 100)))
+                if path == "/api/export/history":
+                    with store.connect() as db:
+                        row = db.execute("SELECT format, artifact FROM exports WHERE id=?", (clean_text(data.get("id"), "Ausgabe-ID", 100),)).fetchone()
+                    if not row:
+                        raise Invalid("Ausgabe nicht gefunden.")
+                    return self.send(200, row[1], "application/octet-stream")
                 if path == "/api/create":
                     return self.send(200, store.save(new_outline(clean_text(data.get("title"), "Titel", 200))))
                 if path == "/api/save":
@@ -760,15 +866,20 @@ def make_server(store, port=8765):
                         rows, warnings = parse_outline(data.get("text", ""))
                     return self.send(200, {"chapters": rows, "warnings": warnings})
                 if path == "/api/compose":
-                    outline = validate_outline(data.get("outline"))
+                    outline = validate_outline(store.media.resolve(store.library.resolve(data.get("outline"))))
                     return self.send(200, compose(outline, data.get("profile", outline["profile"])))
                 if path == "/api/export":
                     outline = store.get(clean_text(data.get("id"), "ID", 100))
                     if outline["revision"] != data.get("revision"):
                         raise Conflict("Vor dem Export bitte den aktuellen Stand laden und speichern.")
                     plan = compose(outline, outline["profile"])
+                    if data.get("published") is True:
+                        errors = editorial.release_errors(plan)
+                        if outline["metadata"]["status"] != "Freigegeben" or errors:
+                            raise Invalid("Für eine Veröffentlichung zuerst alle Prüfpunkte bearbeiten und die Gliederung freigeben.")
+                        plan["draft"] = False
                     fmt = choice(data.get("format"), ["docx", "pptx"], "Format")
-                    artifact = office_export(plan, fmt)
+                    artifact = office_export(plan, fmt, lambda aid, rev: store.media.image(aid, rev, "intern"))
                     eid = store.record_export(plan, fmt, artifact)
                     return self.send(200, artifact, "application/vnd.openxmlformats-officedocument." +
                                      ("wordprocessingml.document" if fmt == "docx" else "presentationml.presentation"),

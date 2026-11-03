@@ -15,12 +15,18 @@ async function loadSources() {
 }
 function renderSources() {
   const query=$("source-search").value.toLowerCase();
-  $("source-list").innerHTML=sourceRows.filter(s=>[s.name,s.kind,s.origin,s.release].join(" ").toLowerCase().includes(query)).map(s=>`<article class="source-card" data-source="${esc(s.id)}"><div class="panel-heading"><div><strong>${esc(s.name)}</strong><p class="muted">${esc(s.kind)} · ${s.chunks} Chunks · ${Math.ceil(s.size/1024)} KB · ${esc(formatDate(s.uploaded))}<br>${esc(s.origin)} ${s.release ? " · Release " + esc(s.release) : ""}</p></div><div class="actions"><button data-open-source="${esc(s.id)}">Chunks ansehen</button><button data-triage="${esc(s.id)}" ${triageRunning||!meta.outlines.length||!s.chunks?"disabled":""}>KI Triage</button><button data-delete-source="${esc(s.id)}" class="danger" ${triageRunning?"disabled":""}>Datei löschen</button></div></div>${s.warnings.map(w=>`<div class="warning">${esc(w)}</div>`).join("")}</article>`).join("") || '<p class="muted">Keine passenden Quellen vorhanden.</p>';
+  $("source-list").innerHTML=sourceRows.filter(s=>[s.name,s.kind,s.origin,s.release].join(" ").toLowerCase().includes(query)).map(s=>`<article class="source-card" data-source="${esc(s.id)}"><div class="panel-heading"><div><strong>${esc(s.name)}</strong><p class="muted">${esc(s.kind)} · ${s.chunks} Chunks · ${Math.ceil(s.size/1024)} KB · ${esc(formatDate(s.uploaded))}<br>${esc(s.origin)} ${s.release ? " · Release " + esc(s.release) : ""}</p></div><div class="actions"><button data-open-source="${esc(s.id)}">Chunks ansehen</button><button data-triage="${esc(s.id)}" ${triageRunning||!meta.outlines.length||!s.chunks?"disabled":""}>KI Triage</button>${/\.(docx|pptx|pdf)$/i.test(s.name)?`<button data-extract-images="${esc(s.id)}">Bilder extrahieren</button>`:""}<button data-delete-source="${esc(s.id)}" class="danger" ${triageRunning?"disabled":""}>Datei löschen</button></div></div>${s.warnings.map(w=>`<div class="warning">${esc(w)}</div>`).join("")}</article>`).join("") || '<p class="muted">Keine passenden Quellen vorhanden.</p>';
   $("source-list").querySelectorAll("[data-open-source]").forEach(b=>b.onclick=run(()=>openSource(b.dataset.openSource)));
   $("source-list").querySelectorAll("[data-triage]").forEach(b=>b.onclick=run(()=>triageSource(b.dataset.triage)));
+  $("source-list").querySelectorAll("[data-extract-images]").forEach(b=>b.onclick=run(async()=>{
+    if(!["HQ","intern"].includes(mediaRole())) throw new Error("Unter Bilder & Klickstrecken zuerst Redaktionsrolle HQ / intern wählen.");
+    b.disabled=true;
+    try { const result=await api("/api/media/extract",{id:b.dataset.extractImages,working_role:mediaRole(),language:current?.profile.language || "de"});message(`${result.images.length} Bildfundstellen verarbeitet. ${result.notice} ${result.warnings.join(" ")}`); }
+    finally { b.disabled=false; }
+  }));
   $("source-list").querySelectorAll("[data-delete-source]").forEach(b=>b.onclick=run(async()=>{
     const s=sourceRows.find(x=>x.id===b.dataset.deleteSource);
-    if(!confirm(`„${s.name}“ mit Originaldatei, ${s.chunks} Chunks und deren Zuordnungen endgültig löschen?`))return;
+    if(!confirm(`„${s.name}“ mit Originaldatei, ${s.chunks} Chunks und deren Zuordnungen endgültig löschen? Extrahierte Medienkopien und erzeugte Dokumente bleiben erhalten.`))return;
     await api("/api/source/delete",{id:s.id});if(sourceId===s.id){sourceId=null;sourceChunks=[];$("source-chunks").hidden=true;}await loadSources();message("Quelle, Chunks und Zuordnungen gelöscht. Bereits erzeugte Dokumente bleiben erhalten.");
   }));
 }

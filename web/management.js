@@ -58,7 +58,7 @@ function renderMetadata() {
   const m = current.metadata;
   $("outline-metadata").innerHTML = inputField("Gliederungsversion","version",m.version,'maxlength="60" required')
     + selectField("Dokumentart","document_type",documentTypes,m.document_type)
-    + selectField("Bearbeitungsstatus","status",outlineStatuses,m.status)
+    + selectField("Bearbeitungsstatus","status",m.status === "Freigegeben" ? outlineStatuses : outlineStatuses.filter(x => x !== "Freigegeben"),m.status)
     + inputField("Verantwortlich","owner",m.owner,'maxlength="200"')
     + inputField("Tags / Stichwörter","tags",m.tags,'maxlength="500" placeholder="z. B. Blueprint, Vertrag"')
     + `<label class="description-field">Beschreibung<textarea data-key="description" rows="2" maxlength="5000">${esc(m.description)}</textarea></label>`;
