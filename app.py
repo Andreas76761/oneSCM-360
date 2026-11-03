@@ -58,7 +58,37 @@ def chapter(title, level=1, mandatory=False):
 
 def new_outline(title):
     return {"id": uid(), "title": title, "revision": 0, "profile": profile(),
+            "metadata": outline_metadata(),
             "chapters": [chapter(t, mandatory=True) for t in ["Einleitung", "Glossar", "FAQ"]]}
+
+
+def outline_metadata():
+    return {"version": "1.0", "document_type": "Handbuch", "status": "Entwurf",
+            "owner": "", "description": "", "tags": ""}
+
+
+def hydrate_outline(data):
+    """Add defaults in memory; old databases and immutable history stay intact."""
+    data["metadata"] = {**outline_metadata(), **data.get("metadata", {})}
+    data.setdefault("created_at", "")
+    data.setdefault("updated_at", "")
+    for c in data["chapters"]:
+        c.setdefault("lineage_id", c["id"])
+    return data
+
+
+def validate_metadata(value):
+    if not isinstance(value, dict):
+        raise Invalid("Metadaten müssen ein Objekt sein.")
+    data = {**outline_metadata(), **value}
+    result = {}
+    for key, limit in [("version", 60), ("owner", 200), ("description", 5000), ("tags", 500)]:
+        result[key] = clean_text(data[key], key, limit).strip()
+    if not result["version"]:
+        raise Invalid("Bitte eine Gliederungsversion eingeben.")
+    result["document_type"] = choice(data["document_type"], ["Handbuch", "Releaseletter", "Quickreference", "Sonstiges"], "Dokumentart")
+    result["status"] = choice(data["status"], ["Entwurf", "In Prüfung", "Freigegeben", "Archiviert"], "Gliederungsstatus")
+    return result
 
 
 def block():
@@ -103,6 +133,7 @@ def validate_outline(data):
         raise Invalid("Gliederung fehlt.")
     result = {"id": clean_text(data.get("id"), "ID", 100),
               "title": clean_text(data.get("title"), "Titel", 200).strip(),
+              "metadata": validate_metadata(data.get("metadata", {})),
               "profile": validate_profile(data.get("profile")), "chapters": []}
     if not result["title"]:
         raise Invalid("Bitte einen Titel eingeben.")
@@ -113,7 +144,7 @@ def validate_outline(data):
     chapters = data.get("chapters")
     if not isinstance(chapters, list) or len(chapters) > 500:
         raise Invalid("Maximal 500 Kapitel pro Gliederung.")
-    seen, previous = set(), 0
+    seen, lineages, previous = set(), set(), 0
     for c in chapters:
         if not isinstance(c, dict):
             raise Invalid("Ungültiges Kapitel.")
@@ -125,7 +156,11 @@ def validate_outline(data):
         if type(level) is not int or not 1 <= level <= 6 or level > previous + 1:
             raise Invalid("Kapitelebenen dürfen keine Ebene überspringen.")
         previous = level
-        item = {"id": cid, "title": clean_text(c.get("title"), "Kapiteltitel", 300).strip(),
+        lineage = clean_text(c.get("lineage_id", cid), "Kapitelherkunft", 100)
+        if not lineage or lineage in lineages:
+            raise Invalid("Kapitelherkunft fehlt oder ist doppelt.")
+        lineages.add(lineage)
+        item = {"id": cid, "lineage_id": lineage, "title": clean_text(c.get("title"), "Kapiteltitel", 300).strip(),
                 "level": level, "mandatory": boolean(c.get("mandatory", False), "Pflichtkapitel"),
                 "domain": choice(c.get("domain", ""), [""] + DOMAINS, "Domäne"),
                 "goal": clean_text(c.get("goal", ""), "Kapitelziel"), "blocks": []}
@@ -154,6 +189,113 @@ def validate_outline(data):
             item["blocks"].append(out)
         result["chapters"].append(item)
     return result
+
+
+def compare_outlines(left, right):
+    """Match known lineage first, then unambiguous paths/titles; never fuzzy-match."""
+    from collections import defaultdict
+    from difflib import SequenceMatcher
+
+    def flatten(outline):
+        records, stack, counts = {}, [], [0] * 6
+        for c in outline["chapters"]:
+            while stack and stack[-1]["level"] >= c["level"]:
+                stack.pop()
+            counts[c["level"] - 1] += 1
+            counts[c["level"]:] = [0] * (6 - c["level"])
+            path = tuple(x["title"].strip().casefold() for x in stack + [c])
+            records[c["id"]] = {"chapter": c, "parent": stack[-1]["id"] if stack else None,
+                                 "path": path, "number": ".".join(map(str, counts[:c["level"]]))}
+            stack.append(c)
+        return records
+
+    a, b = flatten(left), flatten(right)
+    matches, basis = {}, {}
+    for method, key in [("Kennung", lambda r: r["chapter"].get("lineage_id", r["chapter"]["id"])),
+                        ("Kapitelpfad", lambda r: r["path"]),
+                        ("Eindeutiger Titel", lambda r: r["chapter"]["title"].strip().casefold())]:
+        # Ambiguous keys stay ambiguous even if one other occurrence was already matched.
+        group_a, group_b = defaultdict(list), defaultdict(list)
+        for cid, r in a.items():
+            group_a[key(r)].append(cid)
+        for cid, r in b.items():
+            group_b[key(r)].append(cid)
+        used = set(matches.values())
+        for value, ids in group_a.items():
+            other = group_b.get(value, [])
+            if len(ids) == len(other) == 1 and ids[0] not in matches and other[0] not in used:
+                matches[ids[0]] = other[0]
+                basis[ids[0]] = method
+                used.add(other[0])
+    reverse = {v: k for k, v in matches.items()}
+    moved = set()
+    groups = defaultdict(list)
+    for aid, bid in matches.items():
+        ap, bp = a[aid]["parent"], b[bid]["parent"]
+        if (ap is None and bp is None) or (ap in matches and matches[ap] == bp):
+            groups[ap].append(aid)
+        else:
+            moved.add(aid)
+    # Insertion/deletion alone must not mark every following sibling as moved.
+    for parent, ids in groups.items():
+        old = [cid for cid in a if cid in ids]
+        new = [reverse[cid] for cid in b if cid in reverse and reverse[cid] in ids]
+        stable = set()
+        for match in SequenceMatcher(a=old, b=new, autojunk=False).get_matching_blocks():
+            stable.update(old[match.a:match.a + match.size])
+        moved.update(set(ids) - stable)
+
+    flags, changed_fields = {}, {}
+    counts = {name: 0 for name in ["added", "removed", "renamed", "moved", "changed", "unchanged"]}
+    for aid, bid in matches.items():
+        ac, bc = a[aid]["chapter"], b[bid]["chapter"]
+        values, fields = [], []
+        if ac["title"] != bc["title"]:
+            values.append("renamed")
+        if aid in moved:
+            values.append("moved")
+        for field in ["mandatory", "domain", "goal"]:
+            if ac[field] != bc[field]:
+                fields.append(field)
+        blocks_a = [{k: v for k, v in x.items() if k != "id"} for x in ac["blocks"]]
+        blocks_b = [{k: v for k, v in x.items() if k != "id"} for x in bc["blocks"]]
+        if blocks_a != blocks_b:
+            fields.append("blocks")
+        if fields:
+            values.append("changed")
+        flags[aid] = values or ["unchanged"]
+        changed_fields[aid] = fields
+        for value in flags[aid]:
+            counts[value] += 1
+    counts["removed"] = len(a) - len(matches)
+    counts["added"] = len(b) - len(matches)
+
+    def tree(records, left_side):
+        nodes, roots = {}, []
+        for cid, record in records.items():
+            aid = cid if left_side else reverse.get(cid)
+            peer = matches.get(cid) if left_side else reverse.get(cid)
+            c = record["chapter"]
+            node = {"id": cid, "title": c["title"], "number": record["number"],
+                    "mandatory": c["mandatory"], "children": [], "peer_id": peer,
+                    "flags": flags[aid] if peer else ["removed" if left_side else "added"],
+                    "match_basis": basis.get(aid, ""), "changed_fields": changed_fields.get(aid, [])}
+            nodes[cid] = node
+            (nodes[record["parent"]]["children"] if record["parent"] else roots).append(node)
+        return roots
+
+    changes = []
+    for field, before, after in [("title", left["title"], right["title"])]:
+        if before != after:
+            changes.append({"field": field, "left": before, "right": after})
+    for section in ["metadata", "profile"]:
+        for field in left[section]:
+            if left[section][field] != right[section][field]:
+                changes.append({"field": section + "." + field, "left": left[section][field], "right": right[section][field]})
+    return {"left": tree(a, True), "right": tree(b, False), "counts": counts,
+            "metadata_changes": changes,
+            "left_label": f"{left['title']} · V{left['metadata']['version']} · R{left['revision']}",
+            "right_label": f"{right['title']} · V{right['metadata']['version']} · R{right['revision']}"}
 
 
 def parse_outline(text):
@@ -266,6 +408,7 @@ def compose(outline, p):
     if p["show_notes"] and p["role"] not in ["HQ", "intern"]:
         warnings.append("Interne Vermerke werden nur für HQ und intern ausgegeben.")
     return {"title": outline["title"], "revision": outline["revision"],
+            "metadata": outline.get("metadata", outline_metadata()),
             "profile": p, "chapters": rows, "warnings": warnings,
             "draft": True}
 
@@ -284,7 +427,7 @@ def office_export(plan, fmt):
         style = doc.styles["Normal"]
         style.font.name, style.font.size = "Calibri", Pt(11)
         doc.add_heading(plan["title"], 0)
-        doc.add_paragraph("PRÜFAUSGABE · Revision " + str(plan["revision"]))
+        doc.add_paragraph("PRÜFAUSGABE · Version " + plan["metadata"]["version"] + " · Revision " + str(plan["revision"]))
         doc.add_paragraph(caption)
         for warning in plan["warnings"]:
             doc.add_paragraph("Prüfpunkt: " + warning)
@@ -335,7 +478,7 @@ def office_export(plan, fmt):
             for offset in range(0, len(lines), 12):
                 slide(title + (" · Fortsetzung" if offset else ""), "\n".join(lines[offset:offset + 12]))
 
-        pages(plan["title"], caption)
+        pages(plan["title"], "Version " + plan["metadata"]["version"] + "\n" + caption)
         if plan["warnings"]:
             pages("Offene Prüfpunkte", "\n".join(plan["warnings"]))
         for c in plan["chapters"]:
@@ -372,27 +515,62 @@ class Store:
 
     def all(self):
         with self.connect() as db:
-            return [json.loads(r[0]) for r in db.execute("SELECT payload FROM outlines ORDER BY rowid")]
+            return [hydrate_outline(json.loads(r[0])) for r in db.execute("SELECT payload FROM outlines ORDER BY rowid")]
 
     def get(self, oid):
         with self.connect() as db:
             row = db.execute("SELECT payload FROM outlines WHERE id=?", (oid,)).fetchone()
         if not row:
             raise Invalid("Gliederung nicht gefunden.")
-        return json.loads(row[0])
+        return hydrate_outline(json.loads(row[0]))
+
+    def history(self, oid):
+        with self.connect() as db:
+            rows = db.execute("SELECT revision, created, payload FROM history WHERE id=? ORDER BY revision DESC", (oid,)).fetchall()
+        return [{"revision": r[0], "created": r[1], "title": json.loads(r[2])["title"],
+                 "metadata": hydrate_outline(json.loads(r[2]))["metadata"]} for r in rows]
+
+    def snapshot(self, oid, revision=None):
+        if revision is None:
+            return self.get(oid)
+        if type(revision) is not int or revision < 1:
+            raise Invalid("Ungültige Vergleichsrevision.")
+        with self.connect() as db:
+            row = db.execute("SELECT payload FROM history WHERE id=? AND revision=?", (oid, revision)).fetchone()
+        if not row:
+            raise Invalid("Die ausgewählte Revision existiert nicht.")
+        return hydrate_outline(json.loads(row[0]))
 
     def save(self, data):
+        metadata_supplied = "metadata" in data
         data = validate_outline(data)
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT revision FROM outlines WHERE id=?", (data["id"],)).fetchone()
+            row = db.execute("SELECT revision, payload FROM outlines WHERE id=?", (data["id"],)).fetchone()
             if (row and row[0] != data["revision"]) or (not row and data["revision"] != 0):
                 raise Conflict("Die Gliederung wurde inzwischen geändert. Bitte neu laden; lokale Änderungen vorher sichern.")
+            previous = hydrate_outline(json.loads(row[1])) if row else None
+            if previous and not metadata_supplied:
+                data["metadata"] = previous["metadata"]
+            stamp = now()
+            data["created_at"] = previous["created_at"] if previous else stamp
+            data["updated_at"] = stamp
             data["revision"] += 1
             payload = json.dumps(data, ensure_ascii=False)
             db.execute("INSERT OR REPLACE INTO outlines VALUES(?,?,?)", (data["id"], data["revision"], payload))
             db.execute("INSERT INTO history VALUES(?,?,?,?)", (data["id"], data["revision"], now(), payload))
         return data
+
+    def copy(self, oid):
+        data = self.get(oid)
+        data["id"], data["revision"] = uid(), 0
+        data["title"] = data["title"][:190] + " – Kopie"
+        data["metadata"]["status"] = "Entwurf"
+        for c in data["chapters"]:
+            c["id"] = uid()  # lineage_id is retained for reliable comparisons.
+            for b in c["blocks"]:
+                b["id"] = uid()
+        return self.save(data)
 
     def record_export(self, plan, fmt, artifact):
         eid = uid()
@@ -435,6 +613,8 @@ def make_server(store, port=8765):
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/": ("index.html", "text/html; charset=utf-8"),
                       "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+                      "/management.js": ("management.js", "text/javascript; charset=utf-8"),
+                      "/management.css": ("management.css", "text/css; charset=utf-8"),
                       "/style.css": ("style.css", "text/css; charset=utf-8")}
             if path in static:
                 name, mime = static[path]
@@ -459,6 +639,14 @@ def make_server(store, port=8765):
                     return self.send(200, store.save(new_outline(clean_text(data.get("title"), "Titel", 200))))
                 if path == "/api/save":
                     return self.send(200, store.save(data))
+                if path == "/api/copy":
+                    return self.send(200, store.copy(clean_text(data.get("id"), "ID", 100)))
+                if path == "/api/history":
+                    return self.send(200, store.history(clean_text(data.get("id"), "ID", 100)))
+                if path == "/api/compare":
+                    left = store.snapshot(clean_text(data.get("left_id"), "Linke ID", 100), data.get("left_revision"))
+                    right = store.snapshot(clean_text(data.get("right_id"), "Rechte ID", 100), data.get("right_revision"))
+                    return self.send(200, compare_outlines(left, right))
                 if path == "/api/import":
                     if data.get("filename", "").lower().endswith(".docx"):
                         rows, warnings = parse_docx(base64.b64decode(data.get("base64", ""), validate=True))

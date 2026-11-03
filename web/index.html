@@ -2,25 +2,47 @@
 <html lang="de">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>oneSCM-360 · Dokumentstudio</title><link rel="stylesheet" href="/style.css">
-  <script src="/app.js" defer></script>
+  <title>oneSCM-360 · Dokumentstudio</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/management.css">
+  <script src="/app.js" defer></script><script src="/management.js" defer></script>
 </head>
 <body>
   <header><div class="brand"><span class="brand-icon">360</span><div><strong>oneSCM<span>–360</span></strong><small>WISSEN. STRUKTUR. DOKUMENTATION.</small></div></div><span class="local">● Lokaler Arbeitsbereich</span></header>
   <nav><strong>Gliederungsstudio</strong><span>Quellen → Struktur → Inhalte → Ausgabe</span><span class="badge">Prototyp · Einzelarbeitsplatz</span></nav>
   <div id="message" role="status" aria-live="polite" hidden></div>
   <main>
-    <aside class="library"><div class="section-title">BIBLIOTHEK</div><h2>Deine Gliederungen</h2><p class="muted">Eine Wissensbasis. Unterschiedliche Perspektiven.</p><button id="new-outline" class="primary full">+ Gliederung anlegen</button><button id="import-outline" class="full">Gliederung importieren</button><div id="outline-list"></div><div class="aside-note"><strong>Struktur zuerst</strong><p>Lege Kapitel an und ergänze Inhalte schrittweise. Einleitung, Glossar und FAQ sind bei neuen Gliederungen als Pflichtkapitel vorgemerkt.</p></div></aside>
+    <aside class="library"><div class="section-title">BIBLIOTHEK</div><h2>Deine Gliederungen</h2><p class="muted">Eine Wissensbasis. Unterschiedliche Perspektiven.</p><button id="overview-button" class="full">Alle Gliederungen</button><button id="new-outline" class="primary full">+ Gliederung anlegen</button><button id="import-outline" class="full">Gliederung importieren</button><button id="compare-button" class="full">Gliederungen vergleichen</button><div id="outline-list"></div><div class="aside-note"><strong>Struktur zuerst</strong><p>Lege Kapitel an und ergänze Inhalte schrittweise. Einleitung, Glossar und FAQ sind bei neuen Gliederungen als Pflichtkapitel vorgemerkt.</p></div></aside>
     <section class="workspace">
+      <section id="overview" hidden>
+        <div class="eyebrow">ZENTRALE VERWALTUNG</div><h1>Alle Gliederungen</h1>
+        <p class="muted">Versionen, Zielgruppen und Bearbeitungsstände an einem Ort. Wähle zwei Gliederungen für einen Baumvergleich.</p>
+        <div class="overview-filters">
+          <label>Suche<input id="overview-search" placeholder="Titel, Version, Verantwortliche, Tags …"></label>
+          <label>Status<select id="overview-status"><option value="">Alle Status</option><option>Entwurf</option><option>In Prüfung</option><option>Freigegeben</option><option>Archiviert</option></select></label>
+          <label>Rolle<select id="overview-role"><option value="">Alle Rollen</option><option>Retailer</option><option>Markt</option><option>MO</option><option>HQ</option><option>intern</option></select></label>
+          <label>Sortierung<select id="overview-sort"><option value="updated">Zuletzt geändert</option><option value="title">Titel A–Z</option><option value="version">Version</option></select></label>
+        </div>
+        <div class="panel-heading"><span id="overview-count" class="muted"></span><button id="compare-selected" disabled>Auswahl vergleichen (0/2)</button></div>
+        <div class="table-scroll"><table class="outline-table"><thead><tr><th>Vergleich</th><th>Gliederung</th><th>Version</th><th>Status</th><th>Zielgruppe</th><th>Kapitel</th><th>Geändert</th><th>Aktionen</th></tr></thead><tbody id="overview-rows"></tbody></table></div>
+      </section>
+      <section id="comparison" hidden>
+        <div class="eyebrow">STRUKTUREN VERGLEICHEN</div><h1>Gliederungen im Baumvergleich</h1>
+        <p class="muted">Links: Ausgangsstand. Rechts: Vergleichsstand. „Neu“ bedeutet nur rechts vorhanden, „Entfernt“ nur links. Bekannte Kapitelkennungen werden zuerst zugeordnet, sonst eindeutige Kapitelpfade oder Titel. Mehrdeutige Treffer bleiben getrennt.</p>
+        <div id="compare-dirty" class="warning" hidden>Die offene Gliederung enthält ungespeicherte Änderungen. Zum Vergleichen dieser Änderungen zuerst im Editor speichern.</div>
+        <div class="compare-selectors"><div><label>Linke Gliederung<select id="compare-left"></select></label><label>Linker Stand<select id="compare-left-revision"></select></label></div><div><label>Rechte Gliederung<select id="compare-right"></select></label><label>Rechter Stand<select id="compare-right-revision"></select></label></div></div>
+        <div class="compare-toolbar"><button id="run-compare" class="primary">Vergleich aktualisieren</button><label class="check"><input id="differences-only" type="checkbox">Nur Unterschiede</label><button id="expand-compare">Alle aufklappen</button><button id="collapse-compare">Alle zuklappen</button></div>
+        <div id="compare-results" aria-live="polite"></div>
+      </section>
       <div id="empty" class="empty"><span class="eyebrow">DEIN DOKUMENT BEGINNT MIT EINER STRUKTUR</span><h1>Wissen in Form bringen.</h1><p>Importiere eine vorhandene Gliederung oder beginne mit einer neuen. Steuere anschließend Inhalte nach Rolle, Markt und Umfang.</p><div class="feature-grid"><div><b>01</b><h3>Struktur aufbauen</h3><p>Kapitel und Unterkapitel zentral verwalten.</p></div><div><b>02</b><h3>Inhalte zuordnen</h3><p>Texte mit Gültigkeit und Quellenhinweisen ergänzen.</p></div><div><b>03</b><h3>Ausgaben erzeugen</h3><p>Word und PowerPoint aus derselben Auswahl.</p></div></div></div>
       <div id="studio" hidden>
         <div class="title-row"><div><div class="eyebrow">GLIEDERUNG / REDAKTION</div><input id="outline-title" aria-label="Name der Gliederung"><div id="save-state" class="muted"></div></div><div class="actions"><button id="copy-outline">Kopieren</button><button id="save" class="primary">Speichern</button></div></div>
+        <details class="metadata-panel" open><summary>Version & Metadaten</summary><div id="outline-metadata" class="metadata-grid"></div><p class="muted">Version = frei gepflegter fachlicher Stand. Revision = automatisch gespeicherter Bearbeitungsstand. Der Status ersetzt keine fachliche Freigabeprüfung.</p><button id="history-button">Gespeicherte Stände vergleichen</button></details>
         <div id="profile" class="profile"></div>
         <div class="tabbar"><button id="edit-tab" class="active">Struktur & Inhalte</button><button id="preview-tab">Ausgabe prüfen</button><div class="spacer"></div><button id="export-docx">↓ Word</button><button id="export-pptx">↓ PowerPoint</button></div>
-        <div id="editing" class="editor-grid"><section class="tree-panel"><div class="panel-heading"><h3>Kapitel</h3><button id="add-chapter" aria-label="Kapitel hinzufügen">+</button></div><div id="chapter-tree"></div></section><section id="chapter-editor" class="content-panel"></section></div>
+        <div id="editing" class="editor-grid"><section class="tree-panel"><div class="panel-heading"><h3>Kapitelbaum</h3></div><button id="add-chapter" class="full">+ Kapitel erstellen</button><button id="add-subchapter" class="full">+ Unterkapitel erstellen</button><div class="tree-tools"><button id="expand-tree">Aufklappen</button><button id="collapse-tree">Zuklappen</button></div><div id="chapter-tree"></div></section><section id="chapter-editor" class="content-panel"></section></div>
         <section id="preview" hidden></section>
       </div>
     </section>
   </main>
+  <dialog id="chapter-dialog"><form id="chapter-form"><div class="eyebrow">STRUKTUR ERWEITERN</div><h2>Kapitel erstellen</h2><label>Kapiteltitel<input id="new-chapter-title" required maxlength="300" autocomplete="off"></label><label>Übergeordnetes Kapitel<select id="new-chapter-parent"></select></label><label class="check"><input id="new-chapter-mandatory" type="checkbox">Pflichtkapitel</label><p class="muted">Neue Kapitel werden am Ende der ausgewählten Ebene eingefügt.</p><div class="dialog-actions"><button type="button" id="cancel-chapter">Abbrechen</button><button type="submit" class="primary">Kapitel anlegen</button></div></form></dialog>
   <dialog id="import-dialog"><form id="import-form"><div class="eyebrow">STRUKTUR ÜBERNEHMEN</div><h2>Gliederung importieren</h2><p>Füge eine Gliederung ein oder wähle TXT, Markdown oder Word. Die Übernahme erstellt eine neue Gliederung.</p><label>Name<input id="import-title" required maxlength="200" value="Importierte Gliederung"></label><label>Datei<input id="import-file" type="file" accept=".txt,.md,.docx"></label><label>Text aus der Zwischenablage<textarea id="import-text" rows="8" placeholder="1 Einleitung&#10;2 Contract Management&#10;  2.1 Vertragsübersicht&#10;3 Glossar&#10;4 FAQ"></textarea></label><div id="import-preview"></div><div class="dialog-actions"><button type="button" id="cancel-import">Abbrechen</button><button type="submit">Struktur erkennen</button><button type="button" id="apply-import" class="primary" disabled>Neue Gliederung übernehmen</button></div></form></dialog>
 </body></html>

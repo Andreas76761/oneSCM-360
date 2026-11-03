@@ -28,10 +28,15 @@ Die aktive Datenbank nicht in einem Synchronisations- oder Netzlaufwerk ablegen.
 ## Vorhandene Funktionen
 
 - Mehrere Gliederungen anlegen und unabhängig kopieren.
+- Zentrale Übersicht mit Suche, Status-/Rollenfilter und Sortierung; direkte
+  Bearbeitung und Auswahl zweier Gliederungen für einen Vergleich.
+- Manuell pflegbare Gliederungsversion, Dokumentart, Status, Verantwortliche,
+  Beschreibung und Tags. Automatische Speicherrevisionen bleiben davon getrennt.
 - Gliederungsimport per eingefügtem Text, TXT, Markdown oder DOCX bis 5 MB;
   Vorschau mit korrigierbaren Titeln und Ebenen. DOCX nutzt Überschriftstile;
   ohne diese werden Absätze übernommen und eine Warnung angezeigt.
-- Kapitel und Unterkapitel (bis Ebene 6), Pflichtkapitel, Ziele und Domänen.
+- Kapitel und Unterkapitel (bis Ebene 6) über einen Dialog direkt anlegen;
+  aufklappbarer Ordnerbaum, Pflichtkapitel, Ziele und Domänen.
 - Verschieben vollständiger Teilbäume mit stabilen Kapitelkennungen.
 - Textbausteine mit Rolle, Markt, Sparte, Sprache, Release, Umfang, Quelle,
   Status und internen Vermerken.
@@ -40,6 +45,9 @@ Die aktive Datenbank nicht in einem Synchronisations- oder Netzlaufwerk ablegen.
   langen Texten. Keine automatische inhaltliche Kürzung.
 - Lokale Speicherung mit Revisionen und Schutz vor veralteten Schreibzugriffen.
   Exportplan und erzeugte Datei werden gemeinsam in der Datenbank archiviert.
+- Zwei Gliederungen oder zwei gespeicherte Revisionen nebeneinander im Ordnerbaum
+  vergleichen: neue, entfernte, umbenannte, verschobene und geänderte Kapitel;
+  Metadatenvergleich, Filter „Nur Unterschiede“ und Markierung des Gegenstücks.
 
 ## Bedienablauf
 
@@ -49,6 +57,50 @@ Die aktive Datenbank nicht in einem Synchronisations- oder Netzlaufwerk ablegen.
    Releasefeld bedeutet ungeklärt und verhindert die Aufnahme.
 4. Das Ausgabeprofil oben wählen und „Ausgabe prüfen“ öffnen.
 5. Änderungen speichern; Word oder PowerPoint herunterladen.
+
+## Gliederungen pflegen und vergleichen
+
+Die Anwendung startet mit **Alle Gliederungen**. „Bearbeiten“ öffnet einen
+Datensatz. Unter **Version & Metadaten** lässt sich beispielsweise die fachliche
+Version `1.2` pflegen. Jeder Speichervorgang erstellt zusätzlich eine automatische
+Revision. Die Version wird auch in Word-/PowerPoint-Prüfausgaben ausgegeben.
+Der Gliederungsstatus ist eine redaktionelle Kennzeichnung; er ersetzt keine
+fachliche Dokumentfreigabe. Archivierte Gliederungen bleiben über den Statusfilter
+auffindbar und bearbeitbar.
+
+**Kapitel erstellen** legt einen Eintrag auf der Hauptebene an. **Unterkapitel
+erstellen** wählt das aktuell markierte Kapitel als übergeordneten Eintrag.
+Im Dialog kann die Zuordnung geändert werden. Neue Kapitel erscheinen am Ende
+der gewählten Ebene und lassen sich anschließend mit den Pfeiltasten verschieben.
+Die Kapitelkennungen und zugeordneten Texte bleiben dabei erhalten.
+
+Für einen Vergleich in der Übersicht zwei Kontrollkästchen wählen und **Auswahl
+vergleichen** anklicken. Links steht der Ausgangsstand, rechts der Vergleichsstand:
+„Neu“ bedeutet ausschließlich rechts vorhanden, „Entfernt“ ausschließlich links.
+Alternativ öffnet **Gespeicherte Stände vergleichen** im Editor zwei Revisionen
+derselben Gliederung. Der Vergleich ist lesend; ungespeicherte Änderungen werden
+nicht einbezogen und bleiben beim Wechsel zwischen den Ansichten erhalten.
+
+Kapitel werden zuerst über bekannte Kennungen zugeordnet; Kopien behalten dafür
+die Kapitelherkunft. Bei unabhängigen Importen werden eindeutige Kapitelpfade
+oder eindeutige Titel verglichen. Mehrdeutige Kapitel werden nicht automatisch
+zugeordnet. Umbenannte Kapitel aus voneinander unabhängigen Importen können daher
+als entfernt/neu erscheinen. Eine manuelle Zuordnung solcher Treffer folgt später.
+„Geändert“ kennzeichnet Unterschiede an Pflichtregel, Domäne, Kapitelziel oder
+Textbausteinen; es ist noch kein zeilenweiser Textvergleich.
+
+## Bestehende Installation aktualisieren
+
+Anwendung beenden, die neue ZIP in einen neuen Programmordner entpacken und dort
+`start.bat` starten. Bei Verwendung des Standardpfads werden die vorhandenen Daten
+unter `%LOCALAPPDATA%\oneSCM-360` wieder geladen. Bei einem benutzerdefinierten
+`--data-dir` denselben Datenordner weiterverwenden. Vor dem Update bei beendeter
+Anwendung eine Kopie des Datenordners sichern.
+
+Alte Gliederungen erhalten die Metadaten-Standardwerte beim Laden; Kapitel,
+Bausteine und bisherige Revisionen bleiben erhalten. Alte Historieneinträge
+werden nicht umgeschrieben. Für alte Datensätze ohne eigenen Zeitstempel wird
+kein ursprüngliches Erstellungsdatum erfunden.
 
 Die Auswahl „Beide“ bei der Sparte enthält gemeinsame sowie PC-/Van-spezifische
 Bausteine. Spezifische Inhalte sind entsprechend beschriftet. Markt- und
@@ -69,8 +121,9 @@ Klickstrecken, zentrale projektübergreifende Bausteinbibliothek,
 Quellenextraktion aus PDF/PPTX, Jira-/Confluence-Connectoren, KI-Agenten,
 automatische Glossar-/FAQ-Erzeugung, Übersetzungsworkflow, vollständige
 Freigabeverfahren, PDF/HTML-Export und eigene hochladbare Layouttemplates.
-Revisionen und Exporte sind gespeichert, eine Oberfläche für deren Vergleich
-und Wiederherstellung folgt später. Die aktuell erzeugten Layouts sind einfache
+Gliederungsrevisionen lassen sich vergleichen; eine Wiederherstellung alter
+Stände sowie eine Oberfläche für archivierte Exportdateien folgen später.
+Die aktuell erzeugten Layouts sind einfache
 Arbeitsvorlagen. Seiten-/Folienumbrüche und Darstellung in Microsoft Office
 müssen auf dem Windows-Zielsystem geprüft werden.
 
@@ -101,5 +154,9 @@ benötigt Playwright und Chromium (`python -m pip install playwright`, danach
 `python tests/browser_smoke.py`. Ein bereits installierter Browser lässt sich
 über `ONESCM_BROWSER_PATH` auswählen. Der Test startet einen eigenen lokalen
 Server und verwendet eine temporäre Datenbank; er verändert keine Benutzerdaten.
+`python tests/browser_management.py` prüft zusätzlich Metadaten, manuelles
+Anlegen von Kapiteln, Filter, Baumdarstellung sowie Gliederungs-/Revisionsvergleiche.
+Die Modelltests umfassen auch bestehende Datenbanken ohne Metadaten und mehrdeutige
+Kapitelbezeichnungen.
 Der vorhandene Checkout ist bereits isoliert; zusätzliche Git-Worktrees sind
 für den normalen Entwicklungsablauf nicht erforderlich.

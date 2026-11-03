@@ -11,7 +11,7 @@ async function api(path, data) {
 }
 function run(fn) { return async (...args) => { try { await fn(...args); } catch (e) { message(e.message, true); } }; }
 function markDirty() { dirty = true; saveState(); }
-function saveState() { $("save-state").textContent = `Revision ${current.revision} · ${dirty ? "Ungespeicherte Änderungen" : "Lokal gespeichert"}`; }
+function saveState() { $("save-state").textContent = `Version ${current.metadata?.version || "1.0"} · Revision ${current.revision} · ${dirty ? "Ungespeicherte Änderungen" : "Lokal gespeichert"}`; }
 function options(values, value, all = false) {
   return (all ? ["*", ...values] : values).map(v => `<option value="${esc(v)}" ${v === value ? "selected" : ""}>${esc(v === "*" ? "Alle" : v)}</option>`).join("");
 }
@@ -22,17 +22,17 @@ function inputField(label, key, value, attrs = "") {
   return `<label>${esc(label)}<input data-key="${key}" value="${esc(value)}" ${attrs}></label>`;
 }
 function list() {
-  $("outline-list").innerHTML = meta.outlines.map(o => `<button class="outline-item ${current?.id === o.id ? "selected" : ""}" data-id="${esc(o.id)}">${esc(o.title)}<small>${o.chapters.length} Kapitel · Revision ${o.revision}</small></button>`).join("");
+  $("outline-list").innerHTML = meta.outlines.map(o => `<button class="outline-item ${current?.id === o.id ? "selected" : ""}" data-id="${esc(o.id)}">${esc(o.title)}<small>V${esc(o.metadata.version)} · ${esc(o.metadata.status)}<br>${o.chapters.length} Kapitel · Revision ${o.revision}</small></button>`).join("");
   $("outline-list").querySelectorAll("button").forEach(b => b.onclick = () => {
-    if (dirty && !confirm("Ungespeicherte Änderungen verwerfen?")) return;
-    current = structuredClone(meta.outlines.find(o => o.id === b.dataset.id));
-    selected = current.chapters[0]?.id; dirty = false; render();
+    openOutline(b.dataset.id);
   });
 }
 function render() {
+  previewRequest++;
+  $("overview").hidden = true; $("comparison").hidden = true;
   list(); $("empty").hidden = !!current; $("studio").hidden = !current;
   if (!current) return;
-  $("outline-title").value = current.title; saveState(); renderProfile(); tree(); editor(); showTab(false);
+  $("outline-title").value = current.title; saveState(); renderMetadata(); renderProfile(); tree(); editor(); showTab(false);
 }
 function renderProfile() {
   const p = current.profile;
@@ -43,12 +43,7 @@ function renderProfile() {
   }));
 }
 function tree() {
-  const counts = [0,0,0,0,0,0];
-  $("chapter-tree").innerHTML = current.chapters.map(c => {
-    counts[c.level-1]++; counts.fill(0,c.level);
-    return `<button class="chapter-row ${c.id === selected ? "selected" : ""}" data-id="${esc(c.id)}">${esc(counts.slice(0,c.level).join("."))} ${esc(c.title)}<small>Ebene ${c.level} · ${c.blocks.length} Bausteine${c.mandatory ? " · Pflicht" : ""}</small></button>`;
-  }).join("") || '<p class="muted">Noch keine Kapitel.</p>';
-  $("chapter-tree").querySelectorAll("button").forEach(b => b.onclick = () => { selected = b.dataset.id; tree(); editor(); });
+  renderChapterTree();
 }
 function selectedChapter() { return current.chapters.find(c => c.id === selected); }
 function editor() {
@@ -100,6 +95,9 @@ async function save() {
   if (current.id === saved.id) {
     dirty = JSON.stringify(current) !== JSON.stringify(snapshot);
     current.revision = saved.revision;
+    current.created_at = saved.created_at; current.updated_at = saved.updated_at;
+    const byId = new Map(saved.chapters.map(c => [c.id,c]));
+    current.chapters.forEach(c => { if (byId.has(c.id)) c.lineage_id = byId.get(c.id).lineage_id; });
     saveState();
   }
   list(); return saved;
@@ -141,12 +139,11 @@ $("new-outline").onclick = run(async () => {
 });
 $("copy-outline").onclick = run(async () => {
   if (dirty) await save();
-  const copy = structuredClone(current); copy.id = uuid(); copy.title += " – Kopie"; copy.revision = 0;
-  copy.chapters.forEach(c => { c.id = uuid(); c.blocks.forEach(b => b.id = uuid()); });
-  current = await api("/api/save",copy); meta.outlines.push(current); selected = current.chapters[0]?.id; dirty = false; render();
+  if (dirty) throw new Error("Bitte die während des Speicherns entstandenen Änderungen zuerst speichern.");
+  current = await api("/api/copy",{id:current.id}); meta.outlines.push(current); selected = current.chapters[0]?.id; dirty = false; render();
 });
 $("save").onclick = run(async () => { await save(); message("Gliederung gespeichert."); });
-$("add-chapter").onclick = () => { const c = {id:uuid(),title:"Neues Kapitel",level:1,mandatory:false,domain:"",goal:"",blocks:[]}; current.chapters.push(c); selected = c.id; markDirty(); tree(); editor(); };
+$("add-chapter").onclick = () => openChapterDialog(false);
 $("preview-tab").onclick = run(preview); $("edit-tab").onclick = () => { previewRequest++; showTab(false); };
 $("export-docx").onclick = run(() => exportFile("docx")); $("export-pptx").onclick = run(() => exportFile("pptx"));
 $("import-outline").onclick = () => { invalidateImport(); $("import-dialog").showModal(); };
@@ -175,4 +172,4 @@ $("apply-import").onclick = run(async () => {
   $("import-dialog").close(); render(); message("Gliederung importiert. Bitte Pflichtkapitel und Struktur prüfen.");
 });
 window.addEventListener("beforeunload",e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
-run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); list(); })();
+run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); list(); openOverview(); })();

@@ -184,6 +184,23 @@ class HttpTests(unittest.TestCase):
             urlopen(request)
         self.assertEqual(failure.exception.code, 403)
 
+    def test_history_copy_and_compare_endpoints(self):
+        with self.post("/api/create", {"title": "Vergleich"}) as response:
+            left = json.load(response)
+        with self.post("/api/copy", {"id": left["id"]}) as response:
+            right = json.load(response)
+        right["metadata"]["version"] = "2.0"
+        right["chapters"][0]["title"] = "Neue Einleitung"
+        with self.post("/api/save", right) as response:
+            right = json.load(response)
+        with self.post("/api/history", {"id": right["id"]}) as response:
+            self.assertEqual(len(json.load(response)), 2)
+        with self.post("/api/compare", {"left_id": left["id"], "right_id": right["id"], "right_revision": 2}) as response:
+            self.assertEqual(json.load(response)["counts"]["renamed"], 1)
+        with self.assertRaises(HTTPError) as failure:
+            self.post("/api/compare", {"left_id": left["id"], "right_id": right["id"], "right_revision": 99})
+        self.assertEqual(failure.exception.code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()
