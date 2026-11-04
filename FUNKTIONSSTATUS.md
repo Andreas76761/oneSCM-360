@@ -1,6 +1,6 @@
 # Funktionsstand: Gliederungsverwaltung und Dokumentstudio
 
-Stand: **v0.6.0 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
+Stand: **v0.6.1 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
 Kernpunkten sowie die anschließende Aufforderung, offene Punkte weiter umzusetzen.
 „Vorher“ bezeichnet den Repository-Stand `ba2e937` vor diesem Ausbau.
 „Umgesetzt“ bezieht sich auf den lokalen Einzelbenutzer-Prototyp, nicht auf ein
@@ -161,3 +161,9 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | Gesamtsicherung und Wiederherstellung | Umgesetzt | Geprüfte ZIP, automatische Rücksicherung, explizite Bestätigung; gleiche Programmversion, bis 128 MB ZIP / 512 MB Datenbank, unverschlüsselt |
 | Stapel für Dokumentvarianten | Umgesetzt | Bis 60 Prüfausgaben; Sprachen, Rollen, Dokumentarten und Formate; Vorschau und Prüfbericht; keine automatische Übersetzung/Freigabe |
 | Windows/Linux- und Browser-CI | Vorbereitet | GitHub-Actions-Konfiguration vorhanden; externe Laufresultate und echte Office-Abnahme gesondert prüfen |
+
+## Ergänzung v0.6.1
+
+Quellenübersicht: Typfilter DOCX/PDF/MD/HTML, Mehrfachauswahl, gemeinsame Triage, Textansicht mit Bearbeitung, gekennzeichnete Textauszüge und neue Markdown-Zusammenstellungen implementiert. Sprachliche KI-Zusammenfassung erfolgt weiterhin über den manuellen KI-Austausch.
+
+Prüfung v0.6.1: 135 automatisierte Tests erfolgreich; neue Auswahl-/Zusammenstellungsoberfläche und bestehender Quellenablauf in Chromium geprüft.

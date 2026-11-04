@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.6.0 · Stand 04.11.2026**
+**Prototyp 0.6.1 · Stand 04.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -261,3 +261,5 @@ Prüfstand v0.6.0: 132 automatisierte Tests und neun Chromium-Browserabläufe er
   aus der gespeicherten Gliederung.
 - **CI vorbereitet:** Python-Tests unter Windows/Linux und Chromium-Browserabläufe
   in GitHub Actions. Lokale Tests ersetzen keine fachliche Windows-/Office-Abnahme.
+
+Neu in v0.6.1: Quellen nach DOCX/PDF/Markdown/HTML filtern, Dateien markieren, gemeinsam triagieren und extrahierte Texte bearbeiten, als Auszüge zusammenstellen oder als neue Markdown-Quelle speichern/herunterladen.

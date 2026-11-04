@@ -34,6 +34,7 @@ import releases
 import ai_exchange
 import backups
 import variant_export
+import source_collection
 from version import VERSION, RELEASE_DATE
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -877,7 +878,8 @@ def make_server(store, port=8765):
                                        "taxonomy": store.taxonomy(),
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
-            static = {"/workspace_tools.js": ("workspace_tools.js", "text/javascript; charset=utf-8"),
+            static = {"/source_collection.js": ("source_collection.js", "text/javascript; charset=utf-8"),
+                      "/workspace_tools.js": ("workspace_tools.js", "text/javascript; charset=utf-8"),
                       "/design.js": ("design.js", "text/javascript; charset=utf-8"),
                       "/design.css": ("design.css", "text/css; charset=utf-8"),
                       "/ai_exchange.js": ("ai_exchange.js", "text/javascript; charset=utf-8"),
@@ -1026,6 +1028,12 @@ def make_server(store, port=8765):
                     return self.send(200, publication.matrix(outline))
                 if path == "/api/sources":
                     return self.send(200, {"sources": store.sources.listing(), "chunk_index": store.sources.index()})
+                if path == "/api/source/collection":
+                    result = source_collection.collect(store, data)
+                    result.pop("parts")
+                    return self.send(200, result)
+                if path == "/api/source/collection/save":
+                    return self.send(200, source_collection.save(store, data))
                 if path == "/api/source/upload":
                     raw = base64.b64decode(data.get("base64", ""), validate=True)
                     return self.send(200, store.sources.upload(data.get("name"), raw, data))

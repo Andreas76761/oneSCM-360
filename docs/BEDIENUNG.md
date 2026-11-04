@@ -575,3 +575,33 @@ Prüfpunkte, Exportkennungen und Prüfsummen und dient der internen Redaktion; i
 nicht ungeprüft zusammen mit Leserunterlagen verteilen. Jede Datei wird in der
 Ausgabehistorie abgelegt. Die Ausgangsgliederung wird nicht verändert. Eine
 Veröffentlichung erfolgt weiterhin über eine geprüfte, freigegebene Gliederung.
+
+
+## 19. Quellen markieren und zusammenstellen (v0.6.1)
+
+Über der Dateiübersicht stehen Dateitypfilter für DOCX, PDF, MD, HTML/HTM und andere
+Formate. Der Typfilter und die Textsuche wirken zusammen. **Alle markieren** wählt
+alle aktuell gefilterten Dateien; **Alle aufheben** leert die gesamte Auswahl.
+Einzelne Dateien lassen sich über ihre Checkbox markieren. Eine Anzeige nennt auch
+markierte Dateien außerhalb des Filters: Diese gehören weiter zur Sammelaktion.
+
+**Markierte Dateien verarbeiten** führt die oben eingestellte Regel-/Ollama-Triage
+für die Auswahl nacheinander aus. Eine Zielgliederung ist erforderlich. Vorschläge
+werden nicht automatisch zu bestätigten Kapitelzuordnungen. Der bestehende
+Stoppbutton hält nach der laufenden Verarbeitung an; Fehler einzelner Dateien
+werden gemeldet, die übrigen Dateien können weiter verarbeitet werden.
+
+**Dateien zusammenführen / Texte ansehen** lädt extrahierte Texte samt Fundstellen
+in einen Editor. Die Originaldateien bleiben unverändert. **Kurze Textauszüge
+einsetzen** verwendet höchstens 500 Zeichen pro Chunk: eine ausdrücklich gekennzeichnete
+Auszugssammlung, keine KI-Zusammenfassung. Wesentliche Bedingungen können fehlen.
+Eine sprachliche Zusammenfassung kann über den vorhandenen KI-Austausch mit der
+anschließend gespeicherten Quelle erstellt werden.
+
+Den Text bearbeiten und als Markdown herunterladen oder **Als neue Quelle speichern**.
+Unbearbeitete Zusammenstellungen behalten die Chunk-Grenzen und Ursprungsreferenzen;
+bearbeitete Texte werden neu gechunked. Labels, Freigaben und Zuordnungen werden
+nicht übernommen. Bei Änderungen/Löschung der Ausgangsquellen muss die Zusammenstellung
+neu geladen werden. Bis 1500 Dateien und insgesamt 2 Millionen extrahierte Textzeichen
+je Zusammenstellung; größere Bestände in Teilmengen bearbeiten. Der Download enthält
+Quelltext, keine geprüfte Leserpublikation und keine neue vollständige PII-Bereinigung.
