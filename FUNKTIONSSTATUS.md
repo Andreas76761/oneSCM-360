@@ -1,6 +1,6 @@
 # Funktionsstand: Gliederungsverwaltung und Dokumentstudio
 
-Stand: **v0.6.1 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
+Stand: **v0.8.0 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
 Kernpunkten sowie die anschließende Aufforderung, offene Punkte weiter umzusetzen.
 „Vorher“ bezeichnet den Repository-Stand `ba2e937` vor diesem Ausbau.
 „Umgesetzt“ bezieht sich auf den lokalen Einzelbenutzer-Prototyp, nicht auf ein
@@ -113,7 +113,7 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | Vier-Agenten-Finalisierung | Umgesetzt | Finalisierung, Validierung, technische Renderprobe, interner Markdown-Bericht; keine automatische Freigabe |
 | Separates Register Testing / UI / Steuerung / IT | Umgesetzt | Eigene Unterthemen, Mehrfachzuordnung, Suche, Archivstatus, Revisionen; in keiner Leserausgabe, auch nicht HQ/intern |
 | FAQ-Basis für internen Chatbot | Umgesetzt | Freigegebene, vorgemerkte Frage-Antwort-Paare mit Profilfilter; seit v0.5.0 Chat mit wörtlichen Antwortbelegen |
-| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.6.0 · 04.11.2026, serverseitige Buildinformation |
+| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.8.0 · 04.11.2026, serverseitige Buildinformation |
 
 ## Ergänzungen in Version 0.5.0
 
@@ -167,3 +167,30 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 Quellenübersicht: Typfilter DOCX/PDF/MD/HTML, Mehrfachauswahl, gemeinsame Triage, Textansicht mit Bearbeitung, gekennzeichnete Textauszüge und neue Markdown-Zusammenstellungen implementiert. Sprachliche KI-Zusammenfassung erfolgt weiterhin über den manuellen KI-Austausch.
 
 Prüfung v0.6.1: 135 automatisierte Tests erfolgreich; neue Auswahl-/Zusammenstellungsoberfläche und bestehender Quellenablauf in Chromium geprüft.
+
+
+## Ergänzungen v0.7.0
+
+| Funktion | Stand | Grenze |
+|---|---|---|
+| Zentrales RAG-Register | Umgesetzt als lokale Belegsuche | Aktuelle Text-/Metadaten der Register, Profilfilter, maximal 100 Treffer; kein Vektorindex oder semantisches Modell |
+| Belegantworten und FAQ-Chat-Verbindung | Umgesetzt | Vollständige freigegebene Auszüge, keine frei generierte Antwort; Navigation mit Frage/Profil |
+| Rollen-/sprachspezifische Kapitelentwürfe | Umgesetzt | Geprüfte Belegauswahl, bestehende Gliederung/Unterkapitel, Herkunftsreferenzen; interne Treffer ausgeschlossen |
+| Screensuche und Kapitelzuordnung | Umgesetzt | Metadatensuche, Profilfilter, bereinigte Vorschau, feste Revision; nur PII-geprüfte freigegebene Bilder übernehmbar |
+| Semantische RAG-Antworten / Embeddings | Offen | Modell, Qualitätskatalog und Betrieb noch gesondert festlegen |
+
+Prüfung v0.7.0: 141 automatisierte Tests erfolgreich. RAG-Suche, vollständige Belege, interne Ausschlüsse, Kapitelentwürfe, FAQ-Chat-Navigation sowie bereinigte Screenvorschau und Kapitelzuordnung im Chromium-Browser geprüft.
+
+
+## Ergänzungen v0.8.0 · lokaler Arbeitsstand
+
+| Funktion | Stand | Grenze |
+|---|---|---|
+| Quelldateien ohne Gliederung gestalten | Implementiert, lokal getestet | Aufbereiteter Text; keine originalgetreue Rekonstruktion beliebiger Office-/PDF-Layouts |
+| Getrennte Typografie und Hinweisgestaltung | Implementiert, Renderer getestet | Schrift/Größe/Zeilenabstand je Textebene, Rahmen/Farbe/Icons je Hinweistyp; Office-/Browserabnahme offen |
+| Designpatterns speichern | Implementiert, lokal getestet | Benannte Reihen mit Revisionen; Änderungen beeinflussen keine Originaldatei |
+| Vorher-/Nachher-Vorschau | Backend/Handler geprüft | Isolierte HTML-Vorschaufenster; aktueller Browser-Endablauf noch nicht ausgeführt |
+| Acht Agenten und Orchestrator | Implementiert, lokal getestet | Regelbasierte Vorschläge und manueller Übersetzungsauftrag; keine automatische Veröffentlichung |
+| Aktuelle GitHub-Veröffentlichung | Offen | Automatische Freigabeprüfung durch Nutzungslimit blockiert; v0.7.0/v0.8.0 noch nicht auf GitHub |
+
+Prüfung v0.8.0: 145 lokale automatisierte Tests erfolgreich, darunter socketfreie HTTP-Handler-Prüfungen und DOCX/PPTX/PDF/HTML-Rendering. Nach der letzten Korrektur der Quellenprüfung wurden die fünf Agenten-/Designtests erneut erfolgreich ausgeführt. Drei Socket-HTTP-Tests und die aktuelle Browser-Endabnahme wurden wegen der blockierten Freigabeprüfung nicht ausgeführt. JavaScript-Syntaxprüfungen erfolgreich. Microsoft-Office-Abnahme auf Windows steht aus.

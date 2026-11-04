@@ -35,6 +35,9 @@ import ai_exchange
 import backups
 import variant_export
 import source_collection
+import rag
+import source_design
+import agent_hub
 from version import VERSION, RELEASE_DATE
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -471,9 +474,14 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
         if not template_bytes:
             style.font.name, style.font.size = design["font"], Pt(design["size"])
             style.font.color.rgb = RGBColor.from_string(design["text"][1:])
+            style.paragraph_format.line_spacing=design["line_height"]
             doc.styles["Title"].font.color.rgb = RGBColor.from_string(design["primary"][1:])
             doc.styles["Caption"].font.color.rgb = RGBColor.from_string(design["accent"][1:])
             for level in range(1, 10):
+                prefix="chapter" if level==1 else "subchapter"
+                doc.styles[f"Heading {level}"].font.name=design[prefix+"_font"]
+                doc.styles[f"Heading {level}"].font.size=Pt(design[prefix+"_size"])
+                doc.styles[f"Heading {level}"].paragraph_format.line_spacing=design[prefix+"_line"]
                 doc.styles[f"Heading {level}"].font.color.rgb = RGBColor.from_string(design["chapter" if level == 1 else "subchapter"][1:])
         doc.add_heading(plan["title"], 0)
         doc.add_paragraph(output_label + " · Version " + plan["metadata"]["version"] + " · Revision " + str(plan["revision"]))
@@ -515,9 +523,19 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
             if kind:
                 props = paragraph.get_or_add_pPr()
                 shade = OxmlElement("w:shd"); shade.set(qn("w:fill"),design[kind][1:]); props.append(shade)
+                if design[kind+"_border"]:
+                    borders=OxmlElement("w:pBdr")
+                    for edge in ["top","left","bottom","right"]:
+                        border=OxmlElement("w:"+edge);border.set(qn("w:val"),"single");border.set(qn("w:sz"),"6");border.set(qn("w:color"),design[kind+"_border_color"][1:]);borders.append(border)
+                    props.append(borders)
                 if design["icons"]:
-                    run = OxmlElement("w:r"); node = OxmlElement("w:t");node.set(qn("xml:space"),"preserve")
-                    node.text = renderers.callout_icon(kind,design)+" ";run.append(node);paragraph.insert(1,run)
+                    run = OxmlElement("w:r");paragraph.insert(1,run)
+                    if design["icon_style"]=="outline":
+                        from docx.text.run import Run
+                        from docx.text.paragraph import Paragraph
+                        icon_run=Run(run,Paragraph(paragraph,doc));icon_run.add_picture(io.BytesIO(renderers.icon_png(kind,design[kind+"_border_color"])),width=Inches(.18));icon_run.add_text(" ")
+                    else:
+                        node = OxmlElement("w:t");node.set(qn("xml:space"),"preserve");node.text=renderers.callout_icon(kind,design)+" ";run.append(node)
             for run in list(paragraph.iter(qn("w:r"))):
                 if run.getparent().tag == qn("w:hyperlink"):
                     props=run.get_or_add_rPr();color=props.find(qn("w:color"))
@@ -562,8 +580,8 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
         X = lambda value: Inches(value * sx)
         Y = lambda value: Inches(value * sy)
         blank = min(prs.slide_layouts, key=lambda layout: len(layout.placeholders))
-        body_size = max(14,min(26,design["size"]*1.6))
-        line_points = body_size*1.3+4
+        body_size = design["size"]
+        line_points = body_size*design["line_height"]+4
 
         def slide(title, body, level=1, links=None):
             links = links or {}
@@ -572,23 +590,28 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
             tf = box.text_frame
             tf.word_wrap = True
             tf.text = title
-            tf.paragraphs[0].font.size = Pt(26)
+            tf.paragraphs[0].font.size = Pt(design["chapter_size" if level==1 else "subchapter_size"])
+            tf.paragraphs[0].line_spacing=design["chapter_line" if level==1 else "subchapter_line"]
             if not template_bytes:
-                tf.paragraphs[0].font.name = design["font"]
+                tf.paragraphs[0].font.name = design["chapter_font" if level==1 else "subchapter_font"]
                 tf.paragraphs[0].font.color.rgb = RGBColor.from_string(design["chapter" if level == 1 else "subchapter"][1:])
             for index,line in enumerate(body.split("\n")):
                 kind = renderers.callout_kind(line)
                 if kind:
                     badge = page.shapes.add_shape(MSO_SHAPE.RECTANGLE,X(.65),Y(1.7)+Pt(index*line_points),X(12),Pt(line_points))
                     badge.fill.solid();badge.fill.fore_color.rgb=RGBColor.from_string(design[kind][1:]);badge.line.fill.background()
+                    if design[kind+"_border"]:badge.line.color.rgb=RGBColor.from_string(design[kind+"_border_color"][1:]);badge.line.width=Pt(1)
             bodybox = page.shapes.add_textbox(X(.65), Y(1.7), X(12), Y(4.9))
             bodybox.text_frame.word_wrap = True
             bodybox.text_frame.text = body
-            for paragraph in bodybox.text_frame.paragraphs:
+            for paragraph_index,paragraph in enumerate(bodybox.text_frame.paragraphs):
                 text=paragraph.text;kind=renderers.callout_kind(text)
-                if kind and design["icons"]: text=renderers.callout_icon(kind,design)+" "+text
+                if kind and design["icons"]:
+                    if design["icon_style"]=="outline":
+                        page.shapes.add_picture(io.BytesIO(renderers.icon_png(kind,design[kind+"_border_color"])),X(.7),Y(1.78)+Pt(paragraph_index*line_points),height=Pt(body_size));text="    "+text
+                    else:text=renderers.callout_icon(kind,design)+" "+text
                 paragraph.clear();paragraph.font.size = Pt(body_size)
-                paragraph.line_spacing=Pt(body_size*1.3);paragraph.space_after=Pt(4)
+                paragraph.line_spacing=Pt(body_size*design["line_height"]);paragraph.space_after=Pt(4)
                 if not template_bytes:
                     paragraph.font.name=design["font"];paragraph.font.color.rgb=RGBColor.from_string(design["text"][1:])
                 labels=sorted(links,key=len,reverse=True)
@@ -689,6 +712,9 @@ class Store:
         self.releases = releases.Releases(self)
         self.ai_exchange = ai_exchange.Exchange(self)
         self.backups = backups.Backups(self)
+        self.rag = rag.RAG(self)
+        self.source_design = source_design.SourceDesign(self)
+        self.agent_hub = agent_hub.Hub(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10, factory=ClosingConnection)
@@ -855,9 +881,9 @@ def make_server(store, port=8765):
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'")
+            self.send_header("Content-Security-Policy", (headers or {}).get("Content-Security-Policy", "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"))
             for key, value in (headers or {}).items():
-                self.send_header(key, value)
+                if key != "Content-Security-Policy":self.send_header(key, value)
             self.end_headers()
             self.wfile.write(body)
 
@@ -873,12 +899,18 @@ def make_server(store, port=8765):
             if not self.host_valid():
                 return self.send(403, {"error": "Nur lokaler Zugriff ist erlaubt."})
             path = urlparse(self.path).path
+            if path.startswith("/design-preview/"):
+                try:
+                    return self.send(200, store.source_design.preview_file(path.rsplit("/",1)[-1]), "text/html; charset=utf-8", {"Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"})
+                except Invalid as exc:return self.send(404,{"error":str(exc)})
             if path == "/api/state":
                 return self.send(200, {"token": token, "build": {"version": VERSION, "date": RELEASE_DATE}, "outlines": store.all(), "domains": DOMAINS,
                                        "taxonomy": store.taxonomy(),
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
-            static = {"/source_collection.js": ("source_collection.js", "text/javascript; charset=utf-8"),
+            static = {"/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/rag.js": ("rag.js", "text/javascript; charset=utf-8"),
+                      "/source_collection.js": ("source_collection.js", "text/javascript; charset=utf-8"),
                       "/workspace_tools.js": ("workspace_tools.js", "text/javascript; charset=utf-8"),
                       "/design.js": ("design.js", "text/javascript; charset=utf-8"),
                       "/design.css": ("design.css", "text/css; charset=utf-8"),
@@ -997,12 +1029,24 @@ def make_server(store, port=8765):
                     return self.send(200, store.backups.export(), "application/zip", {"Content-Disposition": 'attachment; filename="oneSCM-Sicherung.zip"'})
                 if path == "/api/backup/restore":
                     result = store.backups.restore(data)
+                    store.source_design.previews.clear()
                     token = secrets.token_urlsafe(32)
                     return self.send(200, result)
                 if path == "/api/variants/preview":
                     return self.send(200, variant_export.preview(store, data))
                 if path == "/api/variants/export":
                     return self.send(200, variant_export.export(store, data), "application/zip", {"Content-Disposition": 'attachment; filename="oneSCM-Varianten.zip"'})
+                if path == "/api/agents/catalog":return self.send(200,agent_hub.CATALOG)
+                if path == "/api/agents/list":return self.send(200,store.agent_hub.listing())
+                if path == "/api/agents/get":return self.send(200,store.agent_hub.get(data.get("id")))
+                if path in {"/api/agents/start","/api/agents/step","/api/agents/cancel","/api/agents/translation","/api/agents/accept_translation"}:
+                    return self.send(200,getattr(store.agent_hub,path.rsplit("/",1)[-1])(data))
+                if path == "/api/design/patterns":return self.send(200,store.source_design.listing())
+                if path == "/api/design/save":return self.send(200,store.source_design.save(data))
+                if path == "/api/design/preview":return self.send(200,store.source_design.preview(data))
+                if path == "/api/design/export":
+                    raw,fmt=store.source_design.export(data)
+                    return self.send(200,raw,renderers.MIME[fmt],{"Content-Disposition":f'attachment; filename="oneSCM-Design.{fmt}"'})
                 if path == "/api/layouts":
                     return self.send(200, store.layouts.listing())
                 if path == "/api/layout/upload":
@@ -1028,6 +1072,8 @@ def make_server(store, port=8765):
                     return self.send(200, publication.matrix(outline))
                 if path == "/api/sources":
                     return self.send(200, {"sources": store.sources.listing(), "chunk_index": store.sources.index()})
+                if path in {"/api/rag/search", "/api/rag/answer", "/api/rag/chapter", "/api/rag/attach_screens", "/api/rag/evidence"}:
+                    return self.send(200, getattr(store.rag, path.rsplit("/",1)[-1])(data))
                 if path == "/api/source/collection":
                     result = source_collection.collect(store, data)
                     result.pop("parts")

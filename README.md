@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.6.1 · Stand 04.11.2026**
+**Prototyp 0.8.0 · Stand 04.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -263,3 +263,33 @@ Prüfstand v0.6.0: 132 automatisierte Tests und neun Chromium-Browserabläufe er
   in GitHub Actions. Lokale Tests ersetzen keine fachliche Windows-/Office-Abnahme.
 
 Neu in v0.6.1: Quellen nach DOCX/PDF/Markdown/HTML filtern, Dateien markieren, gemeinsam triagieren und extrahierte Texte bearbeiten, als Auszüge zusammenstellen oder als neue Markdown-Quelle speichern/herunterladen.
+
+
+## Neu in v0.7.0: RAG · Zentrales Wissen
+
+Registerübergreifende lokale Belegsuche verbindet Quellen, Bibliothek, Kapitel,
+interne FAQ/Vermerke, offene Aufträge, Screens, Chatfragen, Domänen, Designs,
+Releasepakete und Quellenprüfungen. Rollen-/Sprach-/Marktfilter und aktuelle
+Fundstellenstände werden bei jeder Suche angewandt. Antworten zeigen vollständige
+freigegebene Textbelege; ohne externes Modell, ohne Embeddings und ohne freie
+KI-Generierung. Interne Treffer bleiben von Leser-Kapitelentwürfen ausgeschlossen.
+Neue Kapitel lassen sich rollen-/sprachgebunden in bestehende Gliederungen einfügen;
+geprüfte Screens können neuen oder bestehenden Kapiteln zugeordnet werden.
+
+
+## Lokaler Ausbau v0.8.0
+
+- Designstudio ohne Gliederung: Quelldatei auswählen oder hochladen, Palette und
+  Typografie festlegen, Vorher/Nachher als aufbereiteten Inhalt vergleichen und
+  eine neue Word-/PowerPoint-/PDF-/HTML-Prüfausgabe herunterladen.
+- Eigene Designpatterns werden mit Revisionen gespeichert. Kapitel, Unterkapitel
+  und Fließtext besitzen getrennte Schriften, Größen und Zeilenabstände. Hinweis,
+  Achtung, Ausnahme und Tipp erhalten eigene Hintergründe, Rahmen und Icons.
+- Neues Register **Agenten · Orchestrator** mit den acht vereinbarten Aufgaben,
+  gespeicherten Eingaberevisionen, schrittweiser Ausführung, Pause/Abbruch und
+  internen Ergebnisberichten. Übersetzungen erfolgen als manueller Chat-Austausch
+  aus freigegebenen Bibliotheksrevisionen; Übernahme bleibt ein Entwurf.
+- Die zuvor erstellte RAG-Basis ist enthalten. v0.7.0 wurde nicht separat publiziert.
+
+Prüfstand dieses lokalen Ausbaus: Offline-Modell-, Renderer- und Handlerprüfungen;
+aktuelle Browser-/Netzwerkabnahme und GitHub-Veröffentlichung stehen noch aus.

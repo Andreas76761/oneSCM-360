@@ -11,7 +11,12 @@ def theme(value=None):
                 "chapter": "#123443", "subchapter": "#00858b", "image_width": 100,
                 "captions": True, "page_numbers": True, "icons": True, "icon_style": "symbols", "keywords": [],
                 "highlight": "#fff1a8", "link": "#006b8f", "notice": "#eaf4f5",
-                "exception": "#fff0e5", "tip": "#eaf5e9"}
+                "exception": "#fff0e5", "tip": "#eaf5e9", "attention": "#fff0db",
+                "chapter_font":"Arial", "chapter_size":20, "chapter_line":1.2,
+                "subchapter_font":"Arial", "subchapter_size":15, "subchapter_line":1.25,
+                "line_height":1.5,
+                **{kind+"_border":True for kind in ["notice","exception","tip","attention"]},
+                **{kind+"_border_color":"#00858b" for kind in ["notice","exception","tip","attention"]}}
     if value is None: return defaults
     if not isinstance(value, dict) or set(value) - set(defaults):
         raise Invalid("Ungültiges Layoutfarbschema.")
@@ -19,20 +24,26 @@ def theme(value=None):
     # Older profiles only had primary/accent. Their heading colors remain intact.
     result["chapter"] = value.get("chapter", result["primary"])
     result["subchapter"] = value.get("subchapter", result["accent"])
-    for key in ["primary", "accent", "text", "chapter", "subchapter", "highlight", "link", "notice", "exception", "tip"]:
+    for key in ["primary", "accent", "text", "chapter", "subchapter", "highlight", "link", "notice", "exception", "tip", "attention", "notice_border_color", "exception_border_color", "tip_border_color", "attention_border_color"]:
         if not isinstance(result[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", result[key]):
             raise Invalid("Farben als #RRGGBB angeben.")
     result["font"] = clean_text(result["font"], "Schrift", 80)
     if not re.fullmatch(r"[\w ,.-]+", result["font"]):
         raise Invalid("Ungültiger Schriftname.")
-    if type(result["size"]) is not int or not 8 <= result["size"] <= 18:
-        raise Invalid("Schriftgröße zwischen 8 und 18 wählen.")
+    for prefix in ["chapter", "subchapter"]:
+        result[prefix+"_font"]=clean_text(result[prefix+"_font"],"Überschriftenschrift",80)
+        if not re.fullmatch(r"[\w ,.-]+",result[prefix+"_font"]):raise Invalid("Ungültiger Schriftname.")
+        if type(result[prefix+"_size"]) is not int or not 8<=result[prefix+"_size"]<=48:raise Invalid("Überschriftengröße zwischen 8 und 48 pt wählen.")
+    for key in ["line_height","chapter_line","subchapter_line"]:
+        if type(result[key]) not in [int,float] or not 1<=result[key]<=3:raise Invalid("Zeilenabstand zwischen 1 und 3 wählen.")
+    if type(result["size"]) is not int or not 8 <= result["size"] <= 36:
+        raise Invalid("Schriftgröße zwischen 8 und 36 wählen.")
     if type(result["image_width"]) is not int or not 25 <= result["image_width"] <= 100:
         raise Invalid("Bildbreite zwischen 25 und 100 Prozent wählen.")
-    for key in ["captions", "page_numbers", "icons"]:
+    for key in ["captions", "page_numbers", "icons", "notice_border", "exception_border", "tip_border", "attention_border"]:
         if type(result[key]) is not bool:
             raise Invalid("Designschalter müssen aktiviert oder deaktiviert sein.")
-    if result["icon_style"] not in ["symbols", "letters", "minimal"]:
+    if result["icon_style"] not in ["symbols", "letters", "minimal", "outline"]:
         raise Invalid("Symbolstil symbols, letters oder minimal wählen.")
     if not isinstance(result["keywords"], list) or len(result["keywords"]) > 50:
         raise Invalid("Höchstens 50 Hervorhebungsbegriffe angeben.")

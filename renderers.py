@@ -2,7 +2,7 @@
 import base64
 import io
 import re
-from html import escape
+from html import escape, unescape
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -16,17 +16,47 @@ MIME = {"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.
 
 def callout_kind(text):
     """Only explicit, reader-visible labels trigger a callout; never internal notes."""
-    match = re.match(r"^\s*(?:>\s*)?(?:\*\*)?(Hinweis|Notice|Note|Tipp|Tip|Ausnahme|Exception)\s*:", text, re.I)
+    match = re.match(r"^\s*(?:>\s*)?(?:\*\*)?(Hinweis|Notice|Note|Tipp|Tip|Ausnahme|Exception|Achtung|Attention|Warning|Warnung|Remarque|Conseil|Nota|Suggerimento|Attenzione|Eccezione|Poznámka|Upozornenie|Výnimka|참고|주의|팁|예외)\s*:", text, re.I)
     return ({"hinweis": "notice", "notice": "notice", "note": "notice", "tipp": "tip", "tip": "tip",
-             "ausnahme": "exception", "exception": "exception"}.get(match[1].lower()) if match else None)
+             "ausnahme": "exception", "exception": "exception", "achtung":"attention", "attention":"attention", "warning":"attention", "warnung":"attention", "remarque":"notice", "conseil":"tip", "nota":"notice", "suggerimento":"tip", "attenzione":"attention", "eccezione":"exception", "poznámka":"notice", "upozornenie":"attention", "výnimka":"exception", "참고":"notice", "주의":"attention", "팁":"tip", "예외":"exception"}.get(match[1].lower()) if match else None)
 
 
 def callout_icon(kind, theme):
     if not kind or not theme["icons"]: return ""
-    icons = {"symbols": {"notice":"ℹ", "tip":"✓", "exception":"!"},
-             "letters": {"notice":"H", "tip":"T", "exception":"A"},
-             "minimal": {"notice":"•", "tip":"•", "exception":"•"}}
+    icons = {"symbols": {"notice":"ℹ", "tip":"✓", "exception":"!", "attention":"!"},
+             "letters": {"notice":"H", "tip":"T", "exception":"A", "attention":"!"},
+             "minimal": {"notice":"•", "tip":"•", "exception":"•", "attention":"•"},
+             "outline":{"notice":"ⓘ","tip":"✓","exception":"!","attention":"!"}}
     return icons[theme.get("icon_style","symbols")][kind]
+
+
+def icon_svg(kind):
+    paths={"notice":'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/>',
+           "tip":'<path d="M9 18h6M10 21h4M8 14a6 6 0 1 1 8 0l-1 3H9z"/>',
+           "attention":'<path d="M12 3 2 21h20zM12 9v5M12 17v1"/>',
+           "exception":'<path d="M8 3h8l5 5v8l-5 5H8l-5-5V8zM12 7v6M12 16v1"/>'}
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+paths[kind]+'</svg>'
+
+
+def icon_png(kind,color):
+    from PIL import Image,ImageDraw
+    image=Image.new("RGBA",(96,96),(0,0,0,0));d=ImageDraw.Draw(image);w=6
+    if kind=="notice":
+        d.ellipse((10,10,86,86),outline=color,width=w);d.line((48,43,48,69),fill=color,width=w);d.ellipse((44,26,52,34),fill=color)
+    elif kind=="tip":
+        d.ellipse((21,8,75,62),outline=color,width=w);d.line([(32,57),(36,73),(60,73),(64,57)],fill=color,width=w);d.line((37,84,59,84),fill=color,width=w)
+    else:
+        points=[(48,8),(7,85),(89,85),(48,8)] if kind=="attention" else [(30,8),(66,8),(88,30),(88,66),(66,88),(30,88),(8,66),(8,30),(30,8)]
+        d.line(points,fill=color,width=w,joint="curve");d.line((48,31,48,55),fill=color,width=w);d.ellipse((44,65,52,73),fill=color)
+    output=io.BytesIO();image.save(output,format="PNG");return output.getvalue()
+
+
+def pdf_icon(kind,theme):
+    if not kind or not theme["icons"]:return ""
+    if theme["icon_style"]!="outline":return callout_icon(kind,theme)+" "
+    data=base64.b64encode(icon_png(kind,theme[kind+"_border_color"])).decode()
+    size=theme["size"]
+    return f'<img src="data:image/png;base64,{data}" width="{size}" height="{size}" valign="middle"/> '
 
 
 def keyword_segments(text, theme):
@@ -48,7 +78,7 @@ def highlighted(text, theme, pdf=False):
 
 
 def styled_html(text, theme, markdown=False):
-    raw = markdown_tools.html(text) if markdown else "<p>"+escape(text).replace("\n", "<br>")+"</p>"
+    raw = markdown_tools.html(text) if markdown else "".join("<p>"+escape(line)+"</p>" for line in text.splitlines() if line.strip())
     class Highlight(HTMLParser):
         def __init__(self): super().__init__(convert_charrefs=True); self.parts=[]; self.code=0
         def handle_starttag(self, tag, attrs):
@@ -60,10 +90,16 @@ def styled_html(text, theme, markdown=False):
             if tag in {"code", "pre"}: self.code = max(0, self.code-1)
         def handle_data(self, data): self.parts.append(escape(data) if self.code else highlighted(data, theme))
     parser = Highlight(); parser.feed(raw); parser.close(); content = "".join(parser.parts)
-    kind = callout_kind(text)
-    if kind:
-        icon = '<span class="callout-icon" aria-hidden="true">'+callout_icon(kind,theme)+'</span>' if theme["icons"] else ""
-        content = '<aside class="callout '+kind+'">'+icon+content+'</aside>'
+    def callout(match):
+        kind=callout_kind(unescape(re.sub(r"<[^>]+>","",match[1])))
+        if not kind:return match[0]
+        icon=''
+        if theme["icons"]:
+            glyph=icon_svg(kind) if theme["icon_style"]=="outline" else callout_icon(kind,theme)
+            icon='<span class="callout-icon" aria-hidden="true">'+glyph+'</span>'
+        return '<aside class="callout '+kind+'">'+icon+match[0]+'</aside>'
+    content=re.sub(r"<p>(.*?)</p>",callout,content,flags=re.S)
+
     return content
 
 
@@ -120,6 +156,10 @@ def html_export(plan, loader=None):
         parts.append("</section>")
     css = f"""body{{font:{t['size']}pt '{t['font']}',sans-serif;color:{t['text']};line-height:1.55;margin:3rem auto;padding:0 2rem;max-width:64rem}}h1,h2,h3,h4,h5,h6{{color:{t['primary']};break-after:avoid}}header{{border-bottom:4px solid {t['accent']};padding-bottom:1rem}}a{{color:{t['accent']}}}img{{max-width:100%;height:auto}}figure{{margin:1.5rem 0;break-inside:avoid}}figcaption,small{{color:{t['accent']}}}table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #b8c9cf;padding:.5rem;vertical-align:top}}pre{{white-space:pre-wrap;background:#f0f4f6;padding:1rem;overflow-wrap:anywhere}}p,td{{overflow-wrap:anywhere}}.warning{{border-left:4px solid #ad6b17;padding:.5rem 1rem}}@media print{{body{{max-width:none;margin:0}}nav{{display:none}}@page{{size:A4;margin:20mm}}}}"""
     css += f"h2{{color:{t['chapter']}}}h3,h4,h5,h6{{color:{t['subchapter']}}}a{{color:{t['link']}}}figure img{{max-width:{t['image_width']}%}}mark{{background:{t['highlight']};color:inherit}}.callout{{padding:.75rem 1rem;border-left:4px solid {t['accent']};margin:1rem 0;break-inside:avoid}}.callout p:first-of-type{{margin-top:0}}.callout p:last-child{{margin-bottom:0}}.callout-icon{{float:left;font-weight:bold;margin-right:.6rem}}.notice{{background:{t['notice']}}}.tip{{background:{t['tip']}}}.exception{{background:{t['exception']}}}"
+    css += f"body{{line-height:{t['line_height']}}}h2{{font-family:'{t['chapter_font']}';font-size:{t['chapter_size']}pt;line-height:{t['chapter_line']}}}h3,h4,h5,h6{{font-family:'{t['subchapter_font']}';font-size:{t['subchapter_size']}pt;line-height:{t['subchapter_line']}}}"
+    for kind in ["notice","exception","tip","attention"]:
+        border=('1px solid '+t[kind+'_border_color']) if t[kind+'_border'] else 'none'
+        css += f".callout.{kind}{{background:{t[kind]};border:{border};color:{t['text']}}}.callout.{kind} .callout-icon{{color:{t[kind+'_border_color']}}}"
     if t["page_numbers"]: css += '@media print{@page{@bottom-right{content:counter(page)}}}'
     return ('<!doctype html><html lang="'+escape(plan["profile"]["language"])+ '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; style-src \'unsafe-inline\'"><title>'+escape(plan["title"])+"</title><style>"+css+"</style></head><body><nav aria-label=\"Inhaltsübersicht\"><ul>"+"".join(toc)+"</ul></nav>"+"".join(parts)+"</body></html>").encode()
 
@@ -142,6 +182,22 @@ def pdf_font(language):
         pdfmetrics.registerFont(TTFont("oneSCMBold", str(bold if bold.exists() else path)))
         pdfmetrics.registerFontFamily("oneSCMUnicode", normal="oneSCMUnicode", bold="oneSCMBold", italic="oneSCMUnicode", boldItalic="oneSCMBold")
     return "oneSCMUnicode"
+
+
+def pdf_design_font(family,language):
+    if language=="ko":return pdf_font(language)
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    group="mono" if any(w in family.casefold() for w in ["courier","mono","consolas"]) else "serif" if any(w in family.casefold() for w in ["times","georgia","serif"]) else "sans"
+    files={"mono":("cour.ttf","DejaVuSansMono.ttf"),"serif":("times.ttf","DejaVuSerif.ttf"),"sans":("arial.ttf","DejaVuSans.ttf")}
+    paths=[Path("C:/Windows/Fonts")/files[group][0],Path("/usr/share/fonts/truetype/dejavu")/files[group][1]]
+    path=next((p for p in paths if p.exists()),None)
+    if not path:return pdf_font(language)
+    name="oneSCM-"+group
+    if name not in pdfmetrics.getRegisteredFontNames():
+        pdfmetrics.registerFont(TTFont(name,str(path)))
+        pdfmetrics.registerFontFamily(name,normal=name,bold=name,italic=name,boldItalic=name)
+    return name
 
 
 def pdf_inline(children, theme=None):
@@ -170,12 +226,12 @@ def pdf_export(plan, loader=None):
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from app import profile_caption, Invalid
-    t = layouts.theme(plan.get("layout", {}).get("theme")); font = pdf_font(plan["profile"]["language"])
-    normal = ParagraphStyle("body", fontName=font, fontSize=t["size"], leading=t["size"]*1.4, spaceAfter=8, textColor=colors.HexColor(t["text"]), splitLongWords=True)
-    heading = ParagraphStyle("heading", parent=normal, fontSize=t["size"]+5, leading=t["size"]+10, textColor=colors.HexColor(t["chapter"]), spaceBefore=14, keepWithNext=True)
-    subheading = ParagraphStyle("subheading", parent=heading, fontSize=t["size"]+3, textColor=colors.HexColor(t["subchapter"]))
+    t = layouts.theme(plan.get("layout", {}).get("theme")); font = pdf_design_font(t["font"],plan["profile"]["language"])
+    normal = ParagraphStyle("body", fontName=font, fontSize=t["size"], leading=t["size"]*t["line_height"], spaceAfter=8, textColor=colors.HexColor(t["text"]), splitLongWords=True)
+    heading = ParagraphStyle("heading", parent=normal, fontName=pdf_design_font(t["chapter_font"],plan["profile"]["language"]), fontSize=t["chapter_size"], leading=t["chapter_size"]*t["chapter_line"], textColor=colors.HexColor(t["chapter"]), spaceBefore=14, keepWithNext=True)
+    subheading = ParagraphStyle("subheading", parent=heading, fontName=pdf_design_font(t["subchapter_font"],plan["profile"]["language"]), fontSize=t["subchapter_size"], leading=t["subchapter_size"]*t["subchapter_line"], textColor=colors.HexColor(t["subchapter"]))
     caption_style = ParagraphStyle("caption", parent=normal, fontSize=max(8,t["size"]-1), textColor=colors.HexColor(t["accent"]))
-    callouts = {kind: ParagraphStyle(kind,parent=normal,backColor=colors.HexColor(t[kind]),borderPadding=7,leftIndent=8,rightIndent=8,spaceBefore=7,spaceAfter=12) for kind in ["notice","tip","exception"]}
+    callouts = {kind: ParagraphStyle(kind,parent=normal,backColor=colors.HexColor(t[kind]),borderColor=colors.HexColor(t[kind+"_border_color"]),borderWidth=1 if t[kind+"_border"] else 0,borderPadding=7,leftIndent=8,rightIndent=8,spaceBefore=7,spaceAfter=12) for kind in ["notice","tip","exception","attention"]}
     story = []; output = io.BytesIO(); width = A4[0]-100
     label = "PRÜFAUSGABE" if plan.get("draft", True) else "FREIGEGEBENE AUSGABE"
     story.extend([Paragraph(escape(plan["title"]), heading), Paragraph(escape(label+" · Version "+plan["metadata"]["version"]+" · R"+str(plan["revision"])), normal), Paragraph(escape(profile_caption(plan["profile"])), normal)])
@@ -211,7 +267,10 @@ def pdf_export(plan, loader=None):
                         content=pdf_inline(token.children,t)
                         if in_table: cells.append(Paragraph(content,normal))
                         else:
-                            prefix=icon+("• " if list_item else ""); icon=""
+                            inline_kind=None if heading_next else callout_kind(token.content)
+                            body_style=callouts.get(inline_kind,normal)
+                            glyph=pdf_icon(inline_kind,t)
+                            prefix=glyph+("• " if list_item else "")
                             style=subheading if heading_next else ParagraphStyle("list",parent=body_style,leftIndent=body_style.leftIndent+max(0,depth)*12)
                             story.append(Paragraph(prefix+content,style));heading_next=False;list_item=False
                     elif token.type in ["fence","code_block"]:
@@ -219,9 +278,8 @@ def pdf_export(plan, loader=None):
             else:
                 for line in b["text"].splitlines():
                     line_kind = callout_kind(line)
-                    line_style = callouts.get(line_kind,body_style)
-                    line_icon=callout_icon(line_kind,t)
-                    prefix = icon or (line_icon+" " if line_icon else "")
+                    line_style = callouts.get(line_kind,normal)
+                    prefix=pdf_icon(line_kind,t)
                     story.append(Paragraph(prefix+highlighted(line,t,pdf=True) or "<br/>",line_style));icon=""
         for figure in c.get("figures", []):
             if figure["title"]: story.append(Paragraph(escape(figure["title"]),heading))

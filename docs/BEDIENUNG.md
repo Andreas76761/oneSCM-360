@@ -605,3 +605,148 @@ nicht übernommen. Bei Änderungen/Löschung der Ausgangsquellen muss die Zusamm
 neu geladen werden. Bis 1500 Dateien und insgesamt 2 Millionen extrahierte Textzeichen
 je Zusammenstellung; größere Bestände in Teilmengen bearbeiten. Der Download enthält
 Quelltext, keine geprüfte Leserpublikation und keine neue vollständige PII-Bereinigung.
+
+
+## 20. RAG als zentrale Belegsuche (v0.7.0)
+
+**RAG · Zentrales Wissen** öffnen. Zielrolle, Sprache, Markt, Sparte, Umfang,
+Release, Stichtag und Umgebung einstellen. Suchtext oder Frage eingeben und bei
+Bedarf nach Register filtern. **Wissen suchen** liest die aktuellen Daten neu ein;
+es gibt keinen separat zu aktualisierenden Vektorindex. Die lokale Wort-/Präfixsuche
+liefert höchstens 100 Treffer, sortiert nach Begriffen in Titel und Text.
+Sie ist keine semantische Suche und verwendet weder Embeddings noch ein LLM.
+
+Angebunden sind Quellen/Chunks, Bibliotheks- und Kapiteltexte, Gliederungs- und
+Redaktionsinformationen, interne Register/FAQ, offene Agenten-, KI- und Importaufträge,
+Chatfragen, Screenmetadaten und bisherige Kapitelverwendungen, Designs, Domänen,
+Releases und Quellenprüfungen. Binäre Dateiinhalte, ungespeicherte OCR-Ergebnisse und
+historische Ausgabedateien werden nicht neu interpretiert. Für Screens Titel,
+Untertitel, Thema, Labels und Stichwörter pflegen. Interne Register mit der Checkbox
+und der Redaktionsrolle HQ/intern einbeziehen. Dies ist eine Auswahl für den
+vertrauenswürdigen Einzelarbeitsplatz, keine Mehrbenutzer-Authentifizierung.
+
+Jeder Treffer trägt Register, Kennung, Revision und Status. Die Trefferkarte zeigt
+einen Auszug; **Vollständigen Beleg ansehen** zeigt den gesamten Text. Unbekannte
+Quellensprache wird ausdrücklich als ungeklärt angezeigt. Offene Aufträge sind
+Recherchehinweise, keine freigegebenen Fakten. Chatfragen verknüpfen die Recherche
+mit bisherigen Gesprächsthemen; Chatantworten werden nicht zu neuen Fachquellen.
+
+**Frage mit Belegen beantworten** zeigt bis zu fünf passende freigegebene
+Bibliotheks-/Kapiteltexte bzw. vorgemerkte freigegebene FAQ vollständig. Das System
+fasst diese nicht frei zusammen und löst fachliche Widersprüche nicht automatisch.
+Ohne passende Belege erscheint eine ausdrückliche Fehlanzeige. **Im internen
+FAQ-Chat weiterarbeiten** übernimmt Frage und Profil in einen neuen Chat. Im Chat
+führt **Registerübergreifend im RAG suchen** zurück zur zentralen Suche.
+
+### Neue Kapitel aus Belegen
+
+Bis zu 20 Lesertext-Belege und Screens auswählen. Zielgliederung, optional ein
+übergeordnetes Kapitel und den neuen Titel wählen. Profil, Personenangaben und
+Quellen fachlich prüfen und bestätigen. **Kapitel als Entwurf einbinden** ergänzt
+nur das neue Kapitel; vorhandene Kapitel bleiben erhalten. Rolle und Sprache werden
+als Kapitelbedingungen gespeichert; Texte bleiben Entwürfe und werden nicht
+übersetzt. Quellen mit ungeklärter Sprache nur nach eigener fachlicher Prüfung
+verwenden. Interne FAQ, Registertexte, Vermerke und Aufträge werden serverseitig
+für diese Übernahme abgewiesen. Zwischenzeitlich geänderte Belege oder Zielrevisionen
+erfordern erneute Recherche. Ein übernommener Entwurf ist eine redaktionelle Kopie
+mit Herkunftsreferenz, keine automatisch fortgeschriebene Quellenverknüpfung.
+
+### Screens finden und zuordnen
+
+Register **Screens** wählen oder über **Passende Screens zum Kapiteltitel suchen**
+recherchieren. Die Suche berücksichtigt Zielprofil und vorhandene Titel, Untertitel,
+Labels, Stichwörter sowie Kapitelverwendungen. Freigegebene, PII-geprüfte Screens
+können im Belegdialog als bereinigte Bildrevision angesehen werden. Ungeprüfte
+Screens erscheinen als Kandidaten und müssen im Medienregister zuerst geprüft und
+freigegeben werden. Originalbilder werden in der RAG-Vorschau nicht angezeigt.
+
+Nur Screens auswählen, ein bestehendes Zielkapitel in der Unterkapitelauswahl
+wählen und **Screens dem gewählten bestehenden Kapitel zuordnen** drücken.
+Alternativ Screens zusammen mit Textbelegen in einen neuen Kapitelentwurf übernehmen.
+Die Verwendung bindet eine feste Bildrevision sowie Rolle und Sprache; die
+bestehenden Bildgültigkeiten gelten weiterhin. Es erfolgt keine automatische
+Übersetzung von Screens oder OCR-Neuverarbeitung.
+
+
+## 21. Designstudio unabhängig von Gliederungen (v0.8.0)
+
+**Design** lässt sich auch ohne geöffnete Gliederung verwenden. Unter
+**Arbeitsgrundlage** zwischen aktueller Gliederung, importierter Quelldatei und
+freiem Designbeispiel wählen. Eine bestehende Quelle auswählen oder direkt eine
+Datei bis 20 MB hochladen. Die Quellenübersicht unterstützt weiterhin Mehrfachuploads;
+im Designstudio wird jeweils eine ausgewählte Datei gestaltet. Für Quelldateien
+zusätzlich die Dokumentsprache wählen. Es wird keine Übersetzung vorgenommen.
+
+Paletten Petrol, Graustufen, hoher Kontrast oder Ocean als Ausgangspunkt wählen.
+Kapitel, Unterkapitel und Fließtext haben eigene Schriftart, Punktgröße und
+Zeilenabstand. Hintergründe, Rahmenfarben und Rahmen an/aus getrennt für **Hinweis**,
+**Achtung**, **Ausnahme** und **Tipp** definieren. Das Outline-Iconset enthält Info,
+Warnung, Ausnahme und Idee; HTML verwendet Vektoricons, Office/PDF eingebettete
+Rastericons. Alternativ Symbole, Buchstaben oder minimale Marker wählen.
+
+Ein Hinweisfeld entsteht durch ein sichtbares Textpräfix, zum Beispiel `Hinweis:`,
+`Achtung:`, `Tipp:` oder `Ausnahme:`. Englische, französische und ausgewählte
+italienische/slowakische/koreanische Entsprechungen werden ebenfalls erkannt.
+Dies betrifft Lesertext, niemals die Ausgabe interner Vermerksfelder.
+
+Unter **Designpatterns** einen Namen vergeben und speichern. Ein geladenes Pattern
+wird als nächste Revision gespeichert; **Als neues Pattern speichern** erstellt
+stattdessen eine eigene Reihe. Das Laden/Kopieren des Patterns verändert keine
+Quelldatei. Native DOCX-/PPTX-Templates einer Gliederung behalten ihre eigene
+Typografie; Quelldateiausgaben verwenden das portable Design ohne native Templatebindung.
+
+**Vorher / Nachher mit Inhalt anzeigen** öffnet zwei Vorschaufenster. Verglichen
+werden derselbe aufbereitete Inhalt im gespeicherten/Standarddesign und im neuen
+Design. Die Vorschau ist keine pixelgenaue Wiedergabe des importierten Original-
+PDF/Word-Layouts. Markdown-Überschriften werden als Kapitel/Unterkapitel verwendet.
+Die Vorschau bleibt 15 Minuten verfügbar und kann neu erzeugt werden.
+
+**Gestaltete Prüfausgabe herunterladen** erzeugt eine neue Datei, ohne eine
+Gliederung anzulegen oder die Originalquelle zu verändern. Unterstützt werden Word,
+PowerPoint, PDF und HTML. Für Quelle-Design maximal 500.000 Textzeichen und
+100.000 Zeichen je Abschnitt; größere Quellen zuvor aufteilen. Bilder aus Dateien
+werden nicht automatisch mit ihren Originalpositionen rekonstruiert; dafür das
+Medienregister verwenden. Die unabhängige Ausgabe bleibt eine Prüfausgabe und
+ersetzt keine fachliche/PII-Abnahme. PDF nutzt lokal verfügbare passende Sans-,
+Serif- oder Monospace-Schriften, nicht beliebige identische Office-Fonts.
+
+## 22. Agenten und Orchestrator (v0.8.0)
+
+Das neue Register **Agenten · Orchestrator** enthält:
+
+| Agent | Eingabe | Ausgabe / tatsächlicher Ablauf |
+|---|---|---|
+| Extraction Agent | Dateien, Quellen | Bereits importierte Texte als strukturierte Blöcke mit Kennung, Revision, Fundstelle und Überschriften; kein erneutes OCR |
+| Classification Agent | Extrahierte Inhalte | Regelvorschläge für Domäne/Rolle und gepflegter Markt-/Sprachkontext; unbekannte Werte bleiben offen |
+| Quality Agent | Inhalte, Gültigkeitsregeln | Freigabelücken, Dubletten und heuristische Konflikthinweise; maximal 300 Textpaare, keine Vollständigkeitsgarantie |
+| Media Agent | Bilder, Metadaten, Textumfeld | Passende Bildreferenzen und Untertitelvorschläge aus vorhandenen Angaben; keine automatische Bildfreigabe oder neue OCR |
+| Knowledge Agent | Freigegebene Inhalte | Wissensobjektvorschläge mit Text, Herkunft und Profil-/Gültigkeitsangaben; keine automatische Speicherung/Freigabe |
+| Translation Agent | Freigegebene Bibliotheksrevision | Geprüfter manueller KI-Auftrag, zurückimportierter Übersetzungsvorschlag und optional Bibliotheksentwurf |
+| Impact Agent | Quellen-/Bibliotheksrevisionen | Explizit verknüpfte betroffene Gliederungen/Kapitel; ältere gebundene Bibliotheksrevisionen; unverbundene Kopien werden nicht erkannt |
+| Publishing Agent | Gespeicherter Publikationsentwurf | Freigabevorprüfung und Renderingauftrag für vier Formate; tatsächliches Rendering über vorhandene Ausgabewege |
+
+1. Agenten auswählen. Bis zu 20 Quellen, 200 Chunks und 2 Millionen Textzeichen
+   pro Auftrag. Klassifikation und Publishing benötigen eine gespeicherte Gliederung;
+   Extraktion und Klassifikation benötigen Quellen. Andere Schritte können ohne
+   Gliederung starten, liefern bei fehlenden passenden Daten entsprechend keine Vorschläge.
+2. Für Translation eine **freigegebene** Bibliotheksrevision sowie eine andere
+   Zielsprache wählen. Für Impact können auch geänderte Entwurfsrevisionen gewählt werden.
+3. **Auftrag vorbereiten**, dann **Schritte ausführen / fortsetzen**. Der
+   Orchestrator folgt der Tabellenreihenfolge. Pause wirkt nach dem aktuellen Schritt.
+   Ergebnisse bleiben gespeichert; der Browser muss zum Fortsetzen geöffnet sein.
+4. Berichte und Vorschläge prüfen. Geänderte Ausgangstexte, Bibliotheks-/Gliederungs-
+   revisionen, Quellenkontext oder Domänenkatalog blockieren weitere Schritte und
+   verlangen einen neuen Auftrag. Alte Ergebnisse bleiben als historische Berichte sichtbar.
+5. Beim Translation Agent den Auftrag prüfen und für die Chat-Anwendung bestätigen,
+   kopieren und selbst in Copilot, Claude oder Gemini verwenden. Keine API-Verbindung.
+   Antwort einfügen, **Vorschlag speichern**, Inhalt prüfen und bei Bedarf **Als
+   Bibliotheksentwurf übernehmen**. Die Sprachfassung bleibt fachlich ungeprüft und
+   muss separat freigegeben werden; alte Jira-Verifikationen werden nicht übernommen.
+6. **Internen Bericht herunterladen** sichert die vollständigen Arbeitsergebnisse
+   einschließlich Eingabetexten. Dieser Bericht ist intern und keine Leserpublikation.
+
+Die früheren Finalisierungs-/Triage-Läufe bleiben unter **Agentenläufe (bisherig)**
+verfügbar. Beide Auftragsbereiche sind über RAG erreichbar. Die lokalen Schritte
+sind regelbasierte Verarbeitung, keine verdeckte Ausführung autonomer externer
+KI-Dienste. Klassifikations-/Wissens-/Medienvorschläge müssen redaktionell übernommen
+werden; der Orchestrator veröffentlicht nichts automatisch.

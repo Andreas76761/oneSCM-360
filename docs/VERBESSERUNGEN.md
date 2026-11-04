@@ -1,6 +1,6 @@
 # Verbesserungen und verbleibender Aufwand
 
-Stand **v0.6.0 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
+Stand **v0.8.0 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
 (PT) zu acht Stunden für eine entwickelnde Person einschließlich gezielter Tests.
 Sie sind keine Zusagen. Wartezeit auf fachliche Entscheidungen, Muster, Hardware
 und Freigaben kommt hinzu. Überschneidungen zwischen Aufgaben verhindern eine
@@ -34,7 +34,7 @@ Aufgaben. Die folgenden Schätzungen beziehen sich auf diese Restarbeiten.
 | P1 | Gescannte PDFs, Vektoren und weitere große Importe | 5–9 PT | Repräsentative PDF-/PPTX-Daten, lokale OCR-/Rendererentscheidung; Jira-Import bereits fortsetzbar | Seitenrendering und OCR mit Fundstellen; Vektorgrafiken abnehmbar; weitere umfangreiche Importformate nach Unterbrechung kontrolliert fortsetzbar |
 | P1 | PII-/OCR-Prüfung für Screens ausbauen | 4–7 PT | Mehrsprachige Beispielscreens und fachliche PII-Regeln | OCR-Sprachwahl, regionale Muster und Stapel-Prüfung verfügbar; visuelle Freigabe weiterhin erforderlich |
 | P1 | CI-Läufe und Windows-Start abnehmen | 1–2 PT | GitHub-Actions-Workflow für Windows/Linux Python 3.11/3.12 und Chromium vorhanden | Externe Läufe prüfen; echtes start.bat und installiertes Microsoft Office separat abnehmen |
-| P2 | Freies RAG über geprüfte Quellen | 8–14 PT | Erst nach FAQ-Qualitätsabnahme; Rechte, Auswahlregeln, Modell und Qualitätsmaßstab geklärt | Belegter Testkatalog für Antworten aus freigegebenen Quellen; falsche Profile ausgeschlossen; fehlende Evidenz erkannt; Nutzer kann Belege prüfen. Eigenständige Erweiterung über den aktuellen FAQ-Chat hinaus |
+| P2 | Semantisches RAG und freie belegte Antworten | 6–12 PT | Lokale registerübergreifende Belegsuche seit v0.7.0 vorhanden; Modell, Rechte und Qualitätsmaßstab klären | Belegter Testkatalog für Antworten aus freigegebenen Quellen; falsche Profile ausgeschlossen; fehlende Evidenz erkannt; Nutzer kann Belege prüfen. Eigenständige Erweiterung über den aktuellen FAQ-Chat hinaus |
 | P2 | Erweiterter Template-/Platzhalterdesigner | 6–10 PT | Designstudio vorhanden; verbindliche Corporate-Design-Vorlagen | Deckblätter, Kapitelmuster, Icons und definierte Platzhalter reproduzierbar; Beispielmanual, Releaseletter und Quick Reference in Office abgenommen |
 | P2 | Seitengenaue Verzeichnisse und Querverweise | 3–5 PT | Layoutmuster, Office-Feld-/Aktualisierungskonzept | Inhalts- und Bildverzeichnis mit Seitenzahlen, Bildnummern und korrekten Querverweisen im Zielprogramm |
 | P2 | Terminologie, Stil und Grammatik | 5–9 PT | Glossar, Streichliste und Sprachleitfaden | Synonym-/Übersetzungsspeicher und Stilregeln zeigen nachvollziehbare Vorschläge je Sprache; keine stillen fachlichen Änderungen |
@@ -45,7 +45,7 @@ Aufgaben. Die folgenden Schätzungen beziehen sich auf diese Restarbeiten.
 
 ## Empfohlene Reihenfolge
 
-1. Neue ZIP auf dem Zielrechner aktualisieren und prüfen, dass v0.6.0 sichtbar ist.
+1. Neue ZIP auf dem Zielrechner aktualisieren und prüfen, dass die veröffentlichte Zielversion sichtbar ist.
    Mit echten Office-Templates, Jira-Exporten und einer gesicherten Kopie der
    Arbeitsdaten den Kernablauf abnehmen.
 2. Sicherung/Wiederherstellung mit eigenem Datenbestand abnehmen. Die tatsächlich benötigten Prod-Profile
@@ -67,3 +67,16 @@ Malaysia/Indien sowie die fachliche Definition der achten Domäne bleiben
 zurückgestellt. Vollständige automatische PII-Erkennung wird nicht zugesagt.
 
 In v0.6.0 zusätzlich umgesetzt: vollständige ZIP-Sicherung mit geprüfter Wiederherstellung und Rücksicherung, Stapel-Prüfausgaben für Sprachen/Rollen/Dokumentarten/Formate sowie CI-Konfiguration. Versionsübergreifende Sicherungsübernahme, verschlüsselte ZIPs und automatische Stapelfreigaben bleiben außerhalb dieses Ausbaus.
+
+
+Lokaler Ausbau v0.8.0 ergänzt Quelldatei-Design ohne Gliederung, gespeicherte
+Designpatterns, getrennte Typografie, Hinweisrahmen/Icons und die acht Agenten.
+Vor Veröffentlichung noch Browser-Endablauf und HTTP-Integration erneut ausführen.
+Die automatische Freigabeprüfung für externe Aktionen ist derzeit durch ein
+Nutzungslimit blockiert; der GitHub-Stand enthält diesen Ausbau noch nicht.
+
+Nächste konkrete Restarbeiten: redaktionelle Übernahme der Klassifikations-/Wissens-
+und Medienvorschläge direkt aus dem neuen Orchestrator (2–4 PT), OCR-Integration
+mit persistierten Fundstellen (3–5 PT), zusätzliche Schrift-/Layoutabnahme für
+Word/PowerPoint (2–4 PT), optionale tatsächliche KI-Anbindung erst mit passenden
+API-Zugängen und festgelegter Datenfreigabe (3–6 PT).

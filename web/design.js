@@ -1,90 +1,50 @@
 "use strict";
 (() => {
-  const defaults = {primary:"#123443",accent:"#00858b",text:"#203640",font:"Arial",size:11,
-    chapter:"#123443",subchapter:"#00858b",image_width:100,captions:true,page_numbers:true,icons:true,icon_style:"symbols",
-    keywords:[],highlight:"#fff1a8",link:"#006b8f",notice:"#eaf4f5",exception:"#fff0e5",tip:"#eaf5e9"};
-  const colors = [["primary","Hauptfarbe"],["accent","Akzentfarbe"],["chapter","Kapitel"],
-    ["subchapter","Unterkapitel"],["text","Fließtext"],["link","Links"],["highlight","Hervorhebungen"],
-    ["notice","Hinweise"],["exception","Ausnahmen"],["tip","Tipps"]];
-  const presets={
-    oneSCM:{...defaults},
-    print:{...defaults,primary:"#202020",accent:"#555555",chapter:"#202020",subchapter:"#444444",text:"#202020",link:"#333333",highlight:"#eeeeee",notice:"#f4f4f4",exception:"#ededed",tip:"#f7f7f7",icon_style:"letters"},
-    highcontrast:{...defaults,primary:"#000000",accent:"#003b70",chapter:"#000000",subchapter:"#003b70",text:"#000000",link:"#003b70",highlight:"#fff066",notice:"#e5f1ff",exception:"#ffe5ce",tip:"#e5f5df",size:12}
-  };
-  let entries=[], outlineId=null, baseTheme={};
-  const field = key => document.querySelector(`#design-form [data-design="${key}"]`);
-  function init() {
-    if($("design-dialog"))return;
-    const dialog=document.createElement("dialog");dialog.id="design-dialog";dialog.setAttribute("aria-labelledby","design-heading");
-    dialog.innerHTML=`<div class="panel-heading"><div><div class="eyebrow">GESTALTUNG DER AUSGABE</div><h2 id="design-heading">Designstudio</h2></div><button type="button" id="design-cancel">Abbrechen</button></div>
-      <p id="design-outline" class="muted"></p><form id="design-form"><div class="design-workspace"><section class="design-settings">
-      <fieldset><legend>Designvorlagen</legend><label>Vorlage auswählen<select id="design-preset"><option value="">Eigene Gestaltung</option><option value="oneSCM">oneSCM · Petrol</option><option value="print">Druck · Graustufen</option><option value="highcontrast">Hoher Kontrast</option></select></label><button type="button" id="design-preset-apply" disabled>Designvorlage einsetzen</button><p class="muted">Eine Vorlage ersetzt die Gestaltungswerte. Gewählte Office-Templates und Hervorhebungsbegriffe bleiben erhalten.</p></fieldset>
-      <fieldset><legend>Office-Templates</legend><label>Word-Template<select id="design-docx"></select></label><label>PowerPoint-Template<select id="design-pptx"></select></label>
-      <p class="muted">Die gewählte Revision bleibt fest gebunden. Neue DOCX-/PPTX-Templates lassen sich unter „Layouttemplates“ hochladen. Native Templates behalten ihre Formatvorlagen und Master.</p></fieldset>
-      <fieldset><legend>Farben und Schrift</legend><div class="design-colors">${colors.map(([key,label])=>`<label>${label}<input type="color" data-design="${key}" aria-label="Farbe ${label}"></label>`).join("")}</div>
-      <div class="design-row"><label>Schriftfamilie<input data-design="font" required maxlength="80"></label><label>Schriftgröße (pt)<input data-design="size" type="number" min="8" max="18" step="1" required></label></div></fieldset>
-      <fieldset><legend>Bilder und Orientierung</legend><label>Bildbreite (% der verfügbaren Breite)<input data-design="image_width" type="number" min="25" max="100" step="1" required></label>
-      <label class="check"><input type="checkbox" data-design="captions">Bildunterschriften anzeigen</label><label class="check"><input type="checkbox" data-design="page_numbers">Seiten- / Foliennummern anzeigen</label><label class="check"><input type="checkbox" data-design="icons">Symbole bei Hinweisen, Ausnahmen und Tipps</label><label>Symbolstil<select data-design="icon_style"><option value="symbols">Symbole · ℹ / ! / ✓</option><option value="letters">Buchstaben · H / A / T</option><option value="minimal">Minimal · •</option></select></label></fieldset>
-      <fieldset><legend>Stichwörter hervorheben</legend><label>Ein Begriff pro Zeile, höchstens 50<textarea data-design="keywords" rows="5" maxlength="4050" placeholder="Vertrag&#10;Laufzeit"></textarea></label><p class="muted">Begriffe werden als Text gesucht, ohne reguläre Ausdrücke. Maximal 80 Zeichen pro Begriff.</p></fieldset>
-      </section><aside class="design-preview-panel"><h3>Gestaltungsbeispiel</h3><p class="muted">Schematische Vorschau mit Beispieltext. Seitenumbrüche und native Office-Master bitte in der erzeugten Datei prüfen.</p>
-      <article id="design-preview" class="design-paper" aria-label="Gestaltungsbeispiel"><div class="design-sample-brand">oneSCM · Benutzerhandbuch</div><h2>1 Contract Management</h2><h3>1.1 Vertrag bearbeiten</h3><p>Prüfen Sie den <mark id="design-sample-keyword">Vertrag</mark> und ergänzen Sie die erforderlichen Angaben.</p><p><a href="#" id="design-sample-link">Weitere Informationen zum Ablauf</a></p>
-      <figure><div class="design-sample-screen" role="img" aria-label="Schematischer Beispielscreen ohne personenbezogene Daten"><div>oneSCM · Vertrag</div><span>Vertragsdaten</span><span>Status: Entwurf</span><span>Änderungen speichern</span></div><figcaption>Abbildung 1: Vertragsdaten bearbeiten</figcaption></figure>
-      <p class="design-sample-note" data-note="notice"><b><span data-icon>ℹ </span>Hinweis:</b> Pflichtfelder vor dem Speichern prüfen.</p><p class="design-sample-note" data-note="exception"><b><span data-icon>! </span>Ausnahme:</b> Länderspezifische Vorgaben beachten.</p><p class="design-sample-note" data-note="tip"><b><span data-icon>✓ </span>Tipp:</b> Häufige Abläufe als Quick Reference bereitstellen.</p><footer>1</footer></article></aside></div>
-      <div class="dialog-actions"><button type="button" id="design-reset">Standarddesign einsetzen</button><button class="primary" type="submit">Design übernehmen</button></div><p class="muted">Übernehmen ändert die aktuelle Gliederung. Anschließend speichern, um das Design dauerhaft zu sichern.</p></form>`;
-    document.body.append(dialog);
-    $("design-cancel").onclick=()=>dialog.close();
-    $("design-sample-link").onclick=e=>e.preventDefault();
-    $("design-form").oninput=preview;
-    $("design-preset").onchange=()=>$("design-preset-apply").disabled=!$("design-preset").value;
-    $("design-preset-apply").onclick=()=>{const preset=presets[$("design-preset").value];if(preset){fillTheme({...preset,keywords:readTheme().keywords});preview();}};
-    $("design-reset").onclick=()=>{fillTheme(defaults);preview();};
-    $("design-form").onsubmit=run(async e=>{
-      e.preventDefault();if(!current||current.id!==outlineId)throw new Error("Die Gliederung hat gewechselt. Designstudio erneut öffnen.");
-      const theme=readTheme(true),layout={theme};
-      for(const fmt of ["docx","pptx"]){const value=$("design-"+fmt).value;if(value)layout[fmt]=JSON.parse(value);}
-      current.layout=layout;markDirty();dialog.close();message("Design übernommen. Gliederung speichern und gewünschte Ausgabe erzeugen.");
-    });
-    document.querySelectorAll("[data-design-open]").forEach(button=>button.onclick=run(open));
-    if($("design-button"))$("design-button").onclick=run(open);
-  }
-  function fillTheme(theme) {
-    for(const key of Object.keys(defaults)){const el=field(key);if(!el)continue;if(el.type==="checkbox")el.checked=!!theme[key];else el.value=key==="keywords"?(theme[key]||[]).join("\n"):theme[key];}
-  }
-  function readTheme(validate=false) {
-    const theme={...baseTheme};
-    for(const key of Object.keys(defaults)){const el=field(key);theme[key]=el.type==="checkbox"?el.checked:el.type==="number"?Number(el.value):key==="keywords"?el.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean):el.value;}
-    if(validate&&(!theme.font.trim()||!/^[\p{L}\p{N}_ ,.-]+$/u.test(theme.font)))throw new Error("Schriftfamilie mit Buchstaben, Ziffern, Leerzeichen, Komma, Punkt oder Bindestrich angeben.");
-    if(validate&&(theme.keywords.length>50||theme.keywords.some(k=>k.length>80)))throw new Error("Höchstens 50 Hervorhebungsbegriffe mit jeweils maximal 80 Zeichen verwenden.");
-    return theme;
-  }
-  function preview() {
-    const t=readTheme(),paper=$("design-preview");
-    for(const [key] of colors)paper.style.setProperty("--design-"+key,t[key]);
-    paper.style.fontFamily=t.font;paper.style.fontSize=`${Math.max(8,Math.min(18,t.size||11))}pt`;
-    paper.querySelector("figure").style.width=`${Math.max(25,Math.min(100,t.image_width||100))}%`;
-    paper.querySelector("figcaption").hidden=!t.captions;paper.querySelector("footer").hidden=!t.page_numbers;
-    const symbols=t.icon_style==="letters"?{notice:"H",exception:"A",tip:"T"}:t.icon_style==="minimal"?{notice:"•",exception:"•",tip:"•"}:{notice:"ℹ",exception:"!",tip:"✓"};
-    paper.querySelectorAll("[data-icon]").forEach(el=>{el.hidden=!t.icons;el.textContent=symbols[el.closest("[data-note]").dataset.note]+" ";});
-    $("design-sample-keyword").textContent=t.keywords[0]||"Vertrag";
-    $("design-sample-keyword").style.backgroundColor=t.keywords.length?t.highlight:"transparent";
-  }
-  function templateSelect(fmt,ref) {
-    const select=$("design-"+fmt);select.replaceChildren(new Option("Standardlayout",""));
-    const value=ref?JSON.stringify({id:ref.id,revision:ref.revision}):"";
-    for(const entry of entries.filter(e=>e.format===fmt))select.add(new Option(`${entry.name} · V${entry.version} · R${entry.revision}`,JSON.stringify({id:entry.id,revision:entry.revision})));
-    if(value&&![...select.options].some(o=>o.value===value))select.add(new Option(`Gebundene Templaterevision R${ref.revision}`,value));
-    select.value=value;
-  }
-  async function open() {
-    if(!current)throw new Error("Zuerst eine Gliederung öffnen, um deren Design zu bearbeiten.");
-    init();const targetId=current.id;entries=await api("/api/layouts",{});
-    if(!current||current.id!==targetId)throw new Error("Die Gliederung hat gewechselt. Designstudio erneut öffnen.");
-    outlineId=targetId;const old=current.layout?.theme||{};baseTheme={...defaults,...old,chapter:old.chapter||old.primary||defaults.chapter,subchapter:old.subchapter||old.accent||defaults.subchapter};
-    $("design-outline").textContent=`Für „${current.title}“ · Version ${current.metadata?.version||"1.0"} · Revision ${current.revision}`;
-    for(const fmt of ["docx","pptx"])templateSelect(fmt,current.layout?.[fmt]);
-    $("design-preset").value="";$("design-preset-apply").disabled=true;
-    fillTheme(baseTheme);preview();if(!$("design-dialog").open)$("design-dialog").showModal();
-  }
-  window.oneSCMDesign={init,open:run(open)};
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+ const defaults={primary:'#123443',accent:'#00858b',text:'#203640',font:'Arial',size:11,chapter:'#123443',subchapter:'#00858b',image_width:100,captions:true,page_numbers:true,icons:true,icon_style:'outline',keywords:[],highlight:'#fff1a8',link:'#006b8f',notice:'#eaf4f5',exception:'#fff0e5',tip:'#eaf5e9',attention:'#fff0db',chapter_font:'Arial',chapter_size:20,chapter_line:1.2,subchapter_font:'Arial',subchapter_size:15,subchapter_line:1.25,line_height:1.5};
+ const callouts={notice:'Hinweis',attention:'Achtung',exception:'Ausnahme',tip:'Tipp'};
+ for(const k of Object.keys(callouts)){defaults[k+'_border']=true;defaults[k+'_border_color']='#00858b';}
+ const colors={primary:'Hauptfarbe',accent:'Akzent',chapter:'Kapitel',subchapter:'Unterkapitel',text:'Fließtext',link:'Links',highlight:'Stichwortmarkierung'};
+ const presets={oneSCM:{...defaults},print:{...defaults,primary:'#202020',accent:'#555555',chapter:'#202020',subchapter:'#444444',text:'#202020',link:'#333333',highlight:'#eeeeee',notice:'#f4f4f4',attention:'#ededed',exception:'#ededed',tip:'#f7f7f7'},highcontrast:{...defaults,primary:'#000000',accent:'#003b70',chapter:'#000000',subchapter:'#003b70',text:'#000000',link:'#003b70',highlight:'#fff066'},ocean:{...defaults,primary:'#16324f',accent:'#247ba0',chapter:'#16324f',subchapter:'#247ba0',notice:'#e8f5fa',tip:'#e7f6ef'}};
+ let entries=[],patterns=[],pattern=null,outlineId=null;
+ const field=k=>document.querySelector(`#design-form [data-design="${k}"]`);
+ function input(k,type='text',attrs=''){return `<input data-design="${k}" type="${type}" ${attrs}>`;}
+ function init(){if($('design-dialog'))return;
+ const d=document.createElement('dialog');d.id='design-dialog';d.setAttribute('aria-labelledby','design-heading');
+ d.innerHTML=`<div class="panel-heading"><h2 id="design-heading">Designstudio</h2><button id="design-cancel">Schließen</button></div><p id="design-outline"></p><form id="design-form"><div class="design-workspace"><section class="design-settings">
+ <fieldset><legend>Arbeitsgrundlage</legend><label>Gestalten<select id="design-target"><option value="outline">Aktuelle Gliederung</option><option value="source">Importierte Quelldatei</option><option value="example">Freies Designpattern / Beispiel</option></select></label><label>Quelle<select id="design-source"></select></label><label>Dokumentsprache für Quelldatei<select id="design-source-language"></select></label><label>Datei ohne Gliederung hochladen<input id="design-source-file" type="file" accept=".docx,.pdf,.md,.html,.htm,.txt,.pptx,.doc"></label><button id="design-upload" type="button">Als Quelle hochladen und gestalten</button><p class="muted">Bis 20 MB. Originale bleiben erhalten. Die Gestaltung verwendet extrahierten Text; Bilder separat im Medienregister übernehmen.</p></fieldset>
+ <fieldset><legend>Designpatterns</legend><label>Gespeichertes Pattern<select id="design-pattern"></select></label><label>Patternname<input id="design-pattern-name" value="Eigenes Design" maxlength="200"></label><button id="design-pattern-save" type="button">Pattern speichern</button><button id="design-pattern-new" type="button">Als neues Pattern speichern</button></fieldset>
+ <fieldset><legend>Farbpalette / Startvorlage</legend><select id="design-preset"><option value="">Eigene Gestaltung</option><option value="oneSCM">oneSCM · Petrol</option><option value="print">Druck · Graustufen</option><option value="highcontrast">Hoher Kontrast</option><option value="ocean">Ocean · Blau</option></select><button id="design-preset-apply" type="button" disabled>Designvorlage einsetzen</button><div class="design-colors">${Object.entries(colors).map(([k,label])=>`<label>${label}${input(k,'color')}</label>`).join('')}</div></fieldset>
+ <fieldset><legend>Typografie nach Textebene</legend>${[['chapter','Kapitel'],['subchapter','Unterkapitel'],['body','Fließtext']].map(([k,label])=>`<h4>${label}</h4><div class="design-type-row"><label>Schriftart${input(k==='body'?'font':k+'_font','text','maxlength="80" required list="design-fonts"')}</label><label>Größe (pt)${input(k==='body'?'size':k+'_size','number',`min="8" max="${k==='body'?36:48}" step="1" required`)}</label><label>Zeilenabstand${input(k==='body'?'line_height':k+'_line','number','min="1" max="3" step="0.05" required')}</label></div>`).join('')}<datalist id="design-fonts"><option>Arial</option><option>Aptos</option><option>Calibri</option><option>Times New Roman</option><option>Georgia</option><option>Courier New</option></datalist><p class="muted">Word/PowerPoint verwenden die gewählte Schrift. PDF verwendet lokal verfügbare passende Sans-/Serif-/Monospace-Schriften. Native Office-Templates behalten ihre Typografie.</p></fieldset>
+ <fieldset><legend>Hinweisfelder und Icons</legend>${Object.entries(callouts).map(([k,label])=>`<h4>${label}</h4><div class="design-colors"><label>Hintergrund${input(k,'color')}</label><label>Rahmen / Iconfarbe${input(k+'_border_color','color')}</label><label class="check">${input(k+'_border','checkbox')}Mit Rahmen</label></div>`).join('')}<label class="check">${input('icons','checkbox')}Icons anzeigen</label><label>Iconset<select data-design="icon_style"><option value="outline">Outline · Info, Warnung, Ausnahme, Idee</option><option value="symbols">Symbole</option><option value="letters">Buchstaben</option><option value="minimal">Minimal</option></select></label></fieldset>
+ <fieldset><legend>Bilder und Orientierung</legend><label>Bildbreite (%)${input('image_width','number','min="25" max="100" required')}</label><label class="check">${input('captions','checkbox')}Bildunterschriften</label><label class="check">${input('page_numbers','checkbox')}Seiten-/Foliennummern</label><label>Stichwörter (ein Begriff pro Zeile)<textarea data-design="keywords" rows="3" maxlength="4050"></textarea></label></fieldset>
+ <fieldset><legend>Office-Templates für Gliederungen</legend><label>Word<select id="design-docx"></select></label><label>PowerPoint<select id="design-pptx"></select></label><p class="muted">Quelldateiausgaben verwenden das portable Designpattern ohne native Templatebindung.</p></fieldset>
+ </section><aside class="design-preview-panel"><h3>Gestaltungsbeispiel</h3><article id="design-preview" class="design-paper"><div class="design-sample-brand">oneSCM · Dokument</div><h2>1 Contract Management</h2><h3>1.1 Vertrag bearbeiten</h3><p>Prüfen Sie den <mark id="design-sample-keyword">Vertrag</mark> und ergänzen Sie die Angaben.</p><p><a id="design-sample-link" href="#">Weitere Informationen</a></p><figure><div class="design-sample-screen">Beispielscreen</div><figcaption>Abbildung 1: Vertragsdaten</figcaption></figure>${Object.entries(callouts).map(([k,label])=>`<p data-note="${k}" class="design-sample-note"><span data-icon></span><b>${label}:</b> ${k==='attention'?'Freigabe vor Veröffentlichung prüfen.':'Fachliche Angaben prüfen.'}</p>`).join('')}<footer>1</footer></article><button id="design-render-preview" type="button">Vorher / Nachher mit Inhalt anzeigen</button><p class="muted">Vorher = gespeicherter/aufbereiteter Text; Nachher = gewähltes Design. Keine pixelgenaue Wiedergabe des Originaldokuments. Nur gespeicherte Gliederungsinhalte werden verwendet.</p><label>Ausgabeformat<select id="design-output"><option value="docx">Word</option><option value="pptx">PowerPoint</option><option value="pdf">PDF</option><option value="html">HTML</option></select></label><button id="design-export" type="button">Gestaltete Prüfausgabe herunterladen</button></aside></div><div class="dialog-actions"><button id="design-reset" type="button">Standarddesign einsetzen</button><button type="submit" class="primary">Design übernehmen</button></div></form>`;
+ document.body.append(d);
+ const compare=document.createElement('dialog');compare.id='design-compare';compare.innerHTML='<div class="panel-heading"><h2>Vorher / Nachher</h2><button id="design-compare-close">Schließen</button></div><div class="design-compare-grid"><section><h3>Vorher · aufbereiteter Inhalt</h3><iframe id="design-before-frame" title="Vorher" sandbox=""></iframe></section><section><h3>Nachher · Designpattern</h3><iframe id="design-after-frame" title="Nachher" sandbox=""></iframe></section></div>';document.body.append(compare);
+ $('design-compare-close').onclick=()=>compare.close();$('design-cancel').onclick=()=>d.close();$('design-sample-link').onclick=e=>e.preventDefault();$('design-form').oninput=preview;
+ $('design-preset').onchange=()=>$('design-preset-apply').disabled=!$('design-preset').value;$('design-preset-apply').onclick=()=>{fill({...presets[$('design-preset').value],keywords:read().keywords});preview();};$('design-reset').onclick=()=>{fill(defaults);preview();};
+ $('design-pattern').onchange=()=>{pattern=patterns.find(p=>p.id===$('design-pattern').value)||null;if(pattern){$('design-pattern-name').value=pattern.name;fill(pattern.theme);preview();}};
+ $('design-pattern-save').onclick=run(()=>savePattern(false));$('design-pattern-new').onclick=run(()=>savePattern(true));
+ $('design-target').onchange=()=>{$('design-source').disabled=$('design-target').value!=='source';$('design-source-language').disabled=$('design-target').value!=='source';};
+ $('design-upload').onclick=run(async()=>{const file=$('design-source-file').files[0];if(!file||file.size>20*1024*1024)throw new Error('Quelldatei bis 20 MB auswählen.');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const result=await api('/api/source/upload',{name:file.name,base64:btoa(binary),kind:'Datei'});await loadSourcesForDesign();$('design-source').value=result.id;$('design-target').value='source';$('design-target').onchange();message('Quelle geladen. Design einstellen und Vorschau erzeugen.');});
+ $('design-render-preview').onclick=run(async()=>{const result=await api('/api/design/preview',request());$('design-before-frame').src=result.before;$('design-after-frame').src=result.after;compare.showModal();});
+ $('design-export').onclick=run(async()=>{const fmt=$('design-output').value;const response=await api('/api/design/export',{...request(),format:fmt});await downloadResponse(response,'oneSCM-Design.'+fmt);});
+ $('design-form').onsubmit=run(async e=>{e.preventDefault();if($('design-target').value!=='outline'){await savePattern(false);return;}if(!current||current.id!==outlineId)throw new Error('Gliederung gewechselt. Designstudio neu öffnen.');const layout={theme:read()};for(const fmt of ['docx','pptx'])if($('design-'+fmt).value)layout[fmt]=JSON.parse($('design-'+fmt).value);current.layout=layout;markDirty();d.close();message('Design übernommen. Gliederung speichern.');});
+ if($('design-button'))$('design-button').onclick=run(open);
+ }
+ function read(){const t={};for(const k of Object.keys(defaults)){const e=field(k);t[k]=e.type==='checkbox'?e.checked:e.type==='number'?Number(e.value):k==='keywords'?e.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean):e.value;}return t;}
+ function fill(theme){const t={...defaults,...theme};for(const k of Object.keys(defaults)){const e=field(k);if(e.type==='checkbox')e.checked=t[k];else e.value=k==='keywords'?t[k].join('\n'):t[k];}}
+ function preview(){const t=read(),paper=$('design-preview');for(const k of Object.keys(colors))paper.style.setProperty('--design-'+k,t[k]);paper.style.fontFamily=t.font;paper.style.fontSize=t.size+'pt';paper.style.lineHeight=t.line_height;
+ for(const [selector,prefix] of [['h2','chapter'],['h3','subchapter']]){const e=paper.querySelector(selector);e.style.fontFamily=t[prefix+'_font'];e.style.fontSize=t[prefix+'_size']+'pt';e.style.lineHeight=t[prefix+'_line'];}
+ paper.querySelector('figure').style.width=t.image_width+'%';paper.querySelector('figcaption').hidden=!t.captions;paper.querySelector('footer').hidden=!t.page_numbers;
+ const glyphs={notice:'ⓘ',attention:'⚠',exception:'!',tip:'✓'};for(const k of Object.keys(callouts)){const e=paper.querySelector(`[data-note="${k}"]`);e.style.backgroundColor=t[k];e.style.border=t[k+'_border']?'1px solid '+t[k+'_border_color']:'none';const icon=e.querySelector('[data-icon]');icon.hidden=!t.icons;icon.textContent=(t.icon_style==='letters'?callouts[k][0]:t.icon_style==='minimal'?'•':glyphs[k])+' ';icon.style.color=t[k+'_border_color'];}
+ $('design-sample-keyword').textContent=t.keywords[0]||'Vertrag';$('design-sample-keyword').style.backgroundColor=t.keywords.length?t.highlight:'transparent';}
+ function request(){const target=$('design-target').value,r={theme:read()};if(target==='source'){if(!$('design-source').value)throw new Error('Quelle auswählen oder hochladen.');r.source_id=$('design-source').value;r.language=$('design-source-language').value;}if(target==='outline'){if(!current||current.id!==outlineId)throw new Error('Gliederung fehlt oder gewechselt.');r.outline_id=current.id;r.revision=current.revision;}return r;}
+ async function loadPatterns(){patterns=await api('/api/design/patterns',{});$('design-pattern').innerHTML='<option value="">Neues Pattern</option>'+patterns.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · R${p.revision}</option>`).join('');if(pattern)$('design-pattern').value=pattern.id;}
+ async function savePattern(fresh){const value=await api('/api/design/save',{id:fresh?undefined:pattern?.id,revision:fresh?0:pattern?.revision||0,name:$('design-pattern-name').value,theme:read()});pattern=value;await loadPatterns();message('Designpattern gespeichert: '+value.name+' · R'+value.revision);}
+ async function loadSourcesForDesign(){const {sources}=await api('/api/sources',{});$('design-source').innerHTML=sources.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');}
+ async function open(){init();pattern=null;outlineId=current?.id||null;entries=await api('/api/layouts',{});await loadPatterns();await loadSourcesForDesign();$('design-source-language').innerHTML=options(meta.languages,current?.profile.language||'de');$('design-target').querySelector('[value=outline]').disabled=!current;$('design-target').value=current?'outline':$('design-source').options.length?'source':'example';$('design-target').onchange();$('design-outline').textContent=current?`Gliederung „${current.title}“ · R${current.revision}`:'Unabhängiger Designarbeitsplatz – keine Gliederung erforderlich';
+ for(const fmt of ['docx','pptx']){const select=$('design-'+fmt);select.replaceChildren(new Option('Standardlayout',''));for(const e of entries.filter(e=>e.format===fmt))select.add(new Option(e.name+' · R'+e.revision,JSON.stringify({id:e.id,revision:e.revision})));const ref=current?.layout?.[fmt];if(ref){const val=JSON.stringify(ref);if(![...select.options].some(o=>o.value===val))select.add(new Option('Gebundene Revision '+ref.revision,val));select.value=val;}}
+ fill(current?.layout?.theme||defaults);preview();$('design-dialog').showModal();}
+ window.oneSCMDesign={init,open:run(open)};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
