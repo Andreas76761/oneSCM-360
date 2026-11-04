@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright, expect
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import app
+from version import VERSION
 from test_publishing import office_parts
 from test_media import sample_image
 
@@ -32,7 +33,7 @@ def main():
                 page=browser.new_page(viewport={"width":1600,"height":1100})
                 errors=[];page.on("pageerror",lambda error:errors.append(str(error)))
                 page.goto(f"http://127.0.0.1:{server.server_port}")
-                expect(page.locator("#app-version")).to_contain_text("0.4.0")
+                expect(page.locator("#app-version")).to_contain_text(VERSION)
                 page.get_by_role("button",name="Publishing acceptance",exact=True).click()
                 # Separate internal topic hierarchy and FAQ; no outline save needed.
                 page.locator("#internal-button").click()
@@ -169,7 +170,7 @@ def main():
                 expect(page.locator("#job-detail h3")).to_contain_text("completed",timeout=30000)
                 expect(page.locator("#job-detail")).to_contain_text("Renderprobe erfolgreich")
                 with page.expect_download() as info:page.locator("#job-report-download").click()
-                assert "0.4.0" in Path(info.value.path()).read_text()
+                assert VERSION in Path(info.value.path()).read_text()
                 assert not errors,errors
                 browser.close()
                 print("Browser PASS: internal hierarchy/FAQ/revisions/profile isolation, Markdown Word batch, HTML clipboard, Jira recheck, dated suitability, native template, four reader formats and four-agent report.")

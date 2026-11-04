@@ -11,9 +11,11 @@ from collections import Counter
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import PurePath
+from contextlib import nullcontext
+import jira_import
 
 ROLES = ["Retailer", "Markt", "MO", "HQ", "intern"]
-MAX_FILE = 10 * 1024 * 1024
+MAX_FILE = 20 * 1024 * 1024
 
 
 def stamp():
@@ -58,7 +60,11 @@ def extract(name, raw):
     ext = PurePath(name).suffix.lower()
     pages, warnings = [], []
     if not raw or len(raw) > MAX_FILE:
-        raise ValueError("Bitte eine Datei zwischen 1 Byte und 10 MB wählen.")
+        raise ValueError("Bitte eine Datei zwischen 1 Byte und 20 MB wählen.")
+    if ext in [".html", ".htm", ".doc"]:
+        parsed = jira_import.prepare(raw)
+        if parsed is not None:
+            return [{"text":jira_import.ticket_text(p["html"]),"location":p["details"].get("ticket_key","Jira-HTML"),"details":p["details"]} for p in parsed["parts"]], parsed["warnings"]
     if ext in [".docx", ".pptx"]:
         try:
             with zipfile.ZipFile(io.BytesIO(raw)) as archive:
@@ -144,11 +150,11 @@ def extract(name, raw):
             pages = [("Text", text)]
     else:
         raise ValueError("Unterstützt: TXT, MD, HTML, DOC/DOCX, PPTX, PDF, CSV und JSON.")
-    if sum(len(text) for _, text in pages) > 2_000_000:
+    if sum(len(text) for _, text in pages) > 20 * 1024 * 1024:
         raise ValueError("Zu viel Text für einen Import. Bitte die Quelle aufteilen.")
     chunks = [c for location, text in pages for c in text_chunks(text, location)]
-    if len(chunks) > 2000:
-        raise ValueError("Mehr als 2000 Chunks. Bitte die Quelle aufteilen.")
+    if len(chunks) > 20000:
+        raise ValueError("Mehr als 20.000 Chunks. Bitte die Quelle aufteilen.")
     if not chunks:
         warnings.append("Keine Text-Chunks erkannt. Die Originaldatei wurde gespeichert; Triage benötigt auslesbaren Text.")
     return chunks, warnings
@@ -207,6 +213,8 @@ def validate_labels(value, targets):
 def ollama_suggestion(chunk, outline, targets, model):
     if not isinstance(model, str) or not model.strip() or len(model) > 150:
         raise ValueError("Bitte den Namen eines lokal installierten Ollama-Modells angeben.")
+    if len(chunk["text"]) > 30000:
+        raise ValueError("Dieses Ticket enthält mehr als 30.000 Zeichen. Für die vollständige lokale Triage Regeln oder manuelle Prüfung verwenden; der Tickettext wird nicht abgeschnitten.")
     words = set(tokens(chunk["text"]))
     ranked = sorted(outline["chapters"], key=lambda c: -len(words.intersection(tokens(" ".join([c["title"], c["goal"], c.get("keywords", "")])))))
     candidates = [{"id": c["id"], "title": c["title"], "goal": c["goal"][:200]} for c in ranked[:25]]
@@ -247,6 +255,7 @@ class Sources:
                 CREATE TABLE IF NOT EXISTS chunks(id TEXT PRIMARY KEY, source_id TEXT REFERENCES sources(id) ON DELETE CASCADE, ordinal INTEGER, text TEXT, location TEXT, labels TEXT, suggestion TEXT, revision INTEGER DEFAULT 1);
                 CREATE TABLE IF NOT EXISTS assignments(chunk_id TEXT REFERENCES chunks(id) ON DELETE CASCADE, outline_id TEXT REFERENCES outlines(id) ON DELETE CASCADE, chapter_id TEXT, PRIMARY KEY(chunk_id,outline_id,chapter_id));
             """)
+        self.imports = jira_import.Imports(self)
 
     def listing(self):
         with self.store.connect() as db:
@@ -257,36 +266,54 @@ class Sources:
             row["warnings"] = json.loads(row["warnings"])
         return result
 
-    def upload(self, name, raw, data):
+    @staticmethod
+    def metadata(name, data):
         if not isinstance(name, str) or not name.strip() or len(name) > 250:
             raise ValueError("Ungültiger Dateiname.")
         name = name.replace("\\", "/").split("/")[-1]
-        digest = hashlib.sha256(raw).hexdigest()
-        with self.store.connect() as db:
-            row = db.execute("SELECT id FROM sources WHERE sha256=?", (digest,)).fetchone()
-        if row:
-            return {"id": row[0], "duplicate": True}
-        chunks, warnings = extract(name, raw)
-        sid = str(uuid.uuid4())
-        fields = [data.get(k, "") for k in ["kind", "origin", "release"]]
-        if any(not isinstance(v, str) or len(v) > 1000 for v in fields):
+        fields = {k:data.get(k, "") for k in ["kind", "origin", "release"]}
+        if any(not isinstance(v, str) or len(v) > 1000 for v in fields.values()):
             raise ValueError("Ungültige Quellenmetadaten.")
-        with self.store.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        return name, fields
+
+    def upload(self, name, raw, data):
+        name, data = self.metadata(name, data)
+        if not raw or len(raw) > MAX_FILE:
+            raise ValueError("Bitte eine Datei zwischen 1 Byte und 20 MB wählen.")
+        parsed = jira_import.prepare(raw,force=data.get("kind")=="Jira") if PurePath(name).suffix.lower() in [".html",".htm",".doc"] else None
+        if parsed is not None:
+            scrub = parsed["scrubber"]
+            name = scrub.clean(name)
+            data = {k:scrub.clean(v) for k,v in data.items()}
+            chunks = [{"text":jira_import.ticket_text(p["html"]),"location":p["details"].get("ticket_key","Jira-HTML"),"details":p["details"]} for p in parsed["parts"]]
+            return self.store_parsed(name,jira_import.document(parsed["parts"]),data,chunks,parsed["warnings"])
+        chunks, warnings = extract(name, raw)
+        return self.store_parsed(name,raw,data,chunks,warnings)
+
+    def store_parsed(self, name, raw, data, chunks, warnings, connection=None):
+        name, fields = self.metadata(name, data)
+        digest = hashlib.sha256(raw).hexdigest()
+        sid = str(uuid.uuid4())
+        with (self.store.connect() if connection is None else nullcontext(connection)) as db:
+            if connection is None:db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT id FROM sources WHERE sha256=?", (digest,)).fetchone()
             if row:
                 return {"id": row[0], "duplicate": True}
-            db.execute("INSERT INTO sources VALUES(?,?,?,?,?,?,?,?,?,?)", (sid, name, *fields, stamp(), len(raw), digest, raw, json.dumps(warnings)))
+            db.execute("INSERT INTO sources VALUES(?,?,?,?,?,?,?,?,?,?)", (sid, name, *[fields[k] for k in ["kind","origin","release"]], stamp(), len(raw), digest, raw, json.dumps(warnings)))
             for i, chunk in enumerate(chunks, 1):
-                db.execute("INSERT INTO chunks VALUES(?,?,?,?,?,?,?,1)", (str(uuid.uuid4()), sid, i, chunk["text"], chunk["location"], "{}", "{}"))
+                cid = str(uuid.uuid4())
+                db.execute("INSERT INTO chunks VALUES(?,?,?,?,?,?,?,1)", (cid, sid, i, chunk["text"], chunk["location"], "{}", "{}"))
+                if chunk.get("details"):
+                    db.execute("INSERT INTO chunk_details VALUES(?,?)", (cid,json.dumps(chunk["details"],ensure_ascii=False)))
         return {"id": sid, "duplicate": False, "chunks": len(chunks), "warnings": warnings}
 
     def chunks(self, sid):
         with self.store.connect() as db:
             rows = db.execute("SELECT id,ordinal,text,location,labels,suggestion,revision FROM chunks WHERE source_id=? ORDER BY ordinal", (sid,)).fetchall()
             links = db.execute("SELECT chunk_id,outline_id,chapter_id FROM assignments").fetchall()
+            details = {cid:json.loads(raw) for cid,raw in db.execute("SELECT d.chunk_id,d.payload FROM chunk_details d JOIN chunks c ON c.id=d.chunk_id WHERE c.source_id=?",(sid,))}
         return [{"id": r[0], "ordinal": r[1], "text": r[2], "location": r[3], "labels": json.loads(r[4]),
-                 "suggestion": json.loads(r[5]), "revision": r[6],
+                 "suggestion": json.loads(r[5]), "revision": r[6], "details": details.get(r[0], {}),
                  "assignments": [{"outline_id": o, "chapter_id": c} for chunk, o, c in links if chunk == r[0]]} for r in rows]
 
     def index(self):

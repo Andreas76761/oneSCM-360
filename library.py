@@ -1,5 +1,6 @@
 """Versioned reusable text blocks. Assignments pin an immutable library revision."""
 import copy
+from contextlib import nullcontext
 import json
 
 
@@ -42,7 +43,7 @@ class Library:
             raise Invalid("Bausteinrevision nicht gefunden.")
         return json.loads(row[0])
 
-    def save(self, data):
+    def save(self, data, connection=None):
         from app import new_outline, chapter, validate_outline, clean_text, boolean, Conflict, Invalid, now
         if type(data.get("revision")) is not int or data["revision"] < 0:
             raise Invalid("Ungültige Bausteinrevision.")
@@ -80,8 +81,9 @@ class Library:
             item["translation"] = {"source_id": source["id"], "source_revision": source["revision"],
                 "source_language": source["block"]["language"], "target_language": block["language"],
                 "method": clean_text(translation.get("method", "Manuell"), "Übersetzungsmethode", 200), "reviewed": reviewed}
-        with self.store.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (self.store.connect() if connection is None else nullcontext(connection)) as db:
+            if connection is None:
+                db.execute("BEGIN IMMEDIATE")
             old = db.execute("SELECT revision FROM library WHERE id=?", (lid,)).fetchone()
             if (old and old[0] != data["revision"]) or (not old and data["revision"] != 0):
                 raise Conflict("Baustein wurde geändert. Bibliothek neu öffnen.")

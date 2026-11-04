@@ -15,6 +15,7 @@ import threading
 import uuid
 import webbrowser
 import zipfile
+from contextlib import nullcontext
 import domain_mapping as dm
 import sources as source_module
 import editorial
@@ -27,6 +28,10 @@ import markdown_tools
 import renderers
 import orchestration
 import internal_knowledge
+import internal_chat
+import knowledge_review
+import releases
+import ai_exchange
 from version import VERSION, RELEASE_DATE
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -37,7 +42,7 @@ ROLES = ["Retailer", "Markt", "MO", "HQ", "intern"]
 SCOPES = ["Kompakt", "Standard", "Ausführlich"]
 LANGUAGES = ["de", "en", "fr", "it", "sk", "ko"]
 DOMAINS = dm.DOMAIN_NAMES
-MAX_BODY = 16 * 1024 * 1024
+MAX_BODY = 32 * 1024 * 1024
 
 
 class Invalid(ValueError):
@@ -451,16 +456,22 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
     output = io.BytesIO()
     caption = profile_caption(plan["profile"])
     output_label = "PRÜFAUSGABE" if plan.get("draft", True) else "FREIGEGEBENE AUSGABE"
+    design = layouts.theme(plan.get("layout", {}).get("theme"))
     if fmt == "docx":
         from docx import Document
         from docx.shared import Pt, RGBColor, Inches
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        from copy import deepcopy
         doc = layouts.word_document(template_bytes) if template_bytes else Document()
         style = doc.styles["Normal"]
-        design = layouts.theme(plan.get("layout", {}).get("theme"))
         if not template_bytes:
             style.font.name, style.font.size = design["font"], Pt(design["size"])
+            style.font.color.rgb = RGBColor.from_string(design["text"][1:])
+            doc.styles["Title"].font.color.rgb = RGBColor.from_string(design["primary"][1:])
+            doc.styles["Caption"].font.color.rgb = RGBColor.from_string(design["accent"][1:])
             for level in range(1, 10):
-                doc.styles[f"Heading {level}"].font.color.rgb = RGBColor.from_string(design["primary"][1:])
+                doc.styles[f"Heading {level}"].font.color.rgb = RGBColor.from_string(design["chapter" if level == 1 else "subchapter"][1:])
         doc.add_heading(plan["title"], 0)
         doc.add_paragraph(output_label + " · Version " + plan["metadata"]["version"] + " · Revision " + str(plan["revision"]))
         doc.add_paragraph(caption)
@@ -486,19 +497,60 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
                 for frame in figure["frames"]:
                     if not media_loader:
                         raise Invalid("Bilddaten für Ausgabe fehlen.")
-                    width = min(6.0, 8.0 * frame["width"] / frame["height"])
+                    section = doc.sections[-1]
+                    available = (section.page_width-section.left_margin-section.right_margin)/914400
+                    width = min(available*design["image_width"]/100, 8.0 * frame["width"] / frame["height"])
                     doc.add_picture(io.BytesIO(media_loader(frame["asset_id"], frame["revision"])), width=Inches(width))
                     caption = (f"Schritt {frame['step']}: " if figure["kind"] == "Klickstrecke" else "") + frame["caption"]
-                    if caption:
+                    if caption and design["captions"]:
                         doc.add_paragraph(caption, style="Caption")
+        # Decorate reader content only, including paragraphs in Markdown tables.
+        # Splitting simple runs retains bold/italic formatting and hyperlink parents.
+        for paragraph in doc._element.body.iter(qn("w:p")):
+            text = "".join(node.text or "" for node in paragraph.iter(qn("w:t")))
+            kind = renderers.callout_kind(text)
+            if kind:
+                props = paragraph.get_or_add_pPr()
+                shade = OxmlElement("w:shd"); shade.set(qn("w:fill"),design[kind][1:]); props.append(shade)
+                if design["icons"]:
+                    run = OxmlElement("w:r"); node = OxmlElement("w:t");node.set(qn("xml:space"),"preserve")
+                    node.text = renderers.callout_icon(kind,design)+" ";run.append(node);paragraph.insert(1,run)
+            for run in list(paragraph.iter(qn("w:r"))):
+                if run.getparent().tag == qn("w:hyperlink"):
+                    props=run.get_or_add_rPr();color=props.find(qn("w:color"))
+                    if color is None: color=OxmlElement("w:color");props.append(color)
+                    color.set(qn("w:val"),design["link"][1:])
+                if any(node.tag not in {qn("w:rPr"),qn("w:t")} for node in run): continue
+                text="".join(node.text or "" for node in run.findall(qn("w:t")))
+                segments=renderers.keyword_segments(text,design)
+                if not any(marked for _,marked in segments): continue
+                parent=run.getparent();position=parent.index(run)
+                for value,marked in segments:
+                    replacement=deepcopy(run)
+                    for node in list(replacement):
+                        if node.tag != qn("w:rPr"): replacement.remove(node)
+                    node=OxmlElement("w:t");node.set(qn("xml:space"),"preserve");node.text=value;replacement.append(node)
+                    if marked:
+                        shade=OxmlElement("w:shd");shade.set(qn("w:fill"),design["highlight"][1:]);replacement.get_or_add_rPr().append(shade)
+                    parent.insert(position,replacement);position+=1
+                parent.remove(run)
         if not template_bytes:
-            doc.sections[0].footer.paragraphs[0].text = "oneSCM-360 · " + output_label
+            footer = doc.sections[0].footer.paragraphs[0]
+            footer.text = "oneSCM-360 · " + output_label
         else:
-            doc.sections[0].footer.add_paragraph("oneSCM-360 · " + output_label)
+            footer = doc.sections[0].footer.add_paragraph("oneSCM-360 · " + output_label)
+        existing_fields = [node.text or "" for node in doc.sections[0].footer._element.iter(qn("w:instrText"))]
+        existing_fields += [node.get(qn("w:instr"),"") for node in doc.sections[0].footer._element.iter(qn("w:fldSimple"))]
+        if design["page_numbers"] and not any(re.search(r"\bPAGE\b", text, re.I) for text in existing_fields):
+            footer.add_run(" · ")
+            field = OxmlElement("w:fldSimple");field.set(qn("w:instr"),"PAGE");footer._p.append(field)
         doc.save(output)
     elif fmt == "pptx":
         from pptx import Presentation
         from pptx.util import Inches, Pt
+        from pptx.dml.color import RGBColor
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.oxml.xmlchemy import OxmlElement
         import textwrap
         prs = layouts.slide_document(template_bytes) if template_bytes else Presentation()
         if not template_bytes:
@@ -507,30 +559,57 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
         X = lambda value: Inches(value * sx)
         Y = lambda value: Inches(value * sy)
         blank = min(prs.slide_layouts, key=lambda layout: len(layout.placeholders))
+        body_size = max(14,min(26,design["size"]*1.6))
+        line_points = body_size*1.3+4
 
-        def slide(title, body):
+        def slide(title, body, level=1, links=None):
+            links = links or {}
             page = prs.slides.add_slide(blank)
             box = page.shapes.add_textbox(X(.65), Y(.4), X(12), Y(1.15))
             tf = box.text_frame
             tf.word_wrap = True
             tf.text = title
             tf.paragraphs[0].font.size = Pt(26)
+            if not template_bytes:
+                tf.paragraphs[0].font.name = design["font"]
+                tf.paragraphs[0].font.color.rgb = RGBColor.from_string(design["chapter" if level == 1 else "subchapter"][1:])
+            for index,line in enumerate(body.split("\n")):
+                kind = renderers.callout_kind(line)
+                if kind:
+                    badge = page.shapes.add_shape(MSO_SHAPE.RECTANGLE,X(.65),Y(1.7)+Pt(index*line_points),X(12),Pt(line_points))
+                    badge.fill.solid();badge.fill.fore_color.rgb=RGBColor.from_string(design[kind][1:]);badge.line.fill.background()
             bodybox = page.shapes.add_textbox(X(.65), Y(1.7), X(12), Y(4.9))
             bodybox.text_frame.word_wrap = True
             bodybox.text_frame.text = body
             for paragraph in bodybox.text_frame.paragraphs:
-                paragraph.font.size = Pt(18)
+                text=paragraph.text;kind=renderers.callout_kind(text)
+                if kind and design["icons"]: text=renderers.callout_icon(kind,design)+" "+text
+                paragraph.clear();paragraph.font.size = Pt(body_size)
+                paragraph.line_spacing=Pt(body_size*1.3);paragraph.space_after=Pt(4)
+                if not template_bytes:
+                    paragraph.font.name=design["font"];paragraph.font.color.rgb=RGBColor.from_string(design["text"][1:])
+                labels=sorted(links,key=len,reverse=True)
+                pattern="("+"|".join(re.escape(label) for label in labels)+")" if labels else None
+                for part in re.split(pattern,text) if pattern else [text]:
+                    for value,marked in renderers.keyword_segments(part,design):
+                        run=paragraph.add_run();run.text=value
+                        if part in links:
+                            run.hyperlink.address=links[part];run.font.color.rgb=RGBColor.from_string(design["link"][1:]);run.font.underline=True
+                        if marked:
+                            highlight=OxmlElement("a:highlight");color=OxmlElement("a:srgbClr");color.set("val",design["highlight"][1:]);highlight.append(color);run._r.get_or_add_rPr().append(highlight)
             footer = page.shapes.add_textbox(X(.65), Y(7), X(12), Y(.3))
-            footer.text_frame.text = f"oneSCM-360 · {output_label} · Revision {plan['revision']} · {len(prs.slides)}"
+            footer.text_frame.text = f"oneSCM-360 · {output_label} · Revision {plan['revision']}" + (f" · {len(prs.slides)}" if design["page_numbers"] else "")
             footer.text_frame.paragraphs[0].font.size = Pt(10)
+            if not template_bytes: footer.text_frame.paragraphs[0].font.color.rgb=RGBColor.from_string(design["accent"][1:])
 
-        def pages(title, text):
+        def pages(title, text, level=1, links=None):
             # Explicit pagination retains all text instead of silently truncating it.
             lines = []
             for line in text.splitlines() or [""]:
-                lines.extend(textwrap.wrap(line, width=max(25,int(80*sx))) or [""])
-            for offset in range(0, len(lines), 12):
-                slide(title + (" · Fortsetzung" if offset else ""), "\n".join(lines[offset:offset + 12]))
+                lines.extend(textwrap.wrap(line, width=max(20,int(80*sx*18/body_size))) or [""])
+            page_lines=max(1,int(4.65*72*sy/line_points))
+            for offset in range(0, len(lines), page_lines):
+                slide(title + (" · Fortsetzung" if offset else ""), "\n".join(lines[offset:offset + page_lines]),level,links)
 
         pages(plan["title"], "Version " + plan["metadata"]["version"] + "\n" + caption)
         if plan["warnings"]:
@@ -540,27 +619,32 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
                 continue
             title = c["number"] + " " + c["title"]
             parts = []
+            links = {}
             for b in c["blocks"]:
                 if plan["profile"]["division"] == "Beide" and b["division"] != "*":
                     parts.append("Gilt für: " + b["division"])
-                parts.append(b["text"])
+                if b.get("text_format") == "markdown":
+                    text,block_links=renderers.slide_markdown(b["text"]);parts.append(text);links.update(block_links)
+                else: parts.append(b["text"])
             if parts or not c.get("figures"):
-                pages(title, "\n\n".join(parts) or "[Inhalt ergänzen]")
+                pages(title, "\n\n".join(parts) or "[Inhalt ergänzen]",c["level"],links)
             for figure in c.get("figures", []):
                 for frame in figure["frames"]:
                     if not media_loader:
                         raise Invalid("Bilddaten für Ausgabe fehlen.")
                     heading = title + (f" · Schritt {frame['step']}" if figure["kind"] == "Klickstrecke" else "")
-                    slide(heading, "")
+                    slide(heading, "",c["level"])
                     page = prs.slides[-1]
-                    width = min(11.8*sx, 4.4*sy * frame["width"] / frame["height"])
+                    width = min(11.8*sx*design["image_width"]/100, 4.4*sy * frame["width"] / frame["height"])
                     height = width * frame["height"] / frame["width"]
                     page.shapes.add_picture(io.BytesIO(media_loader(frame["asset_id"], frame["revision"])), Inches((13.333*sx-width)/2), Y(1.65), width=Inches(width), height=Inches(height))
+                    if not design["captions"]: continue
                     caption = page.shapes.add_textbox(X(.65), Y(6.2), X(12), Y(.65))
                     caption.text_frame.word_wrap = True
                     caption.text_frame.text = frame["caption"] if len(frame["caption"]) <= 240 else "Bildunterschrift auf der folgenden Folie."
                     for paragraph in caption.text_frame.paragraphs:
                         paragraph.font.size = Pt(14)
+                        if not template_bytes: paragraph.font.color.rgb=RGBColor.from_string(design["accent"][1:])
                     if len(frame["caption"]) > 240:
                         pages(heading + " · Bildunterschrift", frame["caption"])
         prs.save(output)
@@ -588,6 +672,10 @@ class Store:
         self.layouts = layouts.Layouts(self)
         self.orchestrator = orchestration.Orchestrator(self)
         self.internal = internal_knowledge.InternalKnowledge(self)
+        self.review = knowledge_review.KnowledgeReview(self)
+        self.chat = internal_chat.InternalChat(self)
+        self.releases = releases.Releases(self)
+        self.ai_exchange = ai_exchange.Exchange(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
@@ -642,7 +730,7 @@ class Store:
             raise Invalid("Die ausgewählte Revision existiert nicht.")
         return hydrate_outline(json.loads(row[0]))
 
-    def save(self, data, releasing=False):
+    def save(self, data, releasing=False, connection=None):
         data = self.media.resolve(self.library.resolve(data))
         metadata_supplied = "metadata" in data
         mapping_supplied = "mapping_enabled" in data
@@ -650,8 +738,9 @@ class Store:
         data = validate_outline(data)
         for fmt in ["docx", "pptx"]:
             if data["layout"].get(fmt): self.layouts.snapshot(data["layout"][fmt], fmt)
-        with self.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (self.connect() if connection is None else nullcontext(connection)) as db:
+            if connection is None:
+                db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT revision, payload FROM outlines WHERE id=?", (data["id"],)).fetchone()
             if (row and row[0] != data["revision"]) or (not row and data["revision"] != 0):
                 raise Conflict("Die Gliederung wurde inzwischen geändert. Bitte neu laden; lokale Änderungen vorher sichern.")
@@ -771,7 +860,10 @@ def make_server(store, port=8765):
                                        "taxonomy": store.taxonomy(),
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
-            static = {"/": ("index.html", "text/html; charset=utf-8"),
+            static = {"/design.js": ("design.js", "text/javascript; charset=utf-8"),
+                      "/design.css": ("design.css", "text/css; charset=utf-8"),
+                      "/ai_exchange.js": ("ai_exchange.js", "text/javascript; charset=utf-8"),
+                      "/": ("index.html", "text/html; charset=utf-8"),
                       "/app.js": ("app.js", "text/javascript; charset=utf-8"),
                       "/management.js": ("management.js", "text/javascript; charset=utf-8"),
                       "/management.css": ("management.css", "text/css; charset=utf-8"),
@@ -779,6 +871,8 @@ def make_server(store, port=8765):
                       "/mapping.css": ("mapping.css", "text/css; charset=utf-8"),
                       "/matrix.js": ("matrix.js", "text/javascript; charset=utf-8"),
                       "/internal.js": ("internal.js", "text/javascript; charset=utf-8"),
+                      "/knowledge.js": ("knowledge.js", "text/javascript; charset=utf-8"),
+                      "/knowledge.css": ("knowledge.css", "text/css; charset=utf-8"),
                       "/publishing.js": ("publishing.js", "text/javascript; charset=utf-8"),
                       "/publishing.css": ("publishing.css", "text/css; charset=utf-8"),
                       "/jobs.js": ("jobs.js", "text/javascript; charset=utf-8"),
@@ -803,11 +897,39 @@ def make_server(store, port=8765):
             try:
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= MAX_BODY:
-                    raise Invalid("Anfrage fehlt oder ist größer als 16 MB.")
+                    raise Invalid("Anfrage fehlt oder ist größer als 32 MB (Quelldateien bis 20 MB).")
                 data = json.loads(self.rfile.read(length))
                 if not isinstance(data, dict):
                     raise Invalid("Ungültige Anfrage.")
                 path = urlparse(self.path).path
+                if path == "/api/chat/list":
+                    return self.send(200, store.chat.listing())
+                if path == "/api/chat/get":
+                    return self.send(200, store.chat.get(clean_text(data.get("id"), "Chat-ID", 100)))
+                if path == "/api/chat/ask":
+                    return self.send(200, store.chat.ask(data))
+                if path == "/api/review/state":
+                    with store.connect() as db:
+                        scans = [json.loads(r[0]) for r in db.execute("SELECT payload FROM knowledge_scans ORDER BY rowid DESC LIMIT 50")]
+                    return self.send(200, {"reviews":store.review.listing(), "contexts":store.review.contexts(), "sources":store.sources.listing(), "scans":scans})
+                if path == "/api/review/context":
+                    return self.send(200, store.review.save_context(data))
+                if path == "/api/review/scan":
+                    return self.send(200, store.review.scan(data))
+                if path == "/api/review/inspect":
+                    return self.send(200, store.review.inspect(data))
+                if path == "/api/review/decide":
+                    return self.send(200, store.review.decide(data))
+                if path == "/api/review/history":
+                    return self.send(200, store.review.history(clean_text(data.get("id"), "Prüfpunkt-ID", 100)))
+                if path == "/api/releases":
+                    return self.send(200, store.releases.listing())
+                if path == "/api/release/prepare":
+                    return self.send(200, store.releases.prepare(data))
+                if path == "/api/release/promote":
+                    return self.send(200, store.releases.promote(data))
+                if path == "/api/release/rollback":
+                    return self.send(200, store.releases.rollback(data))
                 if path == "/api/internal":
                     return self.send(200, {"categories":store.internal.categories(),"entries":store.internal.listing()})
                 if path == "/api/internal/save":
@@ -835,6 +957,12 @@ def make_server(store, port=8765):
                     return self.send(200, job["report_markdown"].encode(), "text/markdown; charset=utf-8", {"Content-Disposition": 'attachment; filename="Finalisierungsbericht.md"'})
                 if path == "/api/job/apply":
                     return self.send(200, store.orchestrator.apply(data))
+                if path.startswith("/api/ai-exchange/"):
+                    action = path.rsplit("/", 1)[-1]
+                    if action == "list":
+                        return self.send(200, store.ai_exchange.listing())
+                    if action in {"prepare", "preview", "accept"}:
+                        return self.send(200, getattr(store.ai_exchange, action)(data))
                 if path == "/api/layouts":
                     return self.send(200, store.layouts.listing())
                 if path == "/api/layout/upload":
@@ -863,6 +991,14 @@ def make_server(store, port=8765):
                 if path == "/api/source/upload":
                     raw = base64.b64decode(data.get("base64", ""), validate=True)
                     return self.send(200, store.sources.upload(data.get("name"), raw, data))
+                if path == "/api/source/import/start":
+                    return self.send(200, store.sources.imports.start(data.get("name"), base64.b64decode(data.get("base64", ""), validate=True), data))
+                if path == "/api/source/import/list":
+                    return self.send(200, store.sources.imports.listing())
+                if path == "/api/source/import/step":
+                    return self.send(200, store.sources.imports.step(data))
+                if path == "/api/source/import/cancel":
+                    return self.send(200, store.sources.imports.cancel(data))
                 if path == "/api/source/chunks":
                     return self.send(200, store.sources.chunks(clean_text(data.get("id"), "Quellen-ID", 100)))
                 if path == "/api/source/delete":
@@ -1005,9 +1141,14 @@ def main():
     parser.add_argument("--data-dir", type=Path, default=default_data)
     parser.add_argument("--open-browser", action="store_true")
     args = parser.parse_args()
-    server = make_server(Store(args.data_dir / "onescm.sqlite3"), args.port)
+    try:
+        server = make_server(Store(args.data_dir / "onescm.sqlite3"), args.port)
+    except OSError as exc:
+        if exc.errno in {48, 98, 10048} or getattr(exc, "winerror", None) == 10048:
+            parser.exit(1, f"Port {args.port} ist bereits belegt. Die bisherige oneSCM-Instanz im alten Konsolenfenster mit Strg+C beenden und dann diese start.bat erneut starten.\nProgrammordner dieser Version: {ROOT}\n")
+        raise
     address = f"http://127.0.0.1:{server.server_port}"
-    print(f"oneSCM-360 gestartet: {address}\nDatenordner: {args.data_dir}\nBeenden mit Strg+C.", flush=True)
+    print(f"oneSCM-360 v{VERSION} · {RELEASE_DATE} gestartet: {address}\nProgrammordner: {ROOT}\nDatenordner: {args.data_dir}\nBeenden mit Strg+C.", flush=True)
     if args.open_browser:
         threading.Timer(.5, lambda: webbrowser.open(address)).start()
     try:

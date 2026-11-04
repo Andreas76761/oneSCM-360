@@ -7,12 +7,19 @@ import zipfile
 
 def theme(value=None):
     from app import Invalid, clean_text
-    defaults = {"primary": "#123443", "accent": "#00858b", "text": "#203640", "font": "Arial", "size": 11}
+    defaults = {"primary": "#123443", "accent": "#00858b", "text": "#203640", "font": "Arial", "size": 11,
+                "chapter": "#123443", "subchapter": "#00858b", "image_width": 100,
+                "captions": True, "page_numbers": True, "icons": True, "icon_style": "symbols", "keywords": [],
+                "highlight": "#fff1a8", "link": "#006b8f", "notice": "#eaf4f5",
+                "exception": "#fff0e5", "tip": "#eaf5e9"}
     if value is None: return defaults
     if not isinstance(value, dict) or set(value) - set(defaults):
         raise Invalid("Ungültiges Layoutfarbschema.")
     result = {**defaults, **value}
-    for key in ["primary", "accent", "text"]:
+    # Older profiles only had primary/accent. Their heading colors remain intact.
+    result["chapter"] = value.get("chapter", result["primary"])
+    result["subchapter"] = value.get("subchapter", result["accent"])
+    for key in ["primary", "accent", "text", "chapter", "subchapter", "highlight", "link", "notice", "exception", "tip"]:
         if not isinstance(result[key], str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", result[key]):
             raise Invalid("Farben als #RRGGBB angeben.")
     result["font"] = clean_text(result["font"], "Schrift", 80)
@@ -20,6 +27,23 @@ def theme(value=None):
         raise Invalid("Ungültiger Schriftname.")
     if type(result["size"]) is not int or not 8 <= result["size"] <= 18:
         raise Invalid("Schriftgröße zwischen 8 und 18 wählen.")
+    if type(result["image_width"]) is not int or not 25 <= result["image_width"] <= 100:
+        raise Invalid("Bildbreite zwischen 25 und 100 Prozent wählen.")
+    for key in ["captions", "page_numbers", "icons"]:
+        if type(result[key]) is not bool:
+            raise Invalid("Designschalter müssen aktiviert oder deaktiviert sein.")
+    if result["icon_style"] not in ["symbols", "letters", "minimal"]:
+        raise Invalid("Symbolstil symbols, letters oder minimal wählen.")
+    if not isinstance(result["keywords"], list) or len(result["keywords"]) > 50:
+        raise Invalid("Höchstens 50 Hervorhebungsbegriffe angeben.")
+    keywords, seen = [], set()
+    for raw in result["keywords"]:
+        keyword = clean_text(raw, "Hervorhebungsbegriff", 80).strip()
+        if not keyword or "\n" in keyword or "\r" in keyword:
+            raise Invalid("Hervorhebungsbegriffe einzeilig und nicht leer angeben.")
+        if keyword.casefold() not in seen:
+            keywords.append(keyword); seen.add(keyword.casefold())
+    result["keywords"] = keywords
     return result
 
 

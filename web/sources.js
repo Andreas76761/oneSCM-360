@@ -8,7 +8,7 @@ async function openSources() {
   $("sources-view").hidden=false;$("message").hidden=true;
   $("triage-outline").innerHTML=meta.outlines.map(o=>`<option value="${esc(o.id)}">${esc(o.title)} · V${esc(o.metadata.version)}</option>`).join("");
   if(current)$("triage-outline").value=current.id;
-  await loadSources();
+  await loadSources();await loadImportJobs();
 }
 async function loadSources() {
   const result=await refreshSourceIndex();sourceRows=result.sources;renderSources();
@@ -101,20 +101,55 @@ $("stop-triage").onclick=()=>{triageCancelled=true;$("triage-progress").textCont
 $("sources-button").onclick=run(openSources);$("source-search").oninput=renderSources;
 for(const id of ["chunk-search","chunk-label-search","chunk-role-search","chunk-topic-search"])$(id).oninput=()=>{chunkPage=0;renderChunks();};
 $("chunks-prev").onclick=()=>{chunkPage--;renderChunks();};$("chunks-next").onclick=()=>{chunkPage++;renderChunks();};
+let sourceBatch=[],sourceBatchRunning=false,sourceBatchPaused=false;
+function renderSourceBatch(){
+ $("source-batch-list").innerHTML=sourceBatch.length?'<h3>Import-Warteschlange</h3><p class="muted">Noch nicht hochgeladene Dateien bleiben bis zum Neuladen dieser Seite verfügbar. Vorbereitete Jira-Importe können auch nach einem Neustart fortgesetzt werden.</p><ul>'+sourceBatch.map(item=>`<li>${esc(item.file.name)} · ${esc(item.status)}</li>`).join("")+'</ul>':"";
+ $("source-batch-resume").hidden=sourceBatchRunning||!sourceBatch.some(item=>!["Fertig","Bereits vorhanden","Fehler"].includes(item.state));
+}
+async function processSourceBatch(){
+ if(sourceBatchRunning||sourceImportActive)throw new Error("Aktuellen Import zuerst abwarten.");
+ sourceBatchRunning=true;sourceBatchPaused=false;const button=$("source-upload").querySelector('button[type="submit"]');button.disabled=true;$("source-import-stop").hidden=false;
+ try{
+ for(const [index,item] of sourceBatch.entries()){
+  if(["Fertig","Bereits vorhanden","Fehler"].includes(item.state))continue;
+  if(sourceBatchPaused)break;
+  item.status="Wird verarbeitet";renderSourceBatch();
+  try{
+   const file=item.file;if(file.size>20*1024*1024)throw new Error("größer als 20 MB");
+   $("source-import-progress").textContent=`Datei ${index+1}/${sourceBatch.length}: ${file.name}`;
+   let result;
+   if(item.job){const final=await continueImport(item.job);item.job=final;if(final.status!=="completed"){item.status="Pausiert";break;}result=final.result;}
+   else {
+    const bytes=new Uint8Array(await file.arrayBuffer());let binary="";for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+    const payload={name:file.name,base64:btoa(binary),...item.metadata};
+    if(/\.(html?|doc)$/i.test(file.name)){item.job=await api("/api/source/import/start",payload);const final=await continueImport(item.job);item.job=final;if(final.status!=="completed"){item.status="Pausiert";break;}result=final.result;}
+    else result=await api("/api/source/upload",payload);
+   }
+   item.state=result.duplicate?"Bereits vorhanden":"Fertig";item.status=result.duplicate?"Bereits vorhanden":`${result.chunks} Chunks importiert`;
+  }catch(error){item.state="Fehler";item.status=`Fehler: ${error.message}`;}
+  renderSourceBatch();$("source-import-stop").hidden=false;
+ }
+ await loadSources();await loadImportJobs();
+ }finally{sourceBatchRunning=false;button.disabled=false;$("source-import-stop").hidden=true;renderSourceBatch();}
+}
 $("source-upload").onsubmit=run(async e=>{
-  e.preventDefault();const files=[...$("source-files").files];if(!files.length)return;
-  const button=$("source-upload").querySelector('button[type="submit"]');button.disabled=true;
-  const results=[];
-  try {
-    for(const file of files){
-      try{
-        if(file.size>10*1024*1024)throw new Error("größer als 10 MB");
-        const bytes=new Uint8Array(await file.arrayBuffer());let binary="";
-        for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
-        const result=await api("/api/source/upload",{name:file.name,base64:btoa(binary),kind:$("source-kind").value,origin:$("source-origin").value,release:$("source-release").value});
-        results.push(`${file.name}: ${result.duplicate?"bereits vorhanden":`${result.chunks} Chunks importiert`}`);
-      }catch(error){results.push(`${file.name}: ${error.message}`);}
-    }
-    await loadSources();$("source-files").value="";message(results.join(" · "));
-  }finally{button.disabled=false;}
+ e.preventDefault();const files=[...$("source-files").files];if(!files.length)return;
+ if(sourceBatch.some(item=>!["Fertig","Bereits vorhanden","Fehler"].includes(item.state)))throw new Error("Die vorhandene Warteschlange zuerst fortsetzen oder die Seite neu laden. Vorbereitete Jira-Importe bleiben erhalten.");
+ const metadata={kind:$("source-kind").value,origin:$("source-origin").value,release:$("source-release").value};
+ sourceBatch=files.map(file=>({file,metadata:{...metadata},state:"Wartend",status:"Wartend",job:null}));$("source-files").value="";await processSourceBatch();
 });
+$("source-batch-resume").onclick=run(processSourceBatch);
+
+let sourceImportPaused=false,sourceImportActive=false;
+async function continueImport(job){
+ if(sourceImportActive)throw new Error("Aktuellen Import zuerst abwarten.");
+ sourceImportActive=true;sourceImportPaused=false;$("source-import-stop").hidden=false;
+ try{while(job.status==="pending"&&!sourceImportPaused){$("source-import-progress").textContent=`${job.name}: ${job.processed}/${job.total} Tickets verarbeitet`;job=await api("/api/source/import/step",{id:job.id,revision:job.revision});}
+ $("source-import-progress").textContent=job.status==="completed"?"Datei vollständig importiert.":`${job.name}: ${job.processed}/${job.total} Tickets; pausiert.`;return job;
+ }finally{sourceImportActive=false;$("source-import-stop").hidden=true;}
+}
+async function loadImportJobs(){const jobs=await api("/api/source/import/list",{});$("source-import-jobs").innerHTML=jobs.map(j=>`<article class="source-card">${esc(j.name)} · ${j.processed}/${j.total} Tickets <button data-import-resume="${esc(j.id)}">Fortsetzen</button> <button data-import-cancel="${esc(j.id)}">Import abbrechen</button></article>`).join("");
+ $("source-import-jobs").querySelectorAll("[data-import-resume]").forEach(el=>el.onclick=run(async()=>{const queued=sourceBatch.find(item=>item.job?.id===el.dataset.importResume);if(queued){queued.job=jobs.find(j=>j.id===el.dataset.importResume);await processSourceBatch();return;}await continueImport(jobs.find(j=>j.id===el.dataset.importResume));await loadSources();await loadImportJobs();}));
+ $("source-import-jobs").querySelectorAll("[data-import-cancel]").forEach(el=>el.onclick=run(async()=>{if(sourceImportActive)throw new Error("Lauf zuerst pausieren.");await api("/api/source/import/cancel",{id:el.dataset.importCancel});const queued=sourceBatch.find(item=>item.job?.id===el.dataset.importCancel);if(queued){queued.state="Fehler";queued.status="Abgebrochen";renderSourceBatch();}await loadImportJobs();message("Import abgebrochen; vorbereitete Ticketdaten entfernt.");}));
+}
+$("source-import-stop").onclick=()=>{sourceImportPaused=true;sourceBatchPaused=true;};

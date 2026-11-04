@@ -46,7 +46,7 @@ $("layout-upload").onsubmit=run(async e=>{
   await api("/api/layout/upload",{id:existing?.id,revision:existing?.revision||0,name:$("layout-name").value,version:$("layout-version").value,format,base64:await base64File(file)});
   await openLayouts();message("Templaterevision gespeichert. Gewünschte Revision für die Gliederung auswählen.");
 });
-$("layout-apply").onclick=()=>{current.layout={theme:{}};for(const fmt of ["docx","pptx"]){const ref=readRef($("layout-"+fmt).value);if(ref)current.layout[fmt]=ref;}$("layout-theme").querySelectorAll("[data-key]").forEach(el=>current.layout.theme[el.dataset.key]=el.dataset.key==="size"?Number(el.value):el.value);markDirty();$("layout-dialog").close();message("Layoutauswahl übernommen. Gliederung speichern.");};
+$("layout-apply").onclick=()=>{current.layout={theme:{...(current.layout?.theme||{})}};for(const fmt of ["docx","pptx"]){const ref=readRef($("layout-"+fmt).value);if(ref)current.layout[fmt]=ref;}$("layout-theme").querySelectorAll("[data-key]").forEach(el=>current.layout.theme[el.dataset.key]=el.dataset.key==="size"?Number(el.value):el.value);markDirty();$("layout-dialog").close();message("Layoutauswahl übernommen. Gliederung speichern.");};
 $("layout-tool").onclick=run(openLayouts);$("layout-close").onclick=()=>$("layout-dialog").close();
 $("markdown-tool").onclick=run(async()=>{layoutEntries=await api("/api/layouts",{});$("md-template").innerHTML=templateOptions("docx",current?.layout?.docx);$("markdown-dialog").showModal();});
 $("md-files").onchange=run(async()=>{markdownFiles=[...$("md-files").files];renderMarkdownFiles();});

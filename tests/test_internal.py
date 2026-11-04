@@ -9,6 +9,7 @@ import unittest
 from pypdf import PdfReader
 import app
 import renderers
+from version import VERSION
 from test_publishing import office_parts
 
 
@@ -78,7 +79,7 @@ class InternalTests(unittest.TestCase):
         self.assertEqual(job["status"],"completed")
         self.assertEqual(len(job["reports"]),4)
         self.assertEqual(self.store.get(outline["id"]),outline)
-        self.assertIn("0.4.0",job["report_markdown"])
+        self.assertIn(VERSION,job["report_markdown"])
 
     def test_jira_verification_invalidated_after_content_or_validity_edit(self):
         outline=app.new_outline("Evidence")

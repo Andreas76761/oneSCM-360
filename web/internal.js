@@ -29,6 +29,8 @@ function editInternal(entry){
   for(const key of ["title","body","question","answer","source","note"])$("internal-"+key).value=internalEdit[key];
   $("internal-entry-categories").innerHTML=internalOptions(internalData.categories.items,internalEdit.categories);
   $("internal-entry-domains").innerHTML=internalOptions(allTargets(),internalEdit.domains);
+  for(const option of $("internal-entry-divisions").options)option.selected=(internalEdit.divisions||[]).includes(option.value);
+  internalEdit.validity ||= [];renderValidity($("internal-entry-validity"),internalEdit.validity,()=>{});
   $("internal-entry-roles").innerHTML=meta.roles.map(r=>`<option ${internalEdit.roles.includes(r)?"selected":""}>${esc(r)}</option>`).join("");
   for(const key of ["markets","labels","keywords"])$("internal-entry-"+key).value=internalEdit[key].join(", ");
   $("internal-entry-status").value=internalEdit.status;$("internal-entry-language").innerHTML=options(meta.languages,internalEdit.language);$("internal-enabled").checked=internalEdit.chatbot_enabled;
@@ -37,7 +39,7 @@ function editInternal(entry){
 $("internal-edit-form").onsubmit=run(async event=>{
   event.preventDefault();const entry=structuredClone(internalEdit);
   for(const key of ["title","body","question","answer","source","note"])entry[key]=$("internal-"+key).value;
-  for(const key of ["categories","domains","roles"])entry[key]=[...$("internal-entry-"+key).selectedOptions].map(o=>o.value);
+  for(const key of ["categories","domains","roles","divisions"])entry[key]=[...$("internal-entry-"+key).selectedOptions].map(o=>o.value);
   for(const key of ["markets","labels","keywords"])entry[key]=splitInternal($("internal-entry-"+key).value);
   entry.status=$("internal-entry-status").value;entry.language=$("internal-entry-language").value;entry.chatbot_enabled=$("internal-enabled").checked;
   await api("/api/internal/save",entry);$("internal-edit-dialog").close();await openInternal();message("Interne Wissensrevision gespeichert. Dokumentausgaben enthalten diesen Eintrag nicht.");

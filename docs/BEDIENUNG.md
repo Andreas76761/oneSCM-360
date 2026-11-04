@@ -1,8 +1,9 @@
 # Bedienungsanleitung oneSCM-360
 
-Version **0.4.0 · 03.11.2026**. Lokaler Einzelarbeitsplatz. Installation und Sicherung:
+Version **0.5.0 · 04.11.2026**. Lokaler Einzelarbeitsplatz. Installation und Sicherung:
 [README](../README.md). Der [Funktionsstand](../FUNKTIONSSTATUS.md) unterscheidet
-umgesetzte Funktionen und verbleibende Grenzen.
+umgesetzte Funktionen und verbleibende Grenzen. Für eine bereits installierte
+Version zuerst die [Updateanleitung](AKTUALISIERUNG.md) verwenden.
 
 ## 1. Start und Orientierung
 
@@ -90,6 +91,30 @@ speichern** bestätigen die Zuordnung. Quellen/Chunks sind durchsuchbar. Lösche
 entfernt Quelle, Chunks und ihre Zuordnungen; bereits extrahierte Medien und
 übernommene Textrevisionen separat verwalten.
 
+### Jira-HTML-Exporte
+
+Den Jira-Export als HTML-Datei hochladen und die Quellenart **Jira** wählen.
+Erkannte Jira-Layouts werden auch automatisch zugeordnet. Die ticketweise Verarbeitung bildet
+je erkanntem Ticket einen Chunk, übernimmt fachliche Überschriften und entfernt
+erkannte Personenfelder sowie erkennbare PII vor der Speicherung. In dieser
+Importstrecke wird nur das bereinigte HTML als Quelldatei gespeichert. Das
+Quellenlimit beträgt 20 MB; andere Importarten können zusätzliche Mengenlimits
+haben. Die Verarbeitung arbeitet in Schritten von bis zu 25 Tickets. Pausieren
+wirkt nach dem laufenden Schritt; ein gespeicherter offener Import kann über
+**Fortsetzen** weiterlaufen. **Import abbrechen** entfernt seine vorbereiteten
+Ticketdaten. Die Quelle mit ihren Chunks entsteht erst nach vollständiger
+Verarbeitung. Bereits fertig importierte Quellen werden dadurch nicht gelöscht.
+
+Maximal 10.000 Tickets je Export; größere Exporte aufteilen. Fehlt bei gewählter
+Quellenart Jira ein erkanntes Ticketlayout, wird ein bereinigter Dokument-Chunk
+mit Warnung angelegt. Doppelte Ticketnummern oder unlesbare Schlüssel in erkannten
+Jira-Zeilen brechen den Import ab. Ticketanzahl und Grenzen anschließend prüfen.
+
+Die Bereinigung arbeitet mit erkennbaren Feldern und Mustern. Freie Formulierungen,
+unbekannte Exportlayouts und nicht erkannte persönliche Angaben können erhalten
+bleiben. Importierte Chunks prüfen, bevor sie in Texte oder Modelle gelangen.
+Die ursprüngliche Exportdatei auf dem Rechner wird nicht verändert.
+
 ## 6. Texte, Jira-Nachweise und Dokumenteignung
 
 Texte können direkt im Kapitel oder in der zentralen Bibliothek **Inhalte zuordnen**
@@ -137,8 +162,11 @@ Inhalte für das passende Profil aus, „Entwurf“ erteilt keine Freigabe.
 **Verwendung & Zeit** zeigt, welche Texte in den drei Dokumentarten tatsächlich
 verwendet werden und warum andere entfallen. Dort stehen auch interne Jira-Nachweise.
 Der Versionsverlauf filtert gespeicherte Gliederungsstände nach Land, Jahr, Rolle,
-Sparte und Status. Fachliche Release-Versionen werden manuell gepflegt; automatische
-Vierwochen-Promotion von Preprod nach Prod ist noch nicht implementiert.
+Sparte und Status. Fachliche Versionen bleiben manuell gepflegt. Die
+**Releaseverwaltung** übernimmt geprüfte Dokumentationspakete ausdrücklich nach
+Prod (Abschnitt 14); eine automatische Vierwochen-Terminsteuerung gibt es nicht.
+Ein Stichtag wählt passende Gültigkeitsregeln aus, ersetzt aber keine gebundene
+Textrevision durch eine historische Fassung.
 
 ## 8. Screens, PII und Klickstrecken
 
@@ -179,11 +207,12 @@ Quelle/Jira-Referenz, Notiz, Sprache, Status und ein FAQ-Frage-Antwort-Paar werd
 revisioniert gespeichert. Suchfeld und Statusfilter unterstützen die Pflege;
 **Revisionen** zeigt die bisherigen Texte.
 
-Für spätere interne Chatbot-FAQ die Vormerkung ausdrücklich aktivieren. Frage und
-Antwort sind dann Pflicht. Die **interne Chatbot-FAQ-Vorschau** zeigt ausschließlich
+Für den internen Chatbot die FAQ-Vormerkung ausdrücklich aktivieren. Frage und
+Antwort sind dann Pflicht. Zusätzlich Sparte und zeitliche Gültigkeit pflegen. Die **interne Chatbot-FAQ-Vorschau** zeigt ausschließlich
 freigegebene, vorgemerkte Paare und berücksichtigt ausgewählte Rolle, Land und
 Sprache. Archivierte oder ungeprüfte Einträge erscheinen dort nicht. Die Vorschau
-ist eine lokale Stichwortsuche; ein antwortgenerierender Chatbot ist noch offen.
+ist eine einfache lokale Stichwortsuche. Für Antworten mit zusätzlichen Sparten-,
+Zeit- und Umgebungsfiltern **Interner Chatbot** verwenden (Abschnitt 13).
 Rollenbezug beschreibt die Gültigkeit der Information, keine Benutzerberechtigung.
 
 **Alle Inhalte dieses Registers bleiben aus Handbuch, Releaseletter, Quick Reference
@@ -215,6 +244,51 @@ Freigaben gelten für den geprüften Stand und das Profil. Änderungen erzeugen 
 neuen Entwurf. Der **Verwendungsnachweis** enthält Profil, Revisionen und die
 ursprünglichen Ausgabedateien zum erneuten, unveränderten Download.
 
+### Designstudio
+
+**Designstudio** öffnet die Gestaltung für die aktuelle Gliederung. Office-Templates
+bleiben in **Layouttemplates** hochladbar; im Designstudio die gewünschte feste
+Word-/PowerPoint-Revision auswählen. Ohne native Vorlage gilt das Standardlayout.
+
+| Einstellung | Steuerung |
+|---|---|
+| Farben | Hauptfarbe, Akzentfarbe, Kapitel, Unterkapitel, Fließtext, Links, Hervorhebungen, Hinweise, Ausnahmen, Tipps |
+| Schrift | Schriftfamilie und Größe von 8–18 pt; installierte Schriften bzw. PDF-Schriftunterstützung beachten |
+| Bilder | Breite von 25–100 Prozent der verfügbaren Breite; Bildunterschriften ein-/ausschalten |
+| Orientierung | Erzeugte Seiten-/Foliennummern und Symbole für Hinweise, Ausnahmen und Tipps ein-/ausschalten |
+| Hervorhebungen | Bis zu 50 Begriffe, ein Begriff je Zeile, maximal 80 Zeichen; Textsuche ohne reguläre Ausdrücke |
+
+**Gestaltungsbeispiel** reagiert auf Änderungen, verwendet aber Beispieltext und
+einen schematischen Screen. Es ist keine Vorschau der tatsächlichen Kapitel,
+Seitenumbrüche oder Office-Master. **Design übernehmen** ändert die aktuelle
+Gliederung; danach **Speichern** drücken. So bleibt das Design mit deren Revision
+nachvollziehbar. **Standarddesign einsetzen** setzt Gestaltungswerte zurück und
+behält die ausgewählten Office-Templates.
+
+Eigene Master, Kopf-/Fußzeilen und native Formatvorlagen bleiben Teil des
+Office-Templates. Die Wirkung der Designwerte deshalb in den tatsächlich erzeugten
+DOCX-, PPTX-, PDF- und HTML-Dateien prüfen; die Formate teilen sich keinen
+pixelgleichen Satzspiegel. Der Bereich ist kein freier Drag-and-drop-Seitendesigner.
+
+Hinweisfelder entstehen durch sichtbaren Lesertext am Absatzanfang, beispielsweise
+`Hinweis:`, `Ausnahme:` oder `Tipp:`. Auch `Note:`, `Notice:`, `Exception:` und
+`Tip:` werden erkannt. Es werden keine internen Vermerke zu solchen Feldern
+umgewandelt. Stichworthervorhebung sucht Begriffe ohne Beachtung der Groß-/
+Kleinschreibung an Wortgrenzen; über mehrere unterschiedlich formatierte Textteile
+verteilte Begriffe können anders erscheinen.
+
+| Ausgabe | Wichtige Gestaltungseigenschaft |
+|---|---|
+| Word ohne Template | Designschrift und Überschriftenfarben; Bildbreite, Linkfarbe, Hervorhebungen und Hinweisfelder; Seitenzahl als Word-Feld |
+| Word mit Template | Native Grundschrift und Überschriftenstile bleiben; zusätzliche Auszeichnung und Bildregeln wirken. Bereits im Template vorhandene Seitenzahlen werden durch den Schalter nicht entfernt |
+| PowerPoint | Text wird auf Folien verteilt, die Schriftgröße für die Lesbarkeit angepasst; native Master bleiben erhalten. Bildbreite, Hinweise, Hervorhebungen und erzeugte Foliennummern sind steuerbar |
+| HTML | Browserlayout mit eingebetteten Bildern; Seitenzahlen beim Drucken hängen von der Unterstützung des Browsers ab |
+| PDF | Eigenständiger Renderer mit Seitenzahlen; Unicode-Schrift wird passend zu Sprache und verfügbaren Schriften gewählt, nicht jeder eingegebene Office-Schriftname direkt übernommen |
+
+Der Nummernschalter betrifft die vom Tool erzeugten Nummern. Fest in einem
+Office-Master oder einer Kopf-/Fußzeile vorhandene Gestaltung bleibt Teil der
+Vorlage. Eine Renderprobe im Finalisierungsablauf ersetzt die Sichtprüfung nicht.
+
 ## 11. Viele Markdown-Dateien in Word umwandeln
 
 **Markdown → Word** ist auch ohne aktive Gliederung nutzbar. Dateien auswählen,
@@ -240,7 +314,9 @@ Zuerst die Gliederung speichern. **Agentenläufe** bietet zwei Ablaufvorlagen:
 
 Die Fachagenten sind gespeicherte, aufeinanderfolgende Verarbeitungsschritte. Sie
 arbeiten regelbasiert; optional nutzen Wissens- und Übersetzungsschritte lokales
-Ollama. Für die Finalisierung sind keine Quellen oder KI-Modelle nötig. Eine
+Ollama. Vorhandene Copilot-, Claude- und Gemini-Chat-Abonnements verwendet man
+stattdessen über den separaten manuellen **KI-Austausch** (Abschnitt 16). Diese
+Chat-Anwendungen werden vom Orchestrator nicht automatisch aufgerufen. Für die Finalisierung sind keine Quellen oder KI-Modelle nötig. Eine
 Renderprobe prüft die technische Dateierzeugung, nicht die visuelle Office-Abnahme.
 
 Fortschritt, Eingaberevisionen und Ergebnisse bleiben gespeichert. Pausieren wirkt
@@ -253,3 +329,200 @@ Textentwürfe in der Bibliothek anlegen. Veränderte Quellen, Gliederungen oder
 Taxonomien verhindern eine Übernahme veralteter Ergebnisse. Kein Agentenlauf gibt
 ein Dokument automatisch frei. Der Finalisierungsbericht ist ein internes
 Arbeitsdokument und keine Leserpublikation.
+
+## 13. Interner Chatbot mit Belegen
+
+Zunächst im **Internen Register · FAQ** Frage, Antwort, Herkunft und Gültigkeit
+pflegen, für den Chat vormerken und fachlich freigeben. Der Chat durchsucht diese
+FAQ; hochgeladene Quellen, Dokumentbausteine und sämtliche Register-Freitexte
+werden nicht automatisch zu Antwortwissen.
+
+1. **Interner Chatbot** öffnen und **Neuer Chat** wählen.
+2. Rolle, Land, Sparte, Sprache, Stichtag und Prod/Preprod einstellen. Land `*`
+   sucht ausschließlich allgemein gültige FAQ. Bei Sparte „Beide“ müssen die
+   Belege für Van und PC gelten. Das Profil bleibt nach der ersten Frage fest;
+   für ein anderes Profil einen neuen Chat beginnen.
+3. Eine konkrete Frage stellen. **Lokale FAQ-Belege** benötigt kein Modell und
+   zeigt bis zu drei passende freigegebene Antworten mit Belegen.
+4. Optional **Lokale KI zur Belegauswahl** und den Namen eines bereits installierten
+   Ollama-Modells wählen. Das Modell darf nur zusammenhängende, wortgetreue
+   Ausschnitte auswählen. Ungültige Zitate werden verworfen. Das ist kein freies
+   generatives RAG und kein allgemeiner Chat über alle hochgeladenen Dokumente.
+5. Belege aufklappen und mit **Belegte Registerrevision ansehen** den zugrunde
+   liegenden Stand prüfen. Fehlende Herkunft im Register ergänzen.
+
+Ohne ausreichend passende Belege erscheint ein Hinweis statt einer erfundenen
+Antwort. Erkannte abweichende FAQ-Antworten werden nebeneinander zur Klärung
+gezeigt. Stichwortsuche und Widerspruchsregeln garantieren keine vollständige
+semantische Erkennung. Eine wörtliche Antwort kann sachlich falsch sein, wenn die
+freigegebene FAQ falsch ist; die fachliche Freigabe bleibt entscheidend.
+
+**Vorherige Frage als Kontext verwenden** ergänzt nur die unmittelbar vorherige
+Frage. Ein Chat umfasst höchstens 50 Fragen. Verläufe bleiben lokal gespeichert.
+Wenn ein Beleg später geändert, archiviert oder unpassend wird, markiert die
+Ansicht die historische Antwort als veraltet. Eine frühere Antwort wird nicht
+still umgeschrieben. Chat und Belege bleiben intern und erscheinen in keiner
+Leserausgabe. Das Rollenprofil ist keine Anmeldung oder Zugriffssperre.
+
+## 14. Dokumentationsreleases von Preprod nach Prod
+
+Die **Releaseverwaltung** verwaltet lokale Dokumentationsstände. Sie aktiviert
+keine Funktionen im oneSCM-System und synchronisiert sich nicht mit Jira oder
+Confluence. Der geplante Termin dient der manuellen Aktivierung; es gibt keinen
+Scheduler und keine automatische Promotion nach vier Wochen.
+
+1. Für jedes benötigte Zielprofil eine gespeicherte Preprod-Gliederung vorbereiten.
+   Markt ausdrücklich setzen, Inhalte und PII prüfen, Quellenzuordnungen bestätigen
+   und **Profil prüfen & freigeben** ausführen.
+2. Unter **Releaseverwaltung** eine neue Releaseversion und den Prod-Termin angeben.
+   Zwischen 1 und 50 unterschiedliche Preprod-Gliederungen auswählen und **Neues
+   Paket vorbereiten** drücken. Das erstellt zunächst eine Vorschau.
+3. Beim ersten Paket sämtliche benötigten Profile bewusst aufnehmen. Bereits
+   vorhandene Prod-Gliederungen werden nicht automatisch als Baseline erkannt.
+   Danach muss jedes bisher aktive Profil in jedem neuen Paket vertreten sein.
+   Ein Profil umfasst Markt, Rolle, Sparte, Sprache, Umfang und Dokumentart.
+4. Bisherigen und vorgesehenen Prod-Baum, Texte, Metadaten sowie ausgeschlossene
+   Kapitel und Inhalte vergleichen. Die Kandidaten werden mit der neuen Version,
+   Umgebung Prod und dem geplanten Stichtag erneut geprüft. Offene zugeordnete
+   Quellenwidersprüche können die Promotion blockieren.
+5. Blocker beheben, Änderungen speichern/freigeben und die Vorschau erneut
+   erstellen. Wenn sich Ausgangsstände, Quellenprüfung, Taxonomie oder aktive
+   Prod-Stände geändert haben, darf eine alte Vorschau nicht aktiviert werden.
+6. Zum Termin oder danach die fachliche Prüfung bestätigen und begründen.
+   **Geprüftes Paket nach Prod übernehmen** übernimmt alle Profile in einer
+   gemeinsamen Datenbanktransaktion. Bei einem Fehler bleibt kein Teilpaket aktiv.
+
+Preprod-Fassungen und bereits erzeugte Dateien bleiben erhalten. Neue Ausgabedateien
+werden weiterhin über die jeweilige Gliederung erzeugt. Das Aktivierungsprotokoll
+zeigt Version, Datum und Begründung. Ein gespeichertes Paket ist keine Anmeldung
+oder Vier-Augen-Freigabe; am Einzelarbeitsplatz entscheidet dieselbe Person.
+
+Nur das aktuell aktive Paket kann über **Aktives Release zurücknehmen** mit
+Bestätigung und Begründung zurückgenommen werden. Vorherige Stände werden als
+neue Revisionen wiederhergestellt; erstmals hinzugekommene Profile werden archiviert.
+Wurde Prod nach Aktivierung manuell verändert oder fehlt eine benötigte frühere
+Quellenzuordnung, wird die gesamte Rücknahme abgebrochen, um Änderungen nicht zu
+überschreiben. Diese Release-Rücknahme ersetzt keine allgemeine Sicherung oder
+Wiederherstellung beliebiger Gliederungsrevisionen.
+
+## 15. Widersprüche zwischen Quellen klären
+
+**Quellenwidersprüche** verwendet bestätigte Chunk-Zuordnungen, um betroffene
+Gliederungen und Kapitel zu zeigen. Ein Import allein bestätigt keine Aussage.
+
+1. Unter **Quellenkontext pflegen** je Quelle Land, Rolle, Sparte, Sprache,
+   Prod/Preprod, fachliches Quelldatum und Gültigkeitszeitraum pflegen. `*` steht
+   für allgemeine Gültigkeit. Explizit getrennte Bereiche werden nicht als
+   gleichzeitig gültige Aussagen miteinander verglichen.
+2. Zwei bis zwanzig Quellen mit insgesamt höchstens 300 Chunks wählen und
+   **Quellen vergleichen** ausführen. Regeln suchen Dubletten sowie ähnliche
+   Aussagen mit abweichenden Zahlen oder Verneinungen. Unterschiedliche
+   Release-Angaben können eine beabsichtigte Änderung erklären.
+3. Alternativ zwei Textstellen verschiedener Quellen wählen und einen manuellen
+   Prüfpunkt mit Begründung anlegen. **Lokale KI mit Belegprüfung** kann einen
+   Vorschlag mit wörtlichen Quellenausschnitten liefern; hierfür ist ein lokales
+   Ollama-Modell erforderlich. Ein ungültiges Zitat wird nicht übernommen.
+4. Hinweise anhand von Herkunft, Version, Datum und Profil fachlich prüfen.
+   Entscheidung, Begründung und bei Bedarf bevorzugten Beleg speichern.
+   Die Entscheidungshistorie hält frühere Bewertungen fest.
+
+| Entscheidung | Bedeutung |
+|---|---|
+| Offen | Noch nicht fachlich entschieden |
+| Widerspruch bestätigt | Konflikt besteht und muss vor Promotion geklärt werden |
+| Kein Widerspruch | Unterschied wurde fachlich als widerspruchsfrei begründet |
+| Geklärt | Die fachliche Klärung ist dokumentiert; Texte separat nachführen |
+| Nicht mehr anwendbar | Nur bei gelöschter Quelle oder nachweislich getrennten Gültigkeitsbereichen möglich |
+
+Eine Entscheidung ändert weder Quellen noch Dokumenttexte automatisch. Eine
+bevorzugte Quelle ist ebenfalls keine automatische Ersetzungsregel. Inhaltliche
+Änderungen im Texteditor übernehmen und erneut freigeben. Ändern sich die
+belegten Quellendaten oder ihr Kontext, wird die Bewertung als **Erneut prüfen**
+markiert. Erneut vergleichen und die aktuelle Aussage bewerten.
+
+Offene, bestätigte oder veraltete Widerspruchsprüfungen zu zugeordneten Kapiteln
+blockieren die Releasepromotion. Dubletten allein blockieren sie nicht. Ein Scan
+mit null Treffern belegt keine Widerspruchsfreiheit. Ohne bestätigte
+Chunk-Zuordnungen können Quellenkonflikte keinem Releaseprofil vollständig
+zugeordnet werden; die Releasevorschau weist darauf hin.
+
+
+## 16. Mit Copilot, Claude oder Gemini über den Chat arbeiten
+
+**KI-Austausch · Copilot / Claude / Gemini** nutzt die vorhandenen Chat-Anwendungen
+manuell. Ein Chat-Abonnement ist keine API-Berechtigung. Hier werden keine
+API-Schlüssel verlangt, keine Anbieter automatisch aufgerufen und keine
+Ollama-Installation vorausgesetzt. Das Kopieren oder Herunterladen bleibt lokal;
+erst das eigene Einfügen oder Hochladen im ausgewählten Chat übermittelt Inhalte
+an diesen Dienst.
+
+1. Eine Quelle auswählen und mit Strg/Umschalt zwischen 1 und 20 Chunks markieren.
+   Ein Auftrag umfasst höchstens 60.000 Zeichen bereinigten Quelltext. Im Dialog
+   werden Chunks der jeweils ausgewählten Quelle angezeigt.
+2. Chat-Anwendung, Dokumentart (Handbuch, Releaseletter, Quickreference), Sprache,
+   Zielrolle, Markt und Sparte festlegen. **Auftrag vorbereiten** erzeugt einen
+   gespeicherten Auftrag mit eindeutiger Kennung und Quelltextständen.
+3. Den vollständigen Auftrag lesen. Es werden ausgewählte Quelltexte angehängt;
+   das interne Register, Vermerksfelder und Screens werden nicht hinzugefügt.
+   Bekannte Personenfelder und erkennbare Kennungen werden reduziert. Unbekannte
+   Namen, vertrauliche Freitexte und fachlich sensible Angaben können verbleiben.
+4. **Auftrag geprüft und für die gewählte Chat-Anwendung geeignet** bestätigen.
+   Mit **Auftrag kopieren** oder **Auftrag als TXT herunterladen** übertragen und
+   in der gewählten Chat-Anwendung selbst einfügen. Bei blockierter Browser-
+   Zwischenablage die TXT-Datei verwenden. Falls der Auftrag ungeeignete Inhalte
+   enthält, vor dem Austausch die Quellenauswahl korrigieren.
+5. Die Antwort als JSON gemäß Auftrag anfordern. Sie muss `job_id`, `title`,
+   `text` (Markdown), `source_ids` und optional `warnings` enthalten. Zurück in
+   oneSCM-360 beim zugehörigen gespeicherten Auftrag einfügen oder eine `.json`-/
+   `.txt`-Antwortdatei auswählen und **Antwort prüfen** drücken.
+6. Vorschautext, genannte Quellen und Warnungen fachlich prüfen. Stimmen Funktionen,
+   Zahlen, Bedingungen, Sprache und Zielgruppe mit den Quellen überein? Personen-
+   und Jira-Angaben prüfen. Eine vorhandene Quellkennung allein beweist keine
+   fachliche Richtigkeit der Antwort.
+7. **Text, Quellenbezüge und Personenangaben geprüft** bestätigen und **Als
+   Bibliotheksentwurf übernehmen** drücken. Der Baustein bleibt ein Entwurf,
+   erhält das gewählte Profil und die ausgewählte Dokumenteignung. Er wird weder
+   automatisch einem Kapitel zugeordnet noch freigegeben.
+
+Der Import prüft gültiges JSON, passende Auftragskennung, zulässige Quellenbezüge
+und Größenlimits. Er ist keine semantische Belegprüfung. Falsche Zuordnungen,
+Erfindungen oder Auslassungen trotz gültiger Kennungen muss die Redaktion erkennen.
+Das Ergebnis erscheint in **Inhalte zuordnen** zur weiteren Pflege. Dort bei Bedarf
+Jira-Nachweise ergänzen, eine passende Kapitelverwendung anlegen und den üblichen
+Freigabeablauf durchlaufen. Chat-Warnungen und die Anbieter-/Auftragsreferenz werden
+als interner Vermerk gespeichert.
+
+Geänderte oder gelöschte Quelltexte blockieren die Übernahme eines alten Auftrags;
+dann neu vorbereiten. Jeder Auftrag kann einmal als Bibliotheksentwurf übernommen
+werden. Aufträge und ihre Quelltextauszüge bleiben lokal gespeichert. Die
+Anbieterwahl dient der eigenen Arbeitsorganisation; sie meldet sich bei keinem
+Dienst an und automatisiert keine Browserbedienung.
+
+
+### Ergänzungen zu Design und Massenimport in v0.5.0
+
+Im Designstudio stehen die Startvorlagen **oneSCM**, **Druck** und **Kontrast** zur
+Verfügung. Der Symbolstil ist zwischen Symbolen, Buchstaben und einer minimalen
+Markierung wählbar. Die Gestaltung wird je Gliederung gespeichert; Änderungen
+nach **Design übernehmen** mit **Speichern** sichern.
+
+Lesertexte mit den sichtbaren Präfixen `Hinweis:`, `Tipp:` oder `Ausnahme:`
+(auch `Note:`, `Notice:`, `Tip:`, `Exception:`) erhalten die gewählte Gestaltung.
+Interne Vermerke werden dadurch nicht ausgegeben. Stichwörter werden als ganze
+Wörter/Wortkombinationen markiert, ohne reguläre Ausdrücke. In Word und PowerPoint
+bleiben native Vorlagenformate erhalten; Farben und Schrift für Standardlayouts
+sowie Markierungen und neue Hinweisformatierung sind direkt steuerbar.
+Bereits in einer nativen Vorlage vorhandene Seitenzahlen werden beim Ausschalten
+nicht entfernt. HTML-Seitenzahlen hängen von der Druckunterstützung des Browsers
+ab. Eine verbindliche Gesamtseitenzahl oder ein Seitenbudget wird nicht berechnet.
+
+Die Import-Warteschlange zeigt pro Datei Erfolg, Duplikat, Fehler oder Pause.
+**Warteschlange fortsetzen** bearbeitet die übrigen ausgewählten Dateien in
+derselben Browsersitzung. Nach einem Neuladen müssen noch nicht hochgeladene
+Dateien erneut ausgewählt werden. Bereits vorbereitete Jira-Importe bleiben über
+**Fortsetzen** verfügbar. Parsergrenzen werden als Fehler gemeldet; ein dabei
+abgeschnittener HTML-Text wird nicht stillschweigend als vollständige Quelle gespeichert.
+
+Im KI-Austausch werden erkannte Ticketkennungen und zugehörige `/browse/`-Links aus
+zurückgegebenen Lesertexten entfernt. Die Erkennung ist konservativ und kann
+ähnlich aufgebaute Kennungen betreffen; den bereinigten Vorschautext prüfen.

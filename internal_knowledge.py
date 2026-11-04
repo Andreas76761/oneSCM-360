@@ -54,7 +54,7 @@ class InternalKnowledge:
 
     def save(self,data):
         from app import Invalid, Conflict, clean_text, choice, boolean, ROLES, LANGUAGES, now
-        from publication import validate_evidence
+        from publication import validate_evidence, validate_rules
         if type(data.get("revision")) is not int or data["revision"]<0: raise Invalid("Interne Revision fehlt.")
         item={"id":clean_text(data.get("id"),"ID",100),"revision":data["revision"]+1,
               "title":clean_text(data.get("title"),"Titel",300).strip(),"body":clean_text(data.get("body",""),"Interner Inhalt",100000),
@@ -63,15 +63,16 @@ class InternalKnowledge:
               "status":choice(data.get("status","Entwurf"),["Entwurf","In Prüfung","Freigegeben","Archiviert"],"Status"),
               "language":choice(data.get("language","de"),LANGUAGES,"Sprache"),
               "chatbot_enabled":boolean(data.get("chatbot_enabled",False),"Chatbot-Vormerkung"),
-              "evidence":validate_evidence(data.get("evidence",[])),"visibility":"internal_only","updated":now()}
+              "evidence":validate_evidence(data.get("evidence",[])),"validity":validate_rules(data.get("validity",[])),"visibility":"internal_only","updated":now()}
         if not item["id"] or not item["title"]: raise Invalid("Interner Titel und ID erforderlich.")
-        for key in ["categories","domains","roles","markets","labels","keywords"]:
+        for key in ["categories","domains","roles","markets","labels","keywords","divisions"]:
             values=data.get(key,[])
             if not isinstance(values,list) or len(values)>200 or any(not isinstance(v,str) or len(v)>150 for v in values): raise Invalid("Ungültige interne Labels: "+key)
             item[key]=list(dict.fromkeys(v.strip() for v in values if v.strip()))
         valid_categories={c["id"] for c in self.categories()["items"]}
         if not item["categories"] or set(item["categories"])-valid_categories: raise Invalid("Mindestens ein gültiges internes Thema auswählen.")
         if set(item["domains"])-{d["id"] for d in self.store.get_catalog()} or set(item["roles"])-set(ROLES): raise Invalid("Ungültige Domänen-/Rollenreferenz.")
+        if set(item["divisions"])-{"Van", "PC"}: raise Invalid("Ungültige Sparte.")
         if item["chatbot_enabled"] and (not item["question"].strip() or not item["answer"].strip()): raise Invalid("Für die Chatbot-Vormerkung Frage und Antwort ergänzen.")
         with self.store.connect() as db:
             db.execute("BEGIN IMMEDIATE")

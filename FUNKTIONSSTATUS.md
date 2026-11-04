@@ -1,6 +1,6 @@
 # Funktionsstand: Gliederungsverwaltung und Dokumentstudio
 
-Stand: **v0.4.0 · 03.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
+Stand: **v0.5.0 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
 Kernpunkten sowie die anschließende Aufforderung, offene Punkte weiter umzusetzen.
 „Vorher“ bezeichnet den Repository-Stand `ba2e937` vor diesem Ausbau.
 „Umgesetzt“ bezieht sich auf den lokalen Einzelbenutzer-Prototyp, nicht auf ein
@@ -93,7 +93,7 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | PDF-/HTML-Ausgabe | Umgesetzt | Gleiche Auswahl- und Freigaberegeln; eigenes portables Layout, keine pixelgenaue Office-Konvertierung |
 | Direkte Jira-/Confluence-Anbindung | Aus Umfang genommen | Auf Benutzerwunsch ausschließlich HTML-/Word-Exporte und Zwischenablage; keine Zugangsdaten oder Synchronisation |
 | Markt-/Sparten-Blueprint mit Vererbungs-/Konfliktregeln | Teilweise | Profilfilter und zeitliche Vorrang-/Konfliktregeln vorhanden; vollständige Blueprint-Vererbung noch offen |
-| Preprod-/Prod-Releasepromotion | Offen | Version, Stichtag, Prod/Preprod und Zeitregeln vorhanden; kein automatischer Vierwochen-Workflow |
+| Preprod-/Prod-Releasepromotion | Umgesetzt | Lokale Dokumentationspakete mit Vorschau, vollständiger bisheriger Profilabdeckung, atomarer manueller Aktivierung und Rücknahme; kein oneSCM-Deployment oder automatischer Vierwochen-Workflow |
 | Mehrere Fachagenten mit Orchestrator | Teilweise | Persistente sequenzielle Läufe, Review und Übernahme, Vier-Agenten-Finalisierung mit Bericht umgesetzt; Hintergrundworker und echte Modellqualitätsabnahme offen |
 | Wiederherstellen alter Gliederungen | Offen | Historie ist lesbar/vergleichbar; Wiederherstellung als neue Revision noch zu ergänzen |
 | Integrierte Sicherung / Wiederherstellung | Offen | Manuell bei beendeter Anwendung Datenordner kopieren |
@@ -108,24 +108,46 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | Jira-Verifikation je Text | Umgesetzt | Ticketnummer, Status, Typ, Datum, Prüfvermerk; Änderung des Inhalts setzt Prüfstatus zurück; keine Live-Abfrage |
 | Manual-/Releaseletter-/Quick-Reference-Eignung | Umgesetzt | Aktivierung pro Text und Übersicht der tatsächlichen profilabhängigen Verwendung |
 | Zeitliche Gültigkeit nach Jahr, Land, Rolle, Sparte | Umgesetzt | Stichtag, Version, Umgebung, Status und widersprüchliche Regeln werden geprüft |
-| Versionsverlauf | Umgesetzt | Filter über gespeicherte Gliederungsstände; keine automatische Releasepromotion |
+| Versionsverlauf | Umgesetzt | Filter über gespeicherte Gliederungsstände; separate manuelle Releasepakete seit v0.5.0 |
 | Screens mit Uploadlabels, Priorität, Filtern und Sortierung | Umgesetzt | Länder-/Rollen-/Sparten-/Umfangsfilter; Duplikate überschreiben keine Metadaten |
 | Vier-Agenten-Finalisierung | Umgesetzt | Finalisierung, Validierung, technische Renderprobe, interner Markdown-Bericht; keine automatische Freigabe |
 | Separates Register Testing / UI / Steuerung / IT | Umgesetzt | Eigene Unterthemen, Mehrfachzuordnung, Suche, Archivstatus, Revisionen; in keiner Leserausgabe, auch nicht HQ/intern |
-| FAQ-Basis für internen Chatbot | Teilweise | Freigegebene, vorgemerkte Frage-Antwort-Paare mit Profilfilter und lokaler Suchvorschau; antwortgenerierender Chatbot fehlt |
-| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.4.0 · 03.11.2026, serverseitige Buildinformation |
+| FAQ-Basis für internen Chatbot | Umgesetzt | Freigegebene, vorgemerkte Frage-Antwort-Paare mit Profilfilter; seit v0.5.0 Chat mit wörtlichen Antwortbelegen |
+| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.5.0 · 04.11.2026, serverseitige Buildinformation |
+
+## Ergänzungen in Version 0.5.0
+
+| Funktion | Stand | Grenze / Verhalten |
+|---|---|---|
+| Manueller KI-Austausch für Copilot, Claude und Gemini | Umgesetzt | 1–20 Chunks bis 60.000 Zeichen; Auftrag prüfen/kopieren/TXT, JSON-Antwort einfügen oder importieren; keine API-Verbindung und kein Ollama erforderlich |
+| KI-Antwort kontrolliert übernehmen | Umgesetzt | Auftrag und Quellenkennungen geprüft, geänderte/gelöschte Texte blockieren; ausdrückliche Übernahme als Bibliotheksentwurf, keine automatische Freigabe oder Kapitelzuordnung |
+| Vollständige PII-/Faktenprüfung externer KI-Antworten | Teilweise | Bekannte Muster bereinigt, Quellenkennungen strukturell geprüft; unbekannte Namen, Halluzinationen und fachliche Eignung manuell prüfen |
+| Eigenes Designstudio | Umgesetzt | Farben, Schrift, Bildbreite, Beschriftungen, Seiten-/Foliennummern, Symbole und Stichworthervorhebung; schematische Vorschau und feste Templateauswahl |
+| Pixelgleiche Layoutdarstellung über alle Formate | Offen | Native Office-Master und portable Renderer unterscheiden sich; Zielprogramme und reale Vorlagen abnehmen |
+| Interner FAQ-Chat mit Belegen | Umgesetzt | Freigegebene, vorgemerkte FAQ; Land, Rolle, Sparte, Sprache, Stichtag und Umgebung; keine automatische Suche über sämtliche Quellen |
+| Lokale KI-Belegauswahl im Chat | Teilweise | Technischer Adapter validiert wörtliche Zitate; echte Modell-/Relevanzabnahme offen; keine freien generierten Antworten |
+| Gesprächsverlauf und Belegrevisionen | Umgesetzt | Festes Profil je Chat, maximal 50 Fragen, vorherige Frage optional als Kontext, veraltete Belege markiert |
+| Verhalten bei fehlenden oder widersprüchlichen FAQ | Umgesetzt | Hinweise und konkurrierende Belege statt erfundener Antwort; heuristische Erkennung ohne Vollständigkeitsgarantie |
+| Releasevorschau und Profilabdeckung | Umgesetzt | 1–50 Preprod-Gliederungen; erneute Prüfung im Prod-Profil; alle vorher aktiven Profile zwingend enthalten; erste Baseline bewusst festlegen |
+| Atomare Promotion und Rücknahme | Umgesetzt | Ausdrückliche Begründung und Bestätigung; Änderungen seit Vorschau bzw. Aktivierung blockieren; historische Ausgaben bleiben erhalten |
+| Automatische Release-Terminsteuerung | Offen | Zum Termin manuell aktivieren; keine direkte Steuerung von oneSCM |
+| Fachlicher Quellenkontext | Umgesetzt | Land, Rolle, Sparte, Sprache, Umgebung, Quelldatum und Zeitraum; getrennte Gültigkeit wird beim Vergleich berücksichtigt |
+| Regelbasierte Quellenkonflikte | Umgesetzt | 2–20 Quellen, maximal 300 Chunks; Zahlen, Verneinung und Dubletten; keine vollständige semantische Prüfung |
+| Manuelle und lokale KI-Paarprüfung | Teilweise | Prüfpunkte und wörtlich validierte KI-Belege technisch vorhanden; fachliche Modellabnahme offen |
+| Begründete Konfliktentscheidung und Historie | Umgesetzt | Bevorzugter Beleg dokumentierbar, Änderungen führen zur erneuten Prüfung; keine automatische Quellen-/Textänderung |
+| Quellenkonflikte als Promotionsblocker | Umgesetzt | Offene/bestätigte/veraltete Konflikte bei bestätigten Kapitelzuordnungen; Dubletten allein blockieren nicht |
+| Ticketweiser Jira-HTML-Import | Teilweise | Ein Chunk je erkanntem Ticket, Überschriften, Bereinigung erkannter Personenfelder/PII vor Speicherung, bereinigtes HTML und Fortschritt/Abbruch; Exportvarianten und PII-Vollständigkeit fachlich prüfen |
+| Verständliche lokale Aktualisierung | Umgesetzt | Alte Konsole beenden, Daten sichern, neue ZIP in neuen Ordner, Server neu starten, Strg+F5 und Versionsprüfung; kein automatischer Updater |
 
 [Bedienungsanleitung](docs/BEDIENUNG.md) · [Restarbeiten mit Priorität und Aufwand](docs/VERBESSERUNGEN.md)
 
 ## Prüfung und praktische Grenzen
 
-- 78 erfolgreiche automatisierte Modell-/HTTP-Tests für Import, Regeln, Revisionen, Bibliothek,
-  Übersetzungsherkunft, Medien, OCR, Löschschutz und echte Office-Dateiinhalte.
-- Sechs Browserabnahmen in `tests/browser_smoke.py`, `browser_management.py`,
-  `browser_sources.py`, `browser_editorial.py`, `browser_media.py`, `browser_publishing.py`.
+- 125 automatisierte Tests und acht Chromium-Browserabläufe erfolgreich (4. November 2026). Darunter tatsächliche Word-/PowerPoint-/PDF-/HTML-Artefakte, Chat-/Release-/Quellenprüfungen sowie Design, KI-Austausch und Massenimport.
 - Tesseract wurde tatsächlich mit synthetischen Bilddaten aufgerufen.
 - Ollama-Adapter mit simulierten Antworten geprüft; kein Modell installiert,
-  daher keine behauptete Endabnahme von Übersetzungs- oder Kürzungsqualität.
+  daher keine behauptete Endabnahme von Übersetzungs-, Kürzungs-, Chat- oder
+  semantischer Konfliktqualität.
 - Windows-Start und Darstellung in installiertem Microsoft Office sind noch
   auf dem Zielrechner zu prüfen. Cloudtests liefen unter Linux/Chromium.
 - Eigene Datenbanken, Quellen, Originalbilder und Testartefakte gehören nicht

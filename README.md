@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.4.0 · Stand 03.11.2026**
+**Prototyp 0.5.0 · Stand 04.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -11,13 +11,18 @@ lokalen Windows-Arbeitsplatz ausgelegt.
 Jira und Confluence werden entsprechend der festgelegten Arbeitsweise **über
 HTML-/Word-Exporte und die Zwischenablage** eingebunden. Direkte Verbindungen,
 Zugangsdaten oder Synchronisierung mit diesen Systemen sind nicht Bestandteil des
-aktuellen Auftrags. Optionale KI-Verarbeitung erfolgt über ein selbst betriebenes
-Ollama auf demselben Rechner; ohne Modell stehen lokale Regeln und manuelle
-Bearbeitung zur Verfügung.
+aktuellen Auftrags. Die Anwendung benötigt weder einen KI-API-Vertrag noch
+Ollama. Vorhandene Chat-Abonnements von **Microsoft 365 Copilot, Claude oder
+Gemini** werden über einen manuellen Austausch genutzt: ausgewählten Auftrag
+prüfen und kopieren, im jeweiligen Chat bearbeiten, Antwort zurückbringen und
+vor Übernahme kontrollieren. Eine direkte API-Anbindung dieser Dienste besteht
+nicht. Ein bereits installiertes lokales Ollama-Modell bleibt eine zusätzliche
+Option; Regeln und manuelle Redaktion funktionieren ohne KI-Modell.
 
 ## Downloads und Dokumentation
 
 - [Aktuellen Prototyp als ZIP herunterladen](https://github.com/Andreas76761/oneSCM-360/archive/refs/heads/main.zip)
+- [Aktualisierung: alte Oberfläche ersetzen](docs/AKTUALISIERUNG.md)
 - [Bedienungsanleitung](docs/BEDIENUNG.md)
 - [Vollständiger Funktionsstand](FUNKTIONSSTATUS.md)
 - [Verbesserungen mit Priorität, Aufwand und Abnahmekriterien](docs/VERBESSERUNGEN.md)
@@ -60,12 +65,44 @@ Optionale lokale Programme:
 | Programm | Zweck | Ohne dieses Programm |
 |---|---|---|
 | Tesseract im `PATH` | OCR und Hinweise auf mögliche PII in Bildern | Manuelle PII-Markierung und Bildverwaltung nutzbar |
-| Ollama, Port `11434`, bereits installiertes Modell | KI-Triage, Übersetzungs- und Kürzungsvorschläge | Regel-Triage, manuelle Texte und Sprachfassungen nutzbar |
+| Ollama, Port `11434`, bereits installiertes Modell | Optionale direkte lokale Modellaufrufe | Regeln, manuelle Redaktion und Austausch mit vorhandenen Chat-Abonnements nutzbar |
 | Antiword im `PATH` | Texte aus alten binären `.doc`-Dateien | Datei in Word als DOCX speichern; HTML-basierte DOC-Exporte funktionieren direkt |
 
 Die Anwendung installiert oder lädt diese optionalen Programme und KI-Modelle
-nicht automatisch. PDF-Erzeugung erfolgt lokal mit ReportLab; hierfür ist kein
+nicht automatisch. Ein Copilot-, Claude- oder Gemini-Chat-Abonnement ersetzt keine
+API-Berechtigung; der manuelle Austausch benötigt keine API-Schlüssel. PDF-Erzeugung erfolgt lokal mit ReportLab; hierfür ist kein
 installiertes Microsoft Office erforderlich.
+
+## Neu in Version 0.5.0
+
+- **KI-Austausch:** ausgewählte Quelltexte für Microsoft 365 Copilot, Claude oder
+  Gemini vorbereiten, prüfen und kopieren; JSON-Antwort zurückbringen und als
+  Bibliotheksentwurf übernehmen. Keine direkte API-Verbindung, keine automatische
+  Übertragung oder Freigabe.
+- **Designstudio:** Farben für Kapitel, Unterkapitel und Hinweise, Schrift,
+  Bildbreite, Beschriftungen, Nummerierung, Symbole und Stichworthervorhebung je
+  Gliederung bearbeiten; native Office-Templates fest auswählen.
+
+- **Interner Chatbot:** antwortet mit freigegebenen FAQ-Belegen für Land, Rolle,
+  Sparte, Sprache, Stichtag und Umgebung. Historische Belege sind nachvollziehbar;
+  fehlende oder widersprüchliche Antworten werden kenntlich gemacht. Optional
+  wählt ein lokales Modell wörtliche Zitate aus, ohne freie Antworten zu erzeugen.
+- **Releaseverwaltung:** ein geprüftes Paket führt lokale Dokumentationsstände
+  von Preprod nach Prod. Alle bisher aktiven Profile müssen enthalten sein.
+  Vorschau, begründete Aktivierung und Rücknahme sind nachvollziehbar.
+- **Quellenwidersprüche:** Regeln erkennen mögliche Zahlen-/Verneinungsabweichungen
+  und Dubletten; manuelle oder lokale KI-Paarprüfung ergänzt die Hinweise.
+  Die Redaktion entscheidet mit Begründung.
+- **Jira-HTML-Import:** ticketweise Aufbereitung mit Überschriften,
+  Bereinigung erkannter Personenfelder und PII vor der Speicherung sowie
+  Fortschritt, Pause/Fortsetzen und Abbruch. Unterschiedliche Exportvarianten und die Vollständigkeit
+  der Bereinigung müssen fachlich geprüft werden.
+
+Wenn weiterhin die alte Oberfläche erscheint, zuerst den bisherigen Server in
+seiner Konsole mit **Strg+C** beenden. Datenordner sichern, neue ZIP in einen neuen
+Ordner entpacken, dort `start.bat` starten und den Browser mit **Strg+F5** neu laden.
+Oben rechts muss **v0.5.0 · 04.11.2026** stehen. Einzelheiten und Fehlerhilfe:
+[Aktualisierung](docs/AKTUALISIERUNG.md).
 
 ## Funktionen dieser Version
 
@@ -73,15 +110,19 @@ installiertes Microsoft Office erforderlich.
 |---|---|
 | Gliederungen | Zentrale Übersicht, Metadaten, stabile Kapitelkennungen, aufklappbare Bäume, Kopien, Versionsvergleich, geprüfter Reimport |
 | Steuerung | Acht Hauptdomänen mit Unterdomänen, Mehrfachmapping, farbige interne Matrixbemerkungen, Suche und Chunk-Zähler |
-| Quellen | Datei- und Zwischenablageimport, Text-/Tabellenextraktion, prüfbare Triage, Quellenübersicht und Löschung |
+| Quellen | Datei- und Zwischenablageimport, Jira-HTML ticketweise, Text-/Tabellenextraktion, prüfbare Triage, Quellenübersicht und Löschung |
+| Quellenprüfung | Herkunft und Gültigkeitskontext, belegte Prüfpunkte, begründete Entscheidungen und Entscheidungshistorie |
 | Texte | Zentrale revisionierte Bibliothek, Kapitelzuordnung, eigene Umfangsfassungen und Sprachfassungen |
 | Jira-Verifikation | Ticketnummer, Status, Typ, Datum und Prüfvermerk pro Text; ausschließlich interne Nachweise |
 | Dokumenteignung | Auswahl pro Text für Manual, Releaseletter und Quick Reference; Übersicht der tatsächlich verwendeten Inhalte |
 | Zeit und Version | Stichtag, Prod/Preprod, Gültigkeitszeiträume, Jahr, Land, Rolle, Sparte und Status; gespeicherte Stände im Zeitverlauf |
+| Releasepakete | Vollständige Profilabdeckung, Vergleich, manuelle atomare Promotion und Rücknahme lokaler Dokumentationsstände |
 | Screens | Uploadlabels, Profil, Priorität, Filter und Sortierung; PII-Abdeckung, Markierungen, Varianten, Bildrevisionen und Klickstrecken |
-| Layouttemplates | Versionierter DOCX-/PPTX-Upload, feste Auswahl je Gliederung und portable Farben/Schriftgröße |
+| Layouttemplates und Design | Versionierter DOCX-/PPTX-Upload, feste Auswahl je Gliederung; eigenes Designstudio mit Farben, Schrift, Bildern und schematischer Vorschau |
+| Manuelle KI-Nutzung | Aufträge für Copilot-/Claude-/Gemini-Chats kopieren oder herunterladen; Antworten prüfen und ausdrücklich als Entwurf übernehmen |
 | Markdown → Word | Stapelkonvertierung mit formatierten Überschriften, Listen, Tabellen, Hervorhebungen, Links und Code |
 | Ausgaben | DOCX, PPTX, PDF und selbstständige HTML-Datei; gemeinsame Auswahl- und Freigaberegeln |
+| Interne FAQ und Chat | Separates Register, freigegebene profilgerechte Antwortbelege, Revisionen und Warnung bei veralteten Belegen |
 | Agentenläufe | Gespeicherte Eingabestände, Fachschritte, Fortschritt, Pause/Abbruch, Prüfung und ausdrückliche Übernahme |
 | Internes Register | Testing, UI, Steuerung und IT mit Unterthemen, Mehrfachzuordnung, Revisionen und ausschließlich internen FAQ-Kandidaten |
 | Nachvollziehbarkeit | Gliederungs-, Text-, Sprach-, Bild- und Templaterevisionen sowie Originaldownload erzeugter Ausgaben |
@@ -101,6 +142,15 @@ installiertes Microsoft Office erforderlich.
 7. Zunächst eine Prüfausgabe herunterladen. Nach fachlicher Prüfung aller Inhalte
    **Profil prüfen & freigeben** ausführen. Für die endgültige Ausgabe
    **Veröffentlichung** aktivieren und das gewünschte Format wählen.
+
+Für vorhandene Chat-Abonnements **KI-Austausch · Copilot / Claude / Gemini**
+verwenden. Die [Bedienungsanleitung](docs/BEDIENUNG.md#16-mit-copilot-claude-oder-gemini-über-den-chat-arbeiten)
+beschreibt Auswahl, Prüfung und Übernahme.
+
+Vor einem neuen Release unter **Quellenwidersprüche** den Kontext der Exporte
+pflegen und Hinweise klären. **Releaseverwaltung** aktiviert anschließend ein
+geprüftes Dokumentationspaket; sie steuert weder das oneSCM-System noch einen
+automatischen Vierwochen-Termin.
 
 Die separate Funktion **Markdown → Word** ist auch ohne Kapitelaufbau nutzbar.
 Sie konvertiert ausgewählte Markdown-Dateien als einzelne DOCX-Dateien in einer ZIP
@@ -128,19 +178,25 @@ ausgelöst.
 
 Das **Interne Register · FAQ** bleibt einschließlich Frage-Antwort-Paaren aus allen
 Leserausgaben ausgeschlossen, auch bei HQ/intern. Die lokale FAQ-Vorschau liefert
-freigegebene, vorgemerkte Einträge. Ein antwortgenerierender Chatbot ist noch offen.
+freigegebene, vorgemerkte Einträge. Der separate **Interne Chatbot** beantwortet
+Fragen mit solchen Belegen. Auch seine Antworten und Quellenzitate bleiben intern.
+Ein freies generatives RAG über sämtliche Quellen ist nicht implementiert.
 
 ## Aktualisierung und Sicherung
 
-Anwendung beenden, Datenordner sichern und die neue ZIP in einen neuen
-Programmordner entpacken. Anschließend dort `start.bat` starten. Bei Verwendung
+Die vollständige [Updateanleitung](docs/AKTUALISIERUNG.md) erklärt auch die weiterhin
+sichtbare alte Oberfläche. Alten Server mit **Strg+C** beenden, den in seiner
+Konsole genannten Datenordner sichern und die neue ZIP in einen neuen
+Programmordner entpacken. Anschließend dort `start.bat` starten und mit **Strg+F5**
+die Frontend-Version prüfen. Bei Verwendung
 des Standard-Datenpfads werden die bisherigen Inhalte wieder geladen. Bei einem
 eigenen `--data-dir` denselben lokalen Datenordner weiterverwenden.
 
 Neue Tabellen und Standardwerte werden ergänzt; vorhandene Historieneinträge
 werden nicht umgeschrieben. Erzeugte Dateien behalten ihren ursprünglichen Stand.
-Eine Sicherungsoberfläche und das Wiederherstellen einer alten Gliederung als
-neue Revision sind noch nicht enthalten.
+Eine Sicherungsoberfläche und das allgemeine Wiederherstellen beliebiger alter
+Gliederungsstände sind noch nicht enthalten. Die Releaseverwaltung kann das
+aktuell aktive Releasepaket unter den beschriebenen Bedingungen zurücknehmen.
 
 ## Grenzen und Abnahme
 
@@ -181,6 +237,7 @@ python tests/browser_sources.py
 python tests/browser_editorial.py
 python tests/browser_media.py
 python tests/browser_publishing.py
+python tests/browser_knowledge.py
 ```
 
 Ein vorhandener Browser lässt sich über `ONESCM_BROWSER_PATH` auswählen. Weitere
@@ -188,3 +245,5 @@ Abnahmetests für Veröffentlichung, Agentenläufe und die neuen Oberflächen be
 sich im Verzeichnis `tests/`. Das Ergebnis des vollständigen Abschlusslaufs wird
 bei der Auslieferung berichtet; aus dem Vorhandensein eines Tests folgt keine
 Abnahme auf dem Windows-Zielrechner.
+
+Prüfstand v0.5.0: 125 automatisierte Tests und acht Chromium-Browserabläufe erfolgreich. Windows-/Office-Abnahme bleibt erforderlich.

@@ -1,47 +1,67 @@
-# Verbesserungen und fehlende Funktionen
+# Verbesserungen und verbleibender Aufwand
 
-Stand **v0.4.0 · 03.11.2026**. Schätzungen in Personentagen zu 8 Stunden für eine
-entwickelnde Person, einschließlich Umsetzung und gezielter Tests. Es sind grobe
-Planungswerte, keine Zusage; neue Anforderungen und verfügbare Beispieldaten können
-den Aufwand ändern. P0 = vor verlässlichem Alltagseinsatz, P1 = nächster Ausbau,
-P2 = anschließender Komfort-/Gestaltungsausbau. Abhängigkeiten beachten.
+Stand **v0.5.0 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
+(PT) zu acht Stunden für eine entwickelnde Person einschließlich gezielter Tests.
+Sie sind keine Zusagen. Wartezeit auf fachliche Entscheidungen, Muster, Hardware
+und Freigaben kommt hinzu. Überschneidungen zwischen Aufgaben verhindern eine
+sinnvolle pauschale Addition aller Schätzungen.
 
-| Priorität | Verbesserung / fehlendes Feature | Stand und konkretes Abnahmekriterium | Aufwand |
-|---|---|---|---:|
-| P0 | Windows- und Microsoft-Office-Abnahme | Linux/Chromium und Dateiinhalte geprüft. Start, Updates, Word/PPTX-Umbrüche, PDF-Schriften und reale Templates auf dem Zielrechner mit repräsentativen langen Dokumenten abnehmen. | 2–4 PT |
-| P0 | Integrierte Sicherung und Wiederherstellung | Bisher manuelle Sicherung bei beendeter Anwendung. Konsistente verschlüsselte Sicherung, Wiederherstellungsprüfung und verständliche Bedienoberfläche ergänzen. | 3–5 PT |
-| P0 bei Mehrbenutzer-/Chatbot-Freigabe | Echte Zugriffsrechte und sichere Originalablage | Bisher vertrauenswürdiger Einzelarbeitsplatz mit Rollenbezug. Anmeldung, serverseitige Rechte für interne FAQ und Originalbilder sowie negative Zugriffstests erforderlich. | 8–15 PT |
-| P1 | Interner Chatbot mit belegten Antworten | Register und freigegebene FAQ-Suche vorhanden. Lokaler Suchindex/RAG, Quellen- und Revisionszitate, Antworten bei unzureichender Evidenz verweigern; Tests verhindern Antworten aus falschem Land/Rollenprofil. Rechtekonzept vorher festlegen. | 8–15 PT |
-| P1 | Reale KI- und Sprachqualitätsabnahme | Ollama-Adapter technisch geprüft, kein fachlich abgenommenes Modell. Referenzfälle für Triage, Kürzung, Übersetzung und Halluzinationen erstellen; Ergebnisse gegen manuelle Bewertung messen. | 4–7 PT |
-| P1 | Automatische Releasepromotion Preprod → Prod | Datum, Umgebung, Version und Gültigkeitsregeln vorhanden. Vierwochen-Workflow mit Releasepaket, Änderungsübersicht, Freigabe und Rücknahme fehlt. Keine direkte Jira-Anbindung erforderlich. | 5–8 PT |
-| P1 | Vollständige Blueprint-Vererbung | Zeitliche Vorrang-/Konfliktregeln vorhanden. Domänenübergreifende Markt-/Sparten-Vererbung mit Herkunftsauflösung und erklärbarer Konfliktansicht ergänzen. | 6–10 PT |
-| P1 | Inhaltliche Widersprüche und Dubletten prüfen | Datei-/Bildduplikate und strukturierte Konflikte erkannt; semantischer Vergleich verschiedener Quellenstände fehlt. Prüfwarteschlange mit belegten konkurrierenden Aussagen und manueller Entscheidung ergänzen. | 6–10 PT |
-| P1 | Quellenseitige Änderungswirkung | Revisionen und Herkunft vorhanden. Neue HTML-/Word-Release-Exporte mit Vorständen vergleichen und betroffene Kapitel, Übersetzungen und Screens zur Prüfung markieren. | 5–8 PT |
-| P1 | Alte Gliederung wiederherstellen | Historie lesbar und vergleichbar. Einen Stand als neue Revision übernehmen, ohne historische Ausgaben oder aktuelle Zuordnungen still zu verändern. | 2–3 PT |
-| P1 | Markdown mit lokalen Bildern und relativen Links | Text, Tabellen, Listen und Code nach Word funktionieren. Dateibündel mit relativen Bildpfaden, lokalen Ankern, Fußnoten und nachvollziehbaren Importfehlern ergänzen. | 3–5 PT |
-| P1 | Umfangreiche Quellen und gescannte PDFs | Text- und Rasterextraktion vorhanden. PDF-Seitenrendering, Scan-OCR, Vektorgrafiken, große Importe mit Wiederaufnahme und präzisen Fundstellen ergänzen. | 5–9 PT |
-| P1 | PII-Prüfung und OCR-Sprachen ausbauen | Manuelle Masken, OCR-Hinweise und Rasterausgabe vorhanden. Sprachauswahl, regionenspezifische Erkennung und Stapel-Prüfoberfläche verbessern; visuelle Freigabe bleibt erforderlich. | 4–7 PT |
-| P1 | Tests der neuen Regeln automatisiert in CI | Lokale Modell-/HTTP-/Browser-Suiten vorhanden. CI für unterstützte Python-Versionen, Windows-Start und herunterladbare Testberichte einrichten. | 2–4 PT |
-| P2 | Professioneller Template- und Platzhalterdesigner | Native Stile/Master und portable Farben vorhanden. Deckblätter, Kapitelmuster, Icons, dynamische Platzhalter und firmenspezifische Inhaltslayouts anhand der noch bereitzustellenden Muster ergänzen. | 6–10 PT |
-| P2 | Seitengenaues Verzeichnis und Bildverzeichnis | Inhaltsverzeichnis nach sichtbarer Struktur vorhanden. Word-Felder/Seitenzahlen, Abbildungsnummern, Querverweise und druckreife Register ergänzen. | 3–5 PT |
-| P2 | Redaktionelle Terminologie | Keywords/Labels, manuelle Sprachfassungen und Glossarbegriffe vorhanden. Synonym-/Übersetzungsspeicher, verbotene Begriffe und Stil-/Grammatikprüfung systematisch integrieren. | 5–9 PT |
-| P2 | Interne Wissenspflege im Stapel | Register, Unterthemen, Mehrfachzuordnung, Revisionen, Archivstatus und FAQ-Vormerkung vorhanden. Datei-/Zwischenablageimport direkt in das Register, Reviewfälligkeit und Massenbearbeitung ergänzen. | 3–5 PT |
-| P2 | Agenten als Hintergrundwarteschlange | Persistente sequenzielle Läufe mit Prüfung vorhanden. Browserunabhängigen Worker, Planung, Fortschrittsereignisse und gezielte Wiederholung einzelner Schritte ergänzen. | 4–7 PT |
-| P2 | Bedienbarkeit großer Bibliotheken | Suche, Filter und Bäume vorhanden. Serverseitige Paginierung, Tastaturnavigation, Barrierefreiheit und Messung mit realen Datenmengen ergänzen. | 3–6 PT |
-| P2 | Windows-Paket ohne Python-Vorinstallation | `start.bat` benötigt Python und für Erstinstallation Paketnetzwerk. Signiertes Installationspaket, Offline-Abhängigkeiten und Updatepfad ergänzen. | 4–7 PT |
+P0 = vor verlässlichem Alltagseinsatz abnehmen, P1 = nächster Ausbau,
+P2 = späterer Ausbau nach Bedarf. Rechte sind nur dann P0, wenn der derzeitige
+vertrauenswürdige Einzelarbeitsplatz für weitere Benutzer geöffnet werden soll.
 
-## Empfohlene nächste Reihenfolge
+In v0.5.0 vorhanden und daher nicht mehr als vollständig fehlend bewertet:
+beleggestützter interner FAQ-Chat, manuelle atomare Dokumentations-Releasepromotion
+mit Rücknahme, regelbasierte Quellenkonflikte mit manueller/lokaler KI-Paarprüfung,
+manueller Chat-Auftragsaustausch und ein eigenes Designstudio.
+Weitere Qualität, Skalierung und Automatisierung dieser Funktionen bleiben separate
+Aufgaben. Die folgenden Schätzungen beziehen sich auf diese Restarbeiten.
 
-1. Reale Word-/PowerPoint-Muster und ein repräsentatives Releasepaket für Windows-
-   Abnahme verwenden; gleichzeitig Sicherung/Wiederherstellung ergänzen.
-2. Automatische Releasepromotion und Änderungswirkung auf Kapitel entwickeln.
-3. Interne FAQ mit echten Fragen befüllen, Qualitätsmaßstab und Zugriffsmodell
-   festlegen; anschließend den lokalen Chatbot anbinden.
-4. Nach gemessenen Qualitätslücken Terminologie, OCR und professionelle Layouts
-   ausbauen.
+| Priorität | Verbesserung | Restaufwand | Voraussetzung / Abhängigkeit | Abnahmekriterium |
+|---|---|---:|---|---|
+| P0 | Windows- und Microsoft-Office-Abnahme | 2–4 PT | Zielrechner, reale Word-/PPTX-Muster, lange Dokumente und geplante Sprachen | Start und Update mit vorhandenen Daten; reale Vorlagen, Umbrüche, PDF-Schriften und Koreanisch nachvollziehbar abgenommen |
+| P0 | Jira-HTML-Bereinigung mit Exportvarianten abnehmen | 2–4 PT | Repräsentative lokal verwaltete Exporte und fachlich markierte PII-Beispiele | Ticketanzahl und Fundstellen stimmen; bekannte Personenfelder entfernt; bereinigte gespeicherte Datei geprüft; Abbruch und Neuimport verständlich. Keine Behauptung vollständiger PII-Erkennung |
+| P0 | Integrierte Sicherung und Wiederherstellung | 3–5 PT | Speicher-/Verschlüsselungskonzept und Beispieldatenbank | Konsistente Sicherung und Wiederherstellung von Texten, Medien, Releases, Konflikten und Chats nachgewiesen; fehlgeschlagene Wiederherstellung verändert den Bestand nicht |
+| P0 bei Mehrbenutzeröffnung | Anmeldung und serverseitige Zugriffsrechte | 8–15 PT | Festgelegte Benutzer-/Rechtematrix, Betriebsentscheidung | Rechte für interne FAQ, Originalbilder und Verwaltung serverseitig erzwungen; Tests verweigern unberechtigten Zugriff auch außerhalb der UI |
+| P1 | Fachliche FAQ-/Chat-Abnahme | 3–5 PT | Freigegebener Fragekatalog je Sprache, Rolle und Markt | Relevanz, keine-Belege-Fälle, veraltete Belege und widersprüchliche Antworten gegen manuell bewertete Referenzen gemessen; lokale KI-Belegauswahl am echten Modell geprüft |
+| P1 | Quellenkonflikte semantisch und mehrsprachig verbessern | 4–7 PT | Echte Konflikt-/Nichtkonflikt-Paare mit Versionskontext | Regeln und Modellbefunde auf Referenzfällen bewertet, Fehler nachvollziehbar; Entscheidungen bleiben menschlich und belegt; keine automatische Textüberschreibung |
+| P1 | Reale KI- und Übersetzungsqualität abnehmen | 4–7 PT | Vorhandene Copilot-/Claude-/Gemini-Chats oder optional lokales Modell; mehrsprachige Fachprüfer | Manuell ausgetauschte Antworten und optionale lokale Triage, Kürzung und Übersetzung gegen Referenzfälle gemessen; Terminologie, Auslassungen und falsche Aussagen dokumentiert; keine ungeprüfte automatische Veröffentlichung |
+| P1 | Releaseprofil-Katalog und planbare Termine | 3–5 PT | Verbindliche Markt-/Rollen-/Spartenliste, vorhandene Promotion | Schon das erste Paket gegen Sollprofile prüfen; Erinnerungen/Fälligkeiten anzeigen; Aktivierung bleibt ausdrücklich bestätigt. Kein oneSCM-Deployment |
+| P1 | Änderungen neuer Quellen auf Inhalte zurückführen | 5–8 PT | Stabile Ticket-/Quellenkennungen und wiederholte Exportbeispiele | Neuer Export zeigt betroffene Texte, Übersetzungen, Screens und Kapitel; Zuordnungen bleiben erhalten; Aktualisierung nur nach Prüfung |
+| P1 | Vollständige Blueprint-Vererbung | 6–10 PT | Fachliche Vorrangregeln für Markt, Sparte und Domäne | Herkunft jeder Abweichung erklärbar; Vererbung und konkurrierende Ausnahmen in konkreten Profilbeispielen kontrollierbar |
+| P1 | Beliebigen alten Gliederungsstand wiederherstellen | 2–3 PT | Bestehende Historie und Revisionen | Alter Stand als neue Revision mit Vorschau übernehmbar; historische Ausgaben unverändert. Release-Rücknahme bleibt unabhängig |
+| P1 | Markdown mit lokalen Bildern und relativen Links | 3–5 PT | Typische MD-Dateibündel | Relative Bilder, lokale Anker und Fußnoten nach Word übernommen; fehlende Dateien als prüfbare Importfehler ausgewiesen |
+| P1 | Gescannte PDFs, Vektoren und weitere große Importe | 5–9 PT | Repräsentative PDF-/PPTX-Daten, lokale OCR-/Rendererentscheidung; Jira-Import bereits fortsetzbar | Seitenrendering und OCR mit Fundstellen; Vektorgrafiken abnehmbar; weitere umfangreiche Importformate nach Unterbrechung kontrolliert fortsetzbar |
+| P1 | PII-/OCR-Prüfung für Screens ausbauen | 4–7 PT | Mehrsprachige Beispielscreens und fachliche PII-Regeln | OCR-Sprachwahl, regionale Muster und Stapel-Prüfung verfügbar; visuelle Freigabe weiterhin erforderlich |
+| P1 | CI mit Windows- und Browserprüfung | 2–4 PT | CI-Betriebsentscheidung, Testdaten ohne vertrauliche Inhalte | Unterstützte Python-Versionen und Windows-Start automatisiert; Fehler und Testberichte pro Änderung nachvollziehbar |
+| P2 | Freies RAG über geprüfte Quellen | 8–14 PT | Erst nach FAQ-Qualitätsabnahme; Rechte, Auswahlregeln, Modell und Qualitätsmaßstab geklärt | Belegter Testkatalog für Antworten aus freigegebenen Quellen; falsche Profile ausgeschlossen; fehlende Evidenz erkannt; Nutzer kann Belege prüfen. Eigenständige Erweiterung über den aktuellen FAQ-Chat hinaus |
+| P2 | Erweiterter Template-/Platzhalterdesigner | 6–10 PT | Designstudio vorhanden; verbindliche Corporate-Design-Vorlagen | Deckblätter, Kapitelmuster, Icons und definierte Platzhalter reproduzierbar; Beispielmanual, Releaseletter und Quick Reference in Office abgenommen |
+| P2 | Seitengenaue Verzeichnisse und Querverweise | 3–5 PT | Layoutmuster, Office-Feld-/Aktualisierungskonzept | Inhalts- und Bildverzeichnis mit Seitenzahlen, Bildnummern und korrekten Querverweisen im Zielprogramm |
+| P2 | Terminologie, Stil und Grammatik | 5–9 PT | Glossar, Streichliste und Sprachleitfaden | Synonym-/Übersetzungsspeicher und Stilregeln zeigen nachvollziehbare Vorschläge je Sprache; keine stillen fachlichen Änderungen |
+| P2 | Interne Wissenspflege im Stapel | 3–5 PT | Registermodell vorhanden, Beispiele für Importfelder | Import ins Register, Massenbearbeitung und Reviewfälligkeit verfügbar; Änderungen erzeugen Revisionen und markieren alte Chatbelege |
+| P2 | Agenten als Hintergrundwarteschlange | 4–7 PT | Worker-/Betriebskonzept und gespeicherte Läufe | Läufe ohne geöffneten Browser fortsetzbar, Pause/Abbruch und Wiederholung nachvollziehbar; Übernahme weiterhin geprüft |
+| P2 | Große Bibliotheken und Barrierefreiheit | 3–6 PT | Reale Größenordnung und Tastatur-/Screenreader-Abnahme | Paginierung, Tastaturnavigation und verständliche Fokusführung; Antwortzeiten mit festgelegtem Testbestand gemessen |
+| P2 | Windows-Paket ohne Python-Vorinstallation | 4–7 PT | Paket-/Signaturstrategie, Offline-Bedarf | Installieren und aktualisieren mit Datenerhalt auf sauberem Windows-Rechner; Abhängigkeiten und Programmversion sichtbar |
+
+## Empfohlene Reihenfolge
+
+1. Neue ZIP auf dem Zielrechner aktualisieren und prüfen, dass v0.5.0 sichtbar ist.
+   Mit echten Office-Templates, Jira-Exporten und einer gesicherten Kopie der
+   Arbeitsdaten den Kernablauf abnehmen.
+2. Sicherung/Wiederherstellung ergänzen. Die tatsächlich benötigten Prod-Profile
+   und einen fachlichen FAQ-/Konflikt-Testkatalog festlegen.
+3. Chat, Quellenprüfung und Releases an realen Fällen erproben; anschließend
+   Änderungswirkung und Blueprint-Vererbung ausbauen.
+4. Nur nach gemessener Notwendigkeit freies RAG, Terminologie, zusätzliche OCR,
+   Layoutdesigner und Hintergrundautomatisierung ergänzen.
+
+Für Microsoft 365 Copilot, Claude und Gemini sind derzeit Chat-Abonnements
+vorhanden. Der vereinbarte Weg ist manueller Auftrags-/Antwortaustausch.
+API-Anbindungen werden nicht vorausgesetzt und sind kein blockierender Restpunkt.
+Für eine spätere automatische Anbindung wären passende API-Zugänge, Kostenrahmen
+und ein ausdrücklich festgelegter Funktionsumfang separat zu klären.
 
 Direkte Jira-/Confluence-Anbindungen sind auf ausdrücklichen Wunsch aus dem Umfang
-genommen. HTML-/Word-Exporte und Zwischenablage sind der vereinbarte Importweg und
-werden hier nicht als fehlende Systemanbindung bewertet. Malaysia/Indien sowie
-die fachliche Definition der achten Domäne bleiben zurückgestellt. Automatische
-vollständige PII-Erkennung wird nicht als erreichbare Garantie zugesagt.
+genommen. HTML-/Word-Exporte und Zwischenablage sind der vereinbarte Importweg.
+Malaysia/Indien sowie die fachliche Definition der achten Domäne bleiben
+zurückgestellt. Vollständige automatische PII-Erkennung wird nicht zugesagt.
