@@ -750,3 +750,16 @@ verfügbar. Beide Auftragsbereiche sind über RAG erreichbar. Die lokalen Schrit
 sind regelbasierte Verarbeitung, keine verdeckte Ausführung autonomer externer
 KI-Dienste. Klassifikations-/Wissens-/Medienvorschläge müssen redaktionell übernommen
 werden; der Orchestrator veröffentlicht nichts automatisch.
+
+
+## 23. Agentenvorschläge prüfen und übernehmen (v0.8.1)
+
+1. Unter **Agenten · Orchestrator** Quellen, gegebenenfalls Zielgliederung und Agenten auswählen. Den Lauf abschließen.
+2. Unter den Ergebnissen erscheinen einzelne bearbeitbare Vorschläge:
+   - **Classification:** Rollen, Domänen-IDs (d1 bis d8 bzw. gepflegte Unterdomänen), Stichwörter, Labels und Thema korrigieren; passende Kapitel wählen. Bestehende Zuordnungen bleiben erhalten. Markt und Sprache werden als Quellenkontext angezeigt und weiterhin im Quellenregister gepflegt.
+   - **Knowledge:** Titel und Text bearbeiten. Die Übernahme erstellt einen Bibliotheksentwurf mit ursprünglicher Gültigkeit und Herkunft. Eine fachliche Freigabe erfolgt separat.
+   - **Media:** Untertitel bearbeiten und Zielkapitel wählen. Dafür muss der Auftrag eine Zielgliederung enthalten. Nur aktuell passende, freigegebene und PII-geprüfte Screens sind zulässig. Bildinhalt zuvor im Medienregister ansehen.
+3. **Inhalt, Ziel und Gültigkeit geprüft** aktivieren und **Geprüften Vorschlag übernehmen** wählen.
+4. Übernahmen werden im internen Auftragsbericht protokolliert. Die Schaltfläche wird danach gesperrt. Geänderte Ausgangsstände erfordern einen neuen Auftrag. Nach einer Bildzuordnung die Gliederung neu öffnen.
+
+Die Übernahme erfolgt einzeln und atomar. Ein Fehler hinterlässt keine halbe Zuordnung. Sie veröffentlicht keine Inhalte. Der bestehende manuelle Übersetzungsablauf bleibt verfügbar.

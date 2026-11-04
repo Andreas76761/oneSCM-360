@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.8.0 · Stand 04.11.2026**
+**Prototyp 0.8.1 · Stand 04.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -277,7 +277,7 @@ Neue Kapitel lassen sich rollen-/sprachgebunden in bestehende Gliederungen einf�
 geprüfte Screens können neuen oder bestehenden Kapiteln zugeordnet werden.
 
 
-## Lokaler Ausbau v0.8.0
+## Ausbau v0.8.0 / v0.8.1
 
 - Designstudio ohne Gliederung: Quelldatei auswählen oder hochladen, Palette und
   Typografie festlegen, Vorher/Nachher als aufbereiteten Inhalt vergleichen und
@@ -291,5 +291,6 @@ geprüfte Screens können neuen oder bestehenden Kapiteln zugeordnet werden.
   aus freigegebenen Bibliotheksrevisionen; Übernahme bleibt ein Entwurf.
 - Die zuvor erstellte RAG-Basis ist enthalten. v0.7.0 wurde nicht separat publiziert.
 
-Prüfstand dieses lokalen Ausbaus: Offline-Modell-, Renderer- und Handlerprüfungen;
-aktuelle Browser-/Netzwerkabnahme und GitHub-Veröffentlichung stehen noch aus.
+Prüfstand v0.8.1: 151 automatisierte Tests einschließlich HTTP erfolgreich. Chromium-Abnahmen für Designstudio/Agenten, Publikation und RAG erfolgreich. Windows-/Microsoft-Office-Abnahme bleibt offen.
+
+Neu in v0.8.1: Klassifikations-, Wissens- und Medienvorschläge im Orchestrator bearbeiten, ausdrücklich prüfen und einzeln übernehmen. Herkunft, Übernahmezeit und Ziel werden protokolliert. Doppelte Übernahmen und veraltete Eingaben werden abgefangen; Wissensobjekte bleiben Entwürfe.

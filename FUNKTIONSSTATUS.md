@@ -194,3 +194,12 @@ Prüfung v0.7.0: 141 automatisierte Tests erfolgreich. RAG-Suche, vollständige 
 | Aktuelle GitHub-Veröffentlichung | Offen | Automatische Freigabeprüfung durch Nutzungslimit blockiert; v0.7.0/v0.8.0 noch nicht auf GitHub |
 
 Prüfung v0.8.0: 145 lokale automatisierte Tests erfolgreich, darunter socketfreie HTTP-Handler-Prüfungen und DOCX/PPTX/PDF/HTML-Rendering. Nach der letzten Korrektur der Quellenprüfung wurden die fünf Agenten-/Designtests erneut erfolgreich ausgeführt. Drei Socket-HTTP-Tests und die aktuelle Browser-Endabnahme wurden wegen der blockierten Freigabeprüfung nicht ausgeführt. JavaScript-Syntaxprüfungen erfolgreich. Microsoft-Office-Abnahme auf Windows steht aus.
+
+
+## Nachtrag v0.8.1 · 04.11.2026
+
+- Klassifikations-, Wissens- und Medienvorschläge: bearbeitbare Einzelübernahme mit Prüfung, Transaktion, Herkunftsnachweis, Schutz vor Wiederholung und veralteten Eingaben umgesetzt.
+- 151 automatisierte Tests inklusive HTTP erfolgreich; neue Übernahmetests nach letzter Korrektur nochmals erfolgreich.
+- Chromium: Design ohne Gliederung, Vorher/Nachher, Patterns, Übersetzungs- und Wissensübernahme sowie Publikations- und RAG-Abläufe erfolgreich.
+- Die frühere automatische Freigabeblockade ist aufgehoben. Frühere Hinweise auf fehlende Browserprüfung betreffen den damaligen Stand.
+- Offen bleiben Windows-/Microsoft-Office-Abnahme, produktive Fachprüfung über drei Sprachen und zwei Rollen, persistierte OCR und semantisches RAG.

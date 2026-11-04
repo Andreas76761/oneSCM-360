@@ -172,3 +172,51 @@ class Hub:
    saved=self.store.library.save(item,connection=db)
    row['translation'].update(library_id=saved['id'],status='Als Bibliotheksentwurf übernommen')
    return self.persist(row,data['revision'],connection=db)
+
+ def accept_proposal(self,data):
+  """Apply exactly one reviewed proposal and its audit receipt atomically."""
+  from app import Invalid,Conflict,uid,block,clean_text,now
+  row=self.get(data.get('id'))
+  if row['revision']!=data.get('revision'):raise Conflict('Auftrag geändert. Neu laden.')
+  if row['status']!='review' or data.get('reviewed') is not True:raise Invalid('Lauf abschließen und Vorschlag ausdrücklich prüfen.')
+  stage=data.get('agent');index=data.get('index')
+  report=next((r for r in row['reports'] if r['agent']==stage),None)
+  if stage not in ['classification','knowledge','media'] or not report or type(index) is not int or not 0<=index<len(report['items']):raise Invalid('Ungültiger Vorschlag.')
+  key=stage+':'+str(index)
+  if key in row.get('accepted',{}):raise Invalid('Vorschlag bereits übernommen.')
+  proposal=report['items'][index];receipt={'at':now(),'agent':stage,'index':index}
+  with self.store.connect() as db:
+   db.execute('BEGIN IMMEDIATE')
+   if self.stale(row):raise Conflict('Ausgangsstände geändert. Neuen Auftrag vorbereiten.')
+   if stage=='knowledge':
+    original=next((b for c in (row['outline'] or {}).get('chapters',[]) for b in c['blocks'] if b['id']==proposal['id']),None)
+    if original is None and row['library'] and row['library']['id']==proposal['id']:original=row['library']['block']
+    if not original or original.get('internal') or original['status']!='Freigegeben':raise Invalid('Geprüfte Ausgangsrevision fehlt.')
+    b=copy.deepcopy(original);b['id']=uid();b.pop('library_ref',None);b.pop('assignment',None)
+    for evidence in b.get('evidence',[]):evidence.update(verified=False,content_hash='')
+    b.update(text=clean_text(data.get('text',proposal['text']),'Text',100000),source='Agentenauftrag '+row['id']+'; Ursprung '+proposal['id']+' R'+str(proposal['revision']),status='Entwurf')
+    if not b['text'].strip():raise Invalid('Text fehlt.')
+    saved=self.store.library.save({'id':uid(),'revision':0,'title':data.get('title',proposal['title']),'block':b,'domains':data.get('domains',[]),'tags':data.get('tags','')},connection=db)
+    receipt.update(library_id=saved['id'],title=saved['title'],text=saved['block']['text'])
+   elif stage=='classification':
+    chunk=next(c for c in row['chunks'] if c['id']==proposal['chunk_id'])
+    labels=data.get('labels',proposal['labels']);chapters=data.get('chapter_ids',proposal['labels'].get('chapter_ids',[]))
+    if not isinstance(chapters,list) or any(not isinstance(c,str) for c in chapters):raise Invalid('Kapitel auswählen.')
+    links=[dict(outline_id=o,chapter_id=c) for o,c in db.execute('SELECT outline_id,chapter_id FROM assignments WHERE chunk_id=?',(chunk['id'],))]
+    links += [{'outline_id':row['outline']['id'],'chapter_id':c} for c in chapters]
+    saved=self.store.sources.review({'id':chunk['id'],'revision':chunk['revision'],'labels':labels,'assignments':links},[d['id'] for d in self.store.get_catalog()],connection=db)
+    chunk['revision']=saved['revision'];receipt.update(chunk_id=chunk['id'],chapter_ids=chapters,labels=labels)
+   else:
+    outline=row['outline']
+    if not outline:raise Invalid('Bildübernahme benötigt eine Zielgliederung im Auftrag.')
+    c=next((c for c in outline['chapters'] if c['id']==data.get('chapter_id')),None)
+    if not c:raise Invalid('Zielkapitel auswählen.')
+    candidates=self.store.rag.corpus(self.store.rag.profile({'profile':outline['profile']}))
+    screen=next((r for r in candidates if r['kind']=='screen' and r['id']==proposal['asset_id']),None)
+    if not screen or screen['revision']!=proposal['revision'] or not screen['approved']:raise Invalid('Screen nicht mehr passend, freigegeben oder PII-geprüft.')
+    if any(v['asset_id']==screen['id'] for m in c.get('media',[]) for f in m['frames'] for v in f['variants']):raise Invalid('Screen bereits im Kapitel enthalten.')
+    caption=clean_text(data.get('caption',proposal['caption_proposal']),'Untertitel',2000)
+    c.setdefault('media',[]).append({'id':uid(),'title':screen['title'],'kind':'Bild','frames':[{'variants':[{'asset_id':screen['id'],'revision':screen['revision']}],'caption':caption}],'conditions':{'role':[outline['profile']['role']],'language':[outline['profile']['language']]}})
+    row['outline']=self.store.save(outline,connection=db);receipt.update(asset_id=screen['id'],chapter_id=c['id'],caption=caption)
+   row.setdefault('accepted',{})[key]=receipt
+   return self.persist(row,data['revision'],connection=db)

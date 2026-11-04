@@ -329,13 +329,13 @@ class Sources:
         if not deleted:
             raise ValueError("Quelle nicht gefunden.")
 
-    def review(self, data, targets):
+    def review(self, data, targets, connection=None):
         labels = validate_labels(data.get("labels", {}), targets)
         links = data.get("assignments", [])
         if not isinstance(links, list) or len(links) > 500:
             raise ValueError("Ungültige Chunk-Zuordnungen.")
-        with self.store.connect() as db:
-            db.execute("BEGIN IMMEDIATE")
+        with (self.store.connect() if connection is None else nullcontext(connection)) as db:
+            if connection is None:db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT revision FROM chunks WHERE id=?", (data.get("id"),)).fetchone()
             if not row or row[0] != data.get("revision"):
                 raise ValueError("Chunk wurde geändert oder gelöscht. Bitte die Quelle erneut öffnen.")

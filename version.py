@@ -1,3 +1,3 @@
 """Release identity displayed in the frontend and recorded in document manifests."""
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 RELEASE_DATE = "2026-11-04"

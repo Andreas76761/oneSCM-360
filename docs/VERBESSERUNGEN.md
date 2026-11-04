@@ -1,6 +1,6 @@
 # Verbesserungen und verbleibender Aufwand
 
-Stand **v0.8.0 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
+Stand **v0.8.1 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
 (PT) zu acht Stunden für eine entwickelnde Person einschließlich gezielter Tests.
 Sie sind keine Zusagen. Wartezeit auf fachliche Entscheidungen, Muster, Hardware
 und Freigaben kommt hinzu. Überschneidungen zwischen Aufgaben verhindern eine
@@ -69,14 +69,11 @@ zurückgestellt. Vollständige automatische PII-Erkennung wird nicht zugesagt.
 In v0.6.0 zusätzlich umgesetzt: vollständige ZIP-Sicherung mit geprüfter Wiederherstellung und Rücksicherung, Stapel-Prüfausgaben für Sprachen/Rollen/Dokumentarten/Formate sowie CI-Konfiguration. Versionsübergreifende Sicherungsübernahme, verschlüsselte ZIPs und automatische Stapelfreigaben bleiben außerhalb dieses Ausbaus.
 
 
-Lokaler Ausbau v0.8.0 ergänzt Quelldatei-Design ohne Gliederung, gespeicherte
-Designpatterns, getrennte Typografie, Hinweisrahmen/Icons und die acht Agenten.
-Vor Veröffentlichung noch Browser-Endablauf und HTTP-Integration erneut ausführen.
-Die automatische Freigabeprüfung für externe Aktionen ist derzeit durch ein
-Nutzungslimit blockiert; der GitHub-Stand enthält diesen Ausbau noch nicht.
+In v0.8.1 abgeschlossen: lokale HTTP-Tests und Chromium-Abnahme für Designstudio,
+Agenten, Publikation und RAG. Klassifikations-, Wissens- und Medienvorschläge
+lassen sich nach Bearbeitung und ausdrücklicher Prüfung direkt übernehmen.
 
-Nächste konkrete Restarbeiten: redaktionelle Übernahme der Klassifikations-/Wissens-
-und Medienvorschläge direkt aus dem neuen Orchestrator (2–4 PT), OCR-Integration
-mit persistierten Fundstellen (3–5 PT), zusätzliche Schrift-/Layoutabnahme für
-Word/PowerPoint (2–4 PT), optionale tatsächliche KI-Anbindung erst mit passenden
-API-Zugängen und festgelegter Datenfreigabe (3–6 PT).
+Nächste Restarbeiten: OCR mit persistierten Fundstellen (3–5 PT), Windows-/Office-
+Layoutabnahme (2–4 PT), fachlicher Referenzlauf mit drei Sprachen und zwei Rollen
+(3–5 PT), semantisches RAG (5–10 PT). Eine automatische KI-Anbindung setzt
+passende API-Zugänge und eine festgelegte Datenfreigabe voraus (3–6 PT).

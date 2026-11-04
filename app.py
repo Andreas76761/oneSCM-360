@@ -1039,7 +1039,7 @@ def make_server(store, port=8765):
                 if path == "/api/agents/catalog":return self.send(200,agent_hub.CATALOG)
                 if path == "/api/agents/list":return self.send(200,store.agent_hub.listing())
                 if path == "/api/agents/get":return self.send(200,store.agent_hub.get(data.get("id")))
-                if path in {"/api/agents/start","/api/agents/step","/api/agents/cancel","/api/agents/translation","/api/agents/accept_translation"}:
+                if path in {"/api/agents/start","/api/agents/step","/api/agents/cancel","/api/agents/translation","/api/agents/accept_translation","/api/agents/accept_proposal"}:
                     return self.send(200,getattr(store.agent_hub,path.rsplit("/",1)[-1])(data))
                 if path == "/api/design/patterns":return self.send(200,store.source_design.listing())
                 if path == "/api/design/save":return self.send(200,store.source_design.save(data))
