@@ -526,3 +526,52 @@ abgeschnittener HTML-Text wird nicht stillschweigend als vollständige Quelle ge
 Im KI-Austausch werden erkannte Ticketkennungen und zugehörige `/browse/`-Links aus
 zurückgegebenen Lesertexten entfernt. Die Erkennung ist konservativ und kann
 ähnlich aufgebaute Kennungen betreffen; den bereinigten Vorschautext prüfen.
+
+
+## 17. Sicherung und Wiederherstellung (v0.6.0)
+
+1. Offene Änderungen speichern und **Sicherung & Wiederherstellung** öffnen.
+2. **Arbeitsbereich sichern** lädt eine konsistente ZIP mit dem gesamten
+   Datenbestand herunter. Sie enthält Texte, Quellen, Originalscreens, interne
+   Informationen, Historien, Exporte und gespeicherte Arbeitsaufträge. Die ZIP ist
+   unverschlüsselt; geschützt speichern. Programmdateien sind nicht enthalten.
+3. Zum Wiederherstellen eine Sicherungs-ZIP auswählen und **Sicherung prüfen**.
+   Dateiaufbau, Prüfsumme, Programmversion, Datenbankschema und Integrität werden
+   geprüft. Die Vorschau nennt Datum und Anzahlen. Nur Sicherungen derselben
+   Programmversion werden angenommen; ZIP maximal 128 MB, Datenbank maximal 512 MB.
+4. Die Wiederherstellung ersetzt den gesamten Arbeitsbereich, ohne Zusammenführung.
+   Erst nach Eingabe von **WIEDERHERSTELLEN** auf **Arbeitsbereich ersetzen** klicken.
+   Es darf währenddessen keine zweite Programm-Instanz dieselbe Datenbank verwenden.
+5. Vor dem Ersetzen schreibt die Anwendung eine Rücksicherung in `backups` neben
+   der Datenbank. Scheitert diese Sicherung, beginnt das Ersetzen nicht. Änderungen
+   seit der Vorschau oder eine Vorschau älter als 15 Minuten erfordern neue Prüfung.
+6. Nach Erfolg wird die Oberfläche neu geladen. Andere alte Browserseiten müssen
+   ebenfalls neu laden. Die Rücksicherung kann mit derselben Programmversion wieder
+   über diesen Dialog eingelesen werden.
+
+Bei einem Programm-Upgrade die passende alte Programm-ZIP gemeinsam mit der
+Sicherung aufbewahren: zunächst mit der alten Version wiederherstellen, anschließend
+mit der neuen Version starten. Die Sicherungsfunktion ersetzt kein geschütztes
+externes Backupmedium und keine Aufbewahrungsstrategie.
+
+## 18. Mehrere Dokumentvarianten als Stapel (v0.6.0)
+
+Eine Gliederung öffnen und speichern, dann **Dokumentvarianten erzeugen** wählen.
+Deutsch, Englisch und Französisch sind vorausgewählt; weitere vorhandene Sprachen
+können gewählt werden. Rollen, Handbuch/Releaseletter/Quickreference und Word,
+PowerPoint, PDF oder HTML kombinieren. Maximal 60 Dateien pro Stapel, insgesamt
+höchstens 128 MB erzeugte Dateien. Markt, Sparte, Umfang, Release und Stichtag
+stammen aus der geöffneten Gliederung.
+
+**Varianten prüfen** zeigt pro Datei sichtbare Kapitel und Prüfpunkte. Fehlende
+Titelübersetzungen, fehlende Pflichtinhalte und weitere Freigabehindernisse bleiben
+sichtbar. Das System übersetzt nicht automatisch und ersetzt fehlende Texte nicht
+mit fremdsprachigen Texten. Rollen-, Sprach-, Gültigkeits- und Dokumenteignungsregeln
+sowie Bildzuordnungen werden wie im Einzelexport angewandt.
+
+Die geprüfte Auswahl bestätigen und die **Varianten-ZIP herunterladen**. Alle
+Dateien sind ausdrücklich Prüfausgaben. `Pruefbericht.json` enthält Profile,
+Prüfpunkte, Exportkennungen und Prüfsummen und dient der internen Redaktion; ihn
+nicht ungeprüft zusammen mit Leserunterlagen verteilen. Jede Datei wird in der
+Ausgabehistorie abgelegt. Die Ausgangsgliederung wird nicht verändert. Eine
+Veröffentlichung erfolgt weiterhin über eine geprüfte, freigegebene Gliederung.

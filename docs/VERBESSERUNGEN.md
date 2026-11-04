@@ -1,6 +1,6 @@
 # Verbesserungen und verbleibender Aufwand
 
-Stand **v0.5.0 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
+Stand **v0.6.0 · 04.11.2026**. Die Zahlen sind grobe Restaufwände in Personentagen
 (PT) zu acht Stunden für eine entwickelnde Person einschließlich gezielter Tests.
 Sie sind keine Zusagen. Wartezeit auf fachliche Entscheidungen, Muster, Hardware
 und Freigaben kommt hinzu. Überschneidungen zwischen Aufgaben verhindern eine
@@ -21,7 +21,7 @@ Aufgaben. Die folgenden Schätzungen beziehen sich auf diese Restarbeiten.
 |---|---|---:|---|---|
 | P0 | Windows- und Microsoft-Office-Abnahme | 2–4 PT | Zielrechner, reale Word-/PPTX-Muster, lange Dokumente und geplante Sprachen | Start und Update mit vorhandenen Daten; reale Vorlagen, Umbrüche, PDF-Schriften und Koreanisch nachvollziehbar abgenommen |
 | P0 | Jira-HTML-Bereinigung mit Exportvarianten abnehmen | 2–4 PT | Repräsentative lokal verwaltete Exporte und fachlich markierte PII-Beispiele | Ticketanzahl und Fundstellen stimmen; bekannte Personenfelder entfernt; bereinigte gespeicherte Datei geprüft; Abbruch und Neuimport verständlich. Keine Behauptung vollständiger PII-Erkennung |
-| P0 | Integrierte Sicherung und Wiederherstellung | 3–5 PT | Speicher-/Verschlüsselungskonzept und Beispieldatenbank | Konsistente Sicherung und Wiederherstellung von Texten, Medien, Releases, Konflikten und Chats nachgewiesen; fehlgeschlagene Wiederherstellung verändert den Bestand nicht |
+| P1 | Sicherungen verschlüsseln und Aufbewahrung automatisieren | 2–4 PT | ZIP-Sicherung und geprüfte Wiederherstellung in v0.6.0 umgesetzt; Schlüssel-/Speicherkonzept | Geschützte Sicherungen, definierte Aufbewahrung und Wiederherstellung großer Bestände; derzeit gleiche Programmversion, 128 MB ZIP / 512 MB Datenbank |
 | P0 bei Mehrbenutzeröffnung | Anmeldung und serverseitige Zugriffsrechte | 8–15 PT | Festgelegte Benutzer-/Rechtematrix, Betriebsentscheidung | Rechte für interne FAQ, Originalbilder und Verwaltung serverseitig erzwungen; Tests verweigern unberechtigten Zugriff auch außerhalb der UI |
 | P1 | Fachliche FAQ-/Chat-Abnahme | 3–5 PT | Freigegebener Fragekatalog je Sprache, Rolle und Markt | Relevanz, keine-Belege-Fälle, veraltete Belege und widersprüchliche Antworten gegen manuell bewertete Referenzen gemessen; lokale KI-Belegauswahl am echten Modell geprüft |
 | P1 | Quellenkonflikte semantisch und mehrsprachig verbessern | 4–7 PT | Echte Konflikt-/Nichtkonflikt-Paare mit Versionskontext | Regeln und Modellbefunde auf Referenzfällen bewertet, Fehler nachvollziehbar; Entscheidungen bleiben menschlich und belegt; keine automatische Textüberschreibung |
@@ -33,7 +33,7 @@ Aufgaben. Die folgenden Schätzungen beziehen sich auf diese Restarbeiten.
 | P1 | Markdown mit lokalen Bildern und relativen Links | 3–5 PT | Typische MD-Dateibündel | Relative Bilder, lokale Anker und Fußnoten nach Word übernommen; fehlende Dateien als prüfbare Importfehler ausgewiesen |
 | P1 | Gescannte PDFs, Vektoren und weitere große Importe | 5–9 PT | Repräsentative PDF-/PPTX-Daten, lokale OCR-/Rendererentscheidung; Jira-Import bereits fortsetzbar | Seitenrendering und OCR mit Fundstellen; Vektorgrafiken abnehmbar; weitere umfangreiche Importformate nach Unterbrechung kontrolliert fortsetzbar |
 | P1 | PII-/OCR-Prüfung für Screens ausbauen | 4–7 PT | Mehrsprachige Beispielscreens und fachliche PII-Regeln | OCR-Sprachwahl, regionale Muster und Stapel-Prüfung verfügbar; visuelle Freigabe weiterhin erforderlich |
-| P1 | CI mit Windows- und Browserprüfung | 2–4 PT | CI-Betriebsentscheidung, Testdaten ohne vertrauliche Inhalte | Unterstützte Python-Versionen und Windows-Start automatisiert; Fehler und Testberichte pro Änderung nachvollziehbar |
+| P1 | CI-Läufe und Windows-Start abnehmen | 1–2 PT | GitHub-Actions-Workflow für Windows/Linux Python 3.11/3.12 und Chromium vorhanden | Externe Läufe prüfen; echtes start.bat und installiertes Microsoft Office separat abnehmen |
 | P2 | Freies RAG über geprüfte Quellen | 8–14 PT | Erst nach FAQ-Qualitätsabnahme; Rechte, Auswahlregeln, Modell und Qualitätsmaßstab geklärt | Belegter Testkatalog für Antworten aus freigegebenen Quellen; falsche Profile ausgeschlossen; fehlende Evidenz erkannt; Nutzer kann Belege prüfen. Eigenständige Erweiterung über den aktuellen FAQ-Chat hinaus |
 | P2 | Erweiterter Template-/Platzhalterdesigner | 6–10 PT | Designstudio vorhanden; verbindliche Corporate-Design-Vorlagen | Deckblätter, Kapitelmuster, Icons und definierte Platzhalter reproduzierbar; Beispielmanual, Releaseletter und Quick Reference in Office abgenommen |
 | P2 | Seitengenaue Verzeichnisse und Querverweise | 3–5 PT | Layoutmuster, Office-Feld-/Aktualisierungskonzept | Inhalts- und Bildverzeichnis mit Seitenzahlen, Bildnummern und korrekten Querverweisen im Zielprogramm |
@@ -45,10 +45,10 @@ Aufgaben. Die folgenden Schätzungen beziehen sich auf diese Restarbeiten.
 
 ## Empfohlene Reihenfolge
 
-1. Neue ZIP auf dem Zielrechner aktualisieren und prüfen, dass v0.5.0 sichtbar ist.
+1. Neue ZIP auf dem Zielrechner aktualisieren und prüfen, dass v0.6.0 sichtbar ist.
    Mit echten Office-Templates, Jira-Exporten und einer gesicherten Kopie der
    Arbeitsdaten den Kernablauf abnehmen.
-2. Sicherung/Wiederherstellung ergänzen. Die tatsächlich benötigten Prod-Profile
+2. Sicherung/Wiederherstellung mit eigenem Datenbestand abnehmen. Die tatsächlich benötigten Prod-Profile
    und einen fachlichen FAQ-/Konflikt-Testkatalog festlegen.
 3. Chat, Quellenprüfung und Releases an realen Fällen erproben; anschließend
    Änderungswirkung und Blueprint-Vererbung ausbauen.
@@ -65,3 +65,5 @@ Direkte Jira-/Confluence-Anbindungen sind auf ausdrücklichen Wunsch aus dem Umf
 genommen. HTML-/Word-Exporte und Zwischenablage sind der vereinbarte Importweg.
 Malaysia/Indien sowie die fachliche Definition der achten Domäne bleiben
 zurückgestellt. Vollständige automatische PII-Erkennung wird nicht zugesagt.
+
+In v0.6.0 zusätzlich umgesetzt: vollständige ZIP-Sicherung mit geprüfter Wiederherstellung und Rücksicherung, Stapel-Prüfausgaben für Sprachen/Rollen/Dokumentarten/Formate sowie CI-Konfiguration. Versionsübergreifende Sicherungsübernahme, verschlüsselte ZIPs und automatische Stapelfreigaben bleiben außerhalb dieses Ausbaus.

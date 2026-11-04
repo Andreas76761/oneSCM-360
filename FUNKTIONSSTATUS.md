@@ -1,6 +1,6 @@
 # Funktionsstand: Gliederungsverwaltung und Dokumentstudio
 
-Stand: **v0.5.0 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
+Stand: **v0.6.0 · 04.11.2026**. Grundlage: die vom Benutzer hochgeladene Spezifikation mit neun
 Kernpunkten sowie die anschließende Aufforderung, offene Punkte weiter umzusetzen.
 „Vorher“ bezeichnet den Repository-Stand `ba2e937` vor diesem Ausbau.
 „Umgesetzt“ bezieht sich auf den lokalen Einzelbenutzer-Prototyp, nicht auf ein
@@ -113,7 +113,7 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 | Vier-Agenten-Finalisierung | Umgesetzt | Finalisierung, Validierung, technische Renderprobe, interner Markdown-Bericht; keine automatische Freigabe |
 | Separates Register Testing / UI / Steuerung / IT | Umgesetzt | Eigene Unterthemen, Mehrfachzuordnung, Suche, Archivstatus, Revisionen; in keiner Leserausgabe, auch nicht HQ/intern |
 | FAQ-Basis für internen Chatbot | Umgesetzt | Freigegebene, vorgemerkte Frage-Antwort-Paare mit Profilfilter; seit v0.5.0 Chat mit wörtlichen Antwortbelegen |
-| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.5.0 · 04.11.2026, serverseitige Buildinformation |
+| Sichtbare Frontend-Version und Datum | Umgesetzt | v0.6.0 · 04.11.2026, serverseitige Buildinformation |
 
 ## Ergänzungen in Version 0.5.0
 
@@ -143,7 +143,7 @@ Vermerken in Prüfausgaben ist damit ersetzt.
 
 ## Prüfung und praktische Grenzen
 
-- 125 automatisierte Tests und acht Chromium-Browserabläufe erfolgreich (4. November 2026). Darunter tatsächliche Word-/PowerPoint-/PDF-/HTML-Artefakte, Chat-/Release-/Quellenprüfungen sowie Design, KI-Austausch und Massenimport.
+- 132 automatisierte Tests und neun Chromium-Browserabläufe erfolgreich (4. November 2026). Darunter tatsächliche Word-/PowerPoint-/PDF-/HTML-Artefakte, Chat-/Release-/Quellenprüfungen sowie Design, KI-Austausch und Massenimport.
 - Tesseract wurde tatsächlich mit synthetischen Bilddaten aufgerufen.
 - Ollama-Adapter mit simulierten Antworten geprüft; kein Modell installiert,
   daher keine behauptete Endabnahme von Übersetzungs-, Kürzungs-, Chat- oder
@@ -152,3 +152,12 @@ Vermerken in Prüfausgaben ist damit ersetzt.
   auf dem Zielrechner zu prüfen. Cloudtests liefen unter Linux/Chromium.
 - Eigene Datenbanken, Quellen, Originalbilder und Testartefakte gehören nicht
   in das Repository oder die Prototyp-ZIP.
+
+
+## Ergänzungen v0.6.0 · 04.11.2026
+
+| Funktion | Stand | Grenze |
+|---|---|---|
+| Gesamtsicherung und Wiederherstellung | Umgesetzt | Geprüfte ZIP, automatische Rücksicherung, explizite Bestätigung; gleiche Programmversion, bis 128 MB ZIP / 512 MB Datenbank, unverschlüsselt |
+| Stapel für Dokumentvarianten | Umgesetzt | Bis 60 Prüfausgaben; Sprachen, Rollen, Dokumentarten und Formate; Vorschau und Prüfbericht; keine automatische Übersetzung/Freigabe |
+| Windows/Linux- und Browser-CI | Vorbereitet | GitHub-Actions-Konfiguration vorhanden; externe Laufresultate und echte Office-Abnahme gesondert prüfen |

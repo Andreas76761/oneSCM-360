@@ -1,4 +1,4 @@
-# Aktualisieren auf oneSCM-360 v0.5.0
+# Aktualisieren auf oneSCM-360 v0.6.0
 
 Stand: **04.11.2026**. Die neue Oberfläche wird vom lokalen Python-Server
 bereitgestellt. Ein bereits laufender Server liefert weiterhin seine alte Version,
@@ -17,7 +17,7 @@ auch wenn eine neue ZIP heruntergeladen wurde.
    abgeschlossene Sicherungskopien können dort nach den eigenen Vorgaben liegen.
 4. Die [aktuelle ZIP](https://github.com/Andreas76761/oneSCM-360/archive/refs/heads/main.zip)
    herunterladen und in einen **neuen Programmordner** entpacken, beispielsweise
-   `C:\oneSCM-360-v0.5.0`. Die ZIP muss vollständig entpackt sein.
+   `C:\oneSCM-360-v0.6.0`. Die ZIP muss vollständig entpackt sein.
 5. Im neuen Ordner `start.bat` doppelklicken. Python 3.11 oder neuer mit `py`-Launcher
    muss installiert sein. Der erste Start installiert die Paketabhängigkeiten;
    dafür wird Netzwerkzugriff zu den Paketquellen benötigt.
@@ -25,7 +25,7 @@ auch wenn eine neue ZIP heruntergeladen wurde.
    wird der bisherige lokale Datenbestand wiederverwendet. Wer zuvor `--data-dir`
    verwendet hat, muss denselben eigenen Pfad weiter angeben.
 7. `http://127.0.0.1:8765` öffnen und **Strg+F5** drücken. Oben rechts muss
-   **v0.5.0 · 04.11.2026** stehen. Die Bibliothek enthält nun unter anderem
+   **v0.6.0 · 04.11.2026** stehen. Die Bibliothek enthält nun unter anderem
    **Interner Chatbot**, **Releaseverwaltung** und **Quellenwidersprüche**.
 8. Eine bekannte Gliederung, vorhandene Quellen und eine gespeicherte Ausgabe
    kontrollieren. Erst danach produktiv weiterarbeiten. Sicherung aufbewahren.

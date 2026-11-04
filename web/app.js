@@ -7,7 +7,7 @@ function message(text, error = false) { $("message").textContent = text; $("mess
 async function api(path, data) {
   const response = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json", "X-Local-Token":meta.token}, body:JSON.stringify(data)});
   if (!response.ok) { const result = await response.json(); throw new Error(result.error); }
-  return ["/api/export", "/api/export/history", "/api/markdown/convert", "/api/job/report"].includes(path) ? response : response.json();
+  return ["/api/backup/export", "/api/variants/export", "/api/export", "/api/export/history", "/api/markdown/convert", "/api/job/report"].includes(path) ? response : response.json();
 }
 function run(fn) { return async (...args) => { try { document.querySelectorAll(".dialog-error").forEach(el=>el.remove()); await fn(...args); } catch (e) { message(e.message, true); const dialog=[...document.querySelectorAll("dialog[open]")].at(-1); if(dialog){const error=document.createElement("p");error.className="warning dialog-error";error.setAttribute("role","alert");error.textContent=e.message;dialog.prepend(error);error.scrollIntoView({block:"nearest"});} } }; }
 function markDirty() { dirty = true; saveState(); }

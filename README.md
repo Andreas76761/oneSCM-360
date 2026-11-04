@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.5.0 · Stand 04.11.2026**
+**Prototyp 0.6.0 · Stand 04.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -73,7 +73,7 @@ nicht automatisch. Ein Copilot-, Claude- oder Gemini-Chat-Abonnement ersetzt kei
 API-Berechtigung; der manuelle Austausch benötigt keine API-Schlüssel. PDF-Erzeugung erfolgt lokal mit ReportLab; hierfür ist kein
 installiertes Microsoft Office erforderlich.
 
-## Neu in Version 0.5.0
+## Neu in Version 0.6.0
 
 - **KI-Austausch:** ausgewählte Quelltexte für Microsoft 365 Copilot, Claude oder
   Gemini vorbereiten, prüfen und kopieren; JSON-Antwort zurückbringen und als
@@ -101,7 +101,7 @@ installiertes Microsoft Office erforderlich.
 Wenn weiterhin die alte Oberfläche erscheint, zuerst den bisherigen Server in
 seiner Konsole mit **Strg+C** beenden. Datenordner sichern, neue ZIP in einen neuen
 Ordner entpacken, dort `start.bat` starten und den Browser mit **Strg+F5** neu laden.
-Oben rechts muss **v0.5.0 · 04.11.2026** stehen. Einzelheiten und Fehlerhilfe:
+Oben rechts muss **v0.6.0 · 04.11.2026** stehen. Einzelheiten und Fehlerhilfe:
 [Aktualisierung](docs/AKTUALISIERUNG.md).
 
 ## Funktionen dieser Version
@@ -194,8 +194,7 @@ eigenen `--data-dir` denselben lokalen Datenordner weiterverwenden.
 
 Neue Tabellen und Standardwerte werden ergänzt; vorhandene Historieneinträge
 werden nicht umgeschrieben. Erzeugte Dateien behalten ihren ursprünglichen Stand.
-Eine Sicherungsoberfläche und das allgemeine Wiederherstellen beliebiger alter
-Gliederungsstände sind noch nicht enthalten. Die Releaseverwaltung kann das
+Die Sicherungsoberfläche erstellt konsistente ZIP-Sicherungen und stellt den gesamten Arbeitsbereich nach Prüfung wieder her. Das allgemeine Wiederherstellen einzelner alter Gliederungsstände ist noch nicht enthalten. Die Releaseverwaltung kann das
 aktuell aktive Releasepaket unter den beschriebenen Bedingungen zurücknehmen.
 
 ## Grenzen und Abnahme
@@ -246,4 +245,19 @@ sich im Verzeichnis `tests/`. Das Ergebnis des vollständigen Abschlusslaufs wir
 bei der Auslieferung berichtet; aus dem Vorhandensein eines Tests folgt keine
 Abnahme auf dem Windows-Zielrechner.
 
-Prüfstand v0.5.0: 125 automatisierte Tests und acht Chromium-Browserabläufe erfolgreich. Windows-/Office-Abnahme bleibt erforderlich.
+Prüfstand v0.6.0: 132 automatisierte Tests und neun Chromium-Browserabläufe erfolgreich. Windows-/Office-Abnahme bleibt erforderlich.
+
+
+## Neu in v0.6.0
+
+- **Sicherung & Wiederherstellung:** Gesamten Arbeitsbereich als konsistente ZIP
+  herunterladen; Sicherung prüfen und bewusst zurückspielen. Vorher wird eine
+  Rücksicherung unter `backups` im Datenordner angelegt. ZIPs enthalten auch interne
+  Informationen und Originalscreens und sind unverschlüsselt. Wiederherstellung
+  derzeit nur mit derselben Programmversion, maximal 128 MB ZIP / 512 MB Datenbank.
+- **Dokumentvarianten erzeugen:** Sprachen, Rollen, Dokumentarten und Formate
+  kombinieren; Vorschau mit Prüfpunkten; bis 60 Prüfausgaben als ZIP mit Prüfbericht.
+  Keine automatische Übersetzung oder Freigabe. Markt, Sparte und Umfang stammen
+  aus der gespeicherten Gliederung.
+- **CI vorbereitet:** Python-Tests unter Windows/Linux und Chromium-Browserabläufe
+  in GitHub Actions. Lokale Tests ersetzen keine fachliche Windows-/Office-Abnahme.

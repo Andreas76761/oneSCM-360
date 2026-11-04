@@ -32,6 +32,8 @@ import internal_chat
 import knowledge_review
 import releases
 import ai_exchange
+import backups
+import variant_export
 from version import VERSION, RELEASE_DATE
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -653,6 +655,15 @@ def office_export(plan, fmt, media_loader=None, template_bytes=None):
     return output.getvalue()
 
 
+class ClosingConnection(sqlite3.Connection):
+    """Release database handles after transaction scopes, including on Windows."""
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 class Store:
     def __init__(self, path):
         self.path = str(path)
@@ -676,9 +687,10 @@ class Store:
         self.chat = internal_chat.InternalChat(self)
         self.releases = releases.Releases(self)
         self.ai_exchange = ai_exchange.Exchange(self)
+        self.backups = backups.Backups(self)
 
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=10)
+        db = sqlite3.connect(self.path, timeout=10, factory=ClosingConnection)
         db.execute("PRAGMA foreign_keys=ON")
         return db
 
@@ -828,6 +840,7 @@ class Store:
 
 def make_server(store, port=8765):
     token = secrets.token_urlsafe(32)
+    operation_lock = threading.RLock()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -852,6 +865,10 @@ def make_server(store, port=8765):
             return self.headers.get("Host") in {f"127.0.0.1:{port}", f"localhost:{port}"}
 
         def do_GET(self):
+            with operation_lock:
+                self.handle_get()
+
+        def handle_get(self):
             if not self.host_valid():
                 return self.send(403, {"error": "Nur lokaler Zugriff ist erlaubt."})
             path = urlparse(self.path).path
@@ -860,7 +877,8 @@ def make_server(store, port=8765):
                                        "taxonomy": store.taxonomy(),
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
-            static = {"/design.js": ("design.js", "text/javascript; charset=utf-8"),
+            static = {"/workspace_tools.js": ("workspace_tools.js", "text/javascript; charset=utf-8"),
+                      "/design.js": ("design.js", "text/javascript; charset=utf-8"),
                       "/design.css": ("design.css", "text/css; charset=utf-8"),
                       "/ai_exchange.js": ("ai_exchange.js", "text/javascript; charset=utf-8"),
                       "/": ("index.html", "text/html; charset=utf-8"),
@@ -889,12 +907,22 @@ def make_server(store, port=8765):
             self.send(404, {"error": "Nicht gefunden."})
 
         def do_POST(self):
+            with operation_lock:
+                self.handle_post()
+
+        def handle_post(self):
+            nonlocal token
             if not self.host_valid() or self.headers.get("X-Local-Token") != token:
                 return self.send(403, {"error": "Lokale Sitzung fehlt. Bitte Seite neu laden."})
             origin = self.headers.get("Origin")
             if origin and origin not in {f"http://127.0.0.1:{self.server.server_port}", f"http://localhost:{self.server.server_port}"}:
                 return self.send(403, {"error": "Ungültiger Ursprung."})
             try:
+                if urlparse(self.path).path == "/api/backup/inspect":
+                    length = int(self.headers.get("Content-Length", "0"))
+                    if not 0 < length <= backups.MAX_ARCHIVE:
+                        raise Invalid("Sicherungsdatei muss zwischen 1 Byte und 128 MB groß sein.")
+                    return self.send(200, store.backups.inspect(self.rfile.read(length)))
                 length = int(self.headers.get("Content-Length", "0"))
                 if not 0 < length <= MAX_BODY:
                     raise Invalid("Anfrage fehlt oder ist größer als 32 MB (Quelldateien bis 20 MB).")
@@ -963,6 +991,16 @@ def make_server(store, port=8765):
                         return self.send(200, store.ai_exchange.listing())
                     if action in {"prepare", "preview", "accept"}:
                         return self.send(200, getattr(store.ai_exchange, action)(data))
+                if path == "/api/backup/export":
+                    return self.send(200, store.backups.export(), "application/zip", {"Content-Disposition": 'attachment; filename="oneSCM-Sicherung.zip"'})
+                if path == "/api/backup/restore":
+                    result = store.backups.restore(data)
+                    token = secrets.token_urlsafe(32)
+                    return self.send(200, result)
+                if path == "/api/variants/preview":
+                    return self.send(200, variant_export.preview(store, data))
+                if path == "/api/variants/export":
+                    return self.send(200, variant_export.export(store, data), "application/zip", {"Content-Disposition": 'attachment; filename="oneSCM-Varianten.zip"'})
                 if path == "/api/layouts":
                     return self.send(200, store.layouts.listing())
                 if path == "/api/layout/upload":
