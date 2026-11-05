@@ -238,3 +238,8 @@ Burgermenü, lokale Speicherung der Navigationsstellung, Tastaturbedienung, resp
 ## Nachtrag v0.11.0
 
 Speicherinventar aller Datenbanktabellen mit Metadaten, logischer Größe und tatsächlichem Pfad umgesetzt. Globale Dialog-Kopfleiste mit Ziehen, Pfeiltasten und Schließen. 164 Tests sowie Browserprüfung für Inventar und Dialogbewegung erfolgreich. Externe Downloads und Sicherungsdateien werden nicht inventarisiert.
+
+
+## Nachtrag v0.12.0
+
+OpenCV-Vorverarbeitung mit unveränderten Pixelkoordinaten und gespeicherten Analysemetadaten; sechs Prozessgruppen und Projektabschlussregister umgesetzt. Technischer Prototyp übergeben; produktive Fachprüfung und semantisches RAG bleiben offen. Details: docs/PROJEKTABSCHLUSS.md.

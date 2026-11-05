@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.11.0 · Stand 05.11.2026**
+**Prototyp 0.12.0 · Stand 05.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -323,3 +323,8 @@ Neu in v0.10.1: Burgermenü mit gespeicherter Ein-/Ausklappstellung, Registerzä
 
 
 Neu in v0.11.0: Register **Speicher** mit tatsächlichem Datenbankpfad und paginiertem Inventar aller Datenbankeinträge. Dialogfenster sind über eine Kopfzeile verschiebbar und über × schließbar. Bedienung Kapitel 32–33.
+
+
+## Übergabe v0.12.0
+
+Optionales OpenCV für lokale OCR-Vorverarbeitung (`install-opencv.bat`), Prozessnavigation mit sechs Gruppen und sichtbarer Abschluss-/Restpunkteliste. [Projektabschluss und offene Themen](docs/PROJEKTABSCHLUSS.md). Bedienung Kapitel 34–35.

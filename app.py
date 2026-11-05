@@ -923,6 +923,7 @@ def make_server(store, port=8765):
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/project_status.js": ("project_status.js", "text/javascript; charset=utf-8"),
                       "/storage.js": ("storage.js", "text/javascript; charset=utf-8"),
                       "/dialog_windows.js": ("dialog_windows.js", "text/javascript; charset=utf-8"),
                       "/dialog_windows.css": ("dialog_windows.css", "text/css; charset=utf-8"),
@@ -1155,7 +1156,7 @@ def make_server(store, port=8765):
                     if data.get("working_role") not in ["HQ","intern"]:raise Invalid("OCR-Vermerke erfordern HQ oder intern.")
                     return self.send(200,store.ocr_records.get(clean_text(data.get("id"),"Bild-ID",100)))
                 if path == "/api/media/ocr":
-                    result = store.media.ocr(clean_text(data.get("id"), "Bild-ID", 100))
+                    result = store.media.ocr(clean_text(data.get("id"), "Bild-ID", 100),data.get("preprocessing","none"))
                     if data.get("outline_id"):
                         outline = store.get(clean_text(data["outline_id"], "Gliederungs-ID", 100))
                         result["classification"] = source_module.rules({"text": result["text"]}, outline, store.get_catalog())

@@ -853,3 +853,19 @@ Logische Eintragsgrößen sind die Byte-Summen gespeicherter Felder. Sie entspre
 ## 33. Dialogfenster verschieben und schließen
 
 Alle Dialoge erhalten oben eine Leiste **Fenster verschieben** und ein **×** zum Schließen. Die Leiste mit Maus oder Touch ziehen. Alternativ die Leiste per Tab fokussieren und mit Pfeiltasten bewegen. Beim Schließen wird die Position zurückgesetzt; beim nächsten Öffnen startet das Fenster wieder in seiner Standardposition. Die bestehende Schließen-/Abbrechen-Funktion bleibt erhalten. Schließen speichert Änderungen nicht automatisch. Browser-eigene Dateiauswahlfenster werden vom Betriebssystem gesteuert und sind davon unabhängig.
+
+## 34. OpenCV für Screenshots und OCR (v0.12.0)
+
+Unter Windows im entpackten Programmordner **install-opencv.bat** ausführen. Das installiert OpenCV und NumPy in derselben `.venv`, die `start.bat` verwendet. Tesseract muss weiterhin separat installiert und im PATH verfügbar sein. Alternativ im aktiven Python-Umfeld `python -m pip install -r requirements-opencv.txt` verwenden. Die Standardanwendung funktioniert ohne OpenCV weiter.
+
+Im Bildeditor unter **OCR-Vorverarbeitung** wählen:
+
+- **Original · Tesseract:** bisherige Erkennung ohne OpenCV.
+- **OpenCV · Kontrast und Rauschen:** Graustufen, Medianfilter und lokale Kontrastanhebung (CLAHE).
+- **OpenCV · adaptive Schwarz-Weiß-Erkennung:** zusätzliche adaptive Schwellwertbildung, etwa für ungleichmäßige Hintergründe.
+
+Anschließend **Lokale OCR & PII-Hinweise** starten. OpenCV erkennt außerdem Konturregionen als interne Strukturhinweise; diese sind keine bestätigten Text- oder PII-Regionen. Engine, Modus und Regionen werden beim OCR-Datensatz gespeichert. Originalbild und Pixelabmessungen bleiben erhalten; keine automatische Drehung, Perspektivkorrektur oder Skalierung. Dadurch passen Tesseract-Koordinaten weiterhin zum Originalbild. Je nach Schrift und Screenshot kann Vorverarbeitung die Erkennung auch verschlechtern; Ergebnis mit Originalmodus vergleichen. Visuelle PII-Prüfung bleibt erforderlich.
+
+## 35. Prozessnavigation und Abschluss
+
+Das Burgermenü enthält sechs aufklappbare Prozessgruppen: **Überblick**, **Quellen & Prüfung**, **Wissen & Anhänge**, **Struktur & Bilder**, **Design & Ausgabe**, **Sichern & Abschluss**. Die Gruppenstellung bleibt im Browser gespeichert. Unter **Projektabschluss · Offene Themen** ist der Übergabestand mit Restaufwänden sichtbar. Der technische Prototyp ist übergeben; produktive Fach- und Office-Abnahme sind damit nicht ersetzt.

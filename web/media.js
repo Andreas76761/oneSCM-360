@@ -77,14 +77,14 @@ $("asset-preview").onclick=run(async()=>{
 $("asset-ocr").onclick=run(async()=>{
   const id=assetEdit.id;$("asset-progress").textContent="Lokale OCR läuft …";$("asset-ocr").disabled=true;
   try {
-    const result=await api("/api/media/ocr",{id,working_role:mediaRole(),outline_id:current?.id}); if(assetEdit?.id!==id)return;
+    const result=await api("/api/media/ocr",{id,working_role:mediaRole(),outline_id:current?.id,preprocessing:$("asset-preprocessing").value}); if(assetEdit?.id!==id)return;
     if(result.classification && confirm(`Lokale Regelvorschläge (keine KI) übernehmen?\nDomänen: ${result.classification.domain_ids.map(targetLabel).join(", ")}\nRollenhinweise: ${result.classification.roles.join(", ")}\nKapitel: ${(result.chapter_titles || []).join(", ")}\n\nDomänen/Stichwörter/Labels werden in die Bearbeitungsfelder übernommen. Kapitel und Rollen bleiben Hinweise im internen Vermerk; keine automatische Zuordnung.`)){
       assetEdit.classification=result.classification;
       [...$("asset-domains").options].forEach(o=>o.selected=result.classification.domain_ids.includes(o.value));
       $("asset-keywords").value=result.classification.keywords.join(", ");$("asset-labels").value=result.classification.labels.join(", ");
       $("asset-note").value+=`\nOCR-Vorschläge: Kapitel ${(result.chapter_titles || []).join(", ")}; Rollen ${result.classification.roles.join(", ")}. Bitte prüfen.`;
     }
-    $("asset-ocr-text").textContent=result.text;$("asset-progress").textContent=result.warning;
+    $("asset-ocr-text").textContent=(result.analysis?result.analysis.engine+" · "+result.analysis.mode+" · "+result.analysis.regions.length+" Strukturregionen (ungeprüft)\n":"")+result.text;$("asset-progress").textContent=result.warning;
     if(result.regions.length && confirm(`${result.regions.length} mögliche PII-Bereiche als Abdeckung übernehmen? Anschließend manuell prüfen.`)){assetEdit.redactions.push(...result.regions);invalidateAssetPreview();drawAsset();$("asset-original").click();}
   } finally {$("asset-ocr").disabled=false;}
 });

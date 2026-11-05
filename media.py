@@ -313,18 +313,24 @@ class Media:
             c["media_snapshots"] = snapshots
         return data
 
-    def ocr(self, aid):
+    def ocr(self, aid, preprocessing="none"):
         from app import Invalid
         with self.store.connect() as db:
             current=db.execute("SELECT revision,payload FROM media WHERE id=?",(aid,)).fetchone()
         if not current:raise Invalid("Bild nicht gefunden.")
         asset_revision=current[0];asset=json.loads(current[1])
+        if preprocessing not in ["none","contrast","threshold"]:raise Invalid("Ungültige OCR-Vorverarbeitung.")
+        analysis=None
         binary = shutil.which("tesseract")
         if not binary:
             raise Invalid("Tesseract ist nicht installiert. Unter Windows lokal installieren und zum PATH hinzufügen; manuelle Markierungen sind weiterhin möglich.")
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "image.png"
-            source.write_bytes(self.original(aid))
+            raw=self.original(aid)
+            if preprocessing!="none":
+                from vision import prepare
+                raw,analysis=prepare(raw,preprocessing)
+            source.write_bytes(raw)
             try:
                 result = subprocess.run([binary, str(source), "stdout", "tsv"], capture_output=True, timeout=45, check=True)
             except (subprocess.SubprocessError, OSError) as exc:
@@ -343,8 +349,8 @@ class Media:
         for word in words:
             if word["line"] in pii_lines or re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|\b[A-Z]{2}\d{2}[A-Z0-9]{10,}\b|\b[A-HJ-NPR-Z0-9]{17}\b", word["text"]):
                 suggestions.append({k: word[k] for k in ["x", "y", "w", "h"]} | {"mode": "mask"})
-        stored=self.store.ocr_records.save(aid,asset_revision,words,pii_lines,asset.get("redactions",[])+suggestions)
-        return {"stored":stored,"text": " ".join(w["text"] for w in words), "regions": suggestions,
+        stored=self.store.ocr_records.save(aid,asset_revision,words,pii_lines,asset.get("redactions",[])+suggestions,analysis)
+        return {"analysis":analysis,"stored":stored,"text": " ".join(w["text"] for w in words), "regions": suggestions,
                 "warning": "OCR-Hinweise sind unvollständig möglich. Namen, FIN, Kontodaten und weitere PII immer visuell prüfen."}
 
 

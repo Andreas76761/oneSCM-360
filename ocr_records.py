@@ -11,7 +11,7 @@ class OCRRecords:
    row=db.execute('SELECT o.payload,m.revision FROM ocr_records o JOIN media m ON m.id=o.asset_id WHERE asset_id=?',(aid,)).fetchone()
   if not row:return None
   value=json.loads(row[0]);value['stale']=value['asset_revision']!=row[1];return value
- def save(self,aid,revision,words,pii_lines,redactions):
+ def save(self,aid,revision,words,pii_lines,redactions,analysis=None):
   from app import now,Conflict
   groups={}
   for w in words:groups.setdefault(tuple(w['line']),[]).append(w)
@@ -25,7 +25,7 @@ class OCRRecords:
    if clean!=raw:continue
    x=min(w['x'] for w in group);y=min(w['y'] for w in group)
    lines.append({'text':clean,'x':x,'y':y,'w':max(w['x']+w['w'] for w in group)-x,'h':max(w['y']+w['h'] for w in group)-y,'line':list(key)})
-  result={'asset_id':aid,'asset_revision':revision,'updated':now(),'engine':'Tesseract TSV','text':'\n'.join(l['text'] for l in lines),'lines':lines,'internal':True,'status':'Ungeprüft','excluded_lines':len(groups)-len(lines),'candidate_regions':sensitive_regions}
+  result={'asset_id':aid,'asset_revision':revision,'updated':now(),'analysis':analysis,'engine':'Tesseract TSV','text':'\n'.join(l['text'] for l in lines),'lines':lines,'internal':True,'status':'Ungeprüft','excluded_lines':len(groups)-len(lines),'candidate_regions':sensitive_regions}
   with self.store.connect() as db:
    db.execute('BEGIN IMMEDIATE');current=db.execute('SELECT revision FROM media WHERE id=?',(aid,)).fetchone()
    if not current or current[0]!=revision:raise Conflict('Bild während OCR geändert. Erneut starten.')
