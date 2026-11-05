@@ -73,6 +73,11 @@ class RAG:
             text=' '.join([media['caption'],classification.get('topic',''),*classification.get('keywords',[]),*classification.get('labels',[]),*[domain_names.get(d,d) for d in classification.get('domain_ids',[])],*[u['chapter'] for u in media.get('usage',[])]])
             approved=media['status']=='Freigegeben' and media['pii_reviewed']
             rows.append(record('screen',media['id'],media['title'],text,media['revision'],approved=approved,caption=media['caption'],media_profile=media['profile'],profile_known=True,priority=media.get('priority','Normal')))
+        screen_ids={r['id'] for r in rows if r['kind']=='screen'}
+        for aid in screen_ids:
+            ocr=self.store.ocr_records.get(aid)
+            if ocr and not ocr['stale']:
+                rows.append(record('ocr',aid,'OCR · '+next(r['title'] for r in rows if r['kind']=='screen' and r['id']==aid),ocr['text'],ocr['asset_revision'],internal=True,approved=False,lines=ocr['lines'],updated=ocr['updated']))
         for job in self.store.orchestrator.listing():
             if job['status'] in ['completed','cancelled']:continue
             rows.append(record('task',job['id'],job['title'],'Agentenauftrag '+job['status']+' · '+', '.join(step['agent'] for step in job['steps']),internal=True,status=job['status']))

@@ -778,7 +778,7 @@ Der Anwendungsbedarf umfasst die aktive Datenbank samt Journal-/WAL-Begleitdatei
 3. Die Sprachkennung wird als Flag angezeigt (DE, EN, FR usw.; keine Länderzuordnung). Lokale Wortregeln erkennen Deutsch, Englisch, Französisch, Italienisch und Slowakisch; koreanische Schrift wird gesondert erkannt. Kurze, gemischte oder andere Texte bleiben offen. Dies ist keine sprachliche Fachprüfung.
 4. Datum und Version werden aus Titel und Text vorgeschlagen. Unterstützt werden Datumsformen JJJJ-MM-TT, JJJJ/MM/TT, JJJJ.MM.TT und TT.MM.JJJJ sowie Versionsangaben mit „Version“, „Release“ oder „v“. Mehrere Fundstellen bleiben zur Auswahl offen. Das Importdatum ist separat ausgewiesen und kein Gültigkeitsdatum.
 5. Angaben korrigieren, **Angaben fachlich geprüft** markieren und **Internen Vermerk speichern** wählen. Die Einträge werden dauerhaft in der lokalen Datenbank gespeichert und in der Arbeitsbereichssicherung mitgeführt. Nach Inhaltsänderungen werden sie als veraltet gekennzeichnet. Sie ändern keine Rollen-, Sprach- oder Releaseprofile und erscheinen nicht im Leseroutput.
-6. Für Screens optional **Screens lokal mit Tesseract lesen** aktivieren. Ohne Tesseract werden nur Titel und Untertitel ausgewertet. Die OCR-Analyse verarbeitet das Original lokal; gespeichert werden nur die ermittelten Flags, nicht der erkannte Rohtext. PII und tatsächliche Sprache stets visuell prüfen. Vollständige OCR-Fundstellenpersistierung ist weiterhin offen.
+6. Für Screens optional **Screens lokal mit Tesseract lesen** aktivieren. Ohne Tesseract werden nur Titel und Untertitel ausgewertet. Die OCR-Analyse verarbeitet das Original lokal; ab v0.8.4 werden zusätzlich bereinigte, ungeprüfte OCR-Zeilen mit Bildpositionen intern gespeichert. PII und tatsächliche Sprache stets visuell prüfen. Die Bildrevision wird an die OCR-Fundstellen gebunden; nach Änderungen ist eine erneute OCR nötig.
 
 ## 26. Bilder je Kapitel, Release und Domäne aktivieren
 
@@ -788,3 +788,12 @@ Der Anwendungsbedarf umfasst die aktive Datenbank samt Journal-/WAL-Begleitdatei
 4. **Regel speichern** erzeugt eine neue Gliederungsrevision. Danach die Gliederung neu öffnen, bevor sie weiter bearbeitet wird. Offene lokale Änderungen zunächst speichern.
 
 Leere Filter erlauben alle Werte. Innerhalb eines Filters genügt ein Treffer; Release und Domäne müssen beide passen. Das Release wird mit dem Ausgabeprofil verglichen. Domänen werden mit den aktiven Zuordnungen des konkreten Kapitels verglichen; Eltern-/Unterdomänen werden nicht automatisch gleichgesetzt. Eine Klickstrecke wird als Ganzes geschaltet. Die Bildrevision bleibt unverändert und fest zugeordnet. Freigabe, PII-Prüfung und bestehende Sprach-/Rollenfilter gelten weiterhin. Bereits erzeugte oder historisch gespeicherte Ausgaben bleiben unverändert. Deaktivieren löscht keine Bilder.
+
+
+## 27. Gespeicherte OCR-Fundstellen (v0.8.4)
+
+Im Medieneditor **OCR** ausführen. Tesseract muss lokal installiert sein. Die Erkennung speichert Zeilentext, Pixelpositionen, Bildrevision, Zeitpunkt und Engine in der Datenbank. Bereits markierte PII-Bereiche und bekannte PII-Zeilen werden ausgeschlossen. Unbekannte Namen oder fehlerhaft erkannte Personenfelder können dennoch enthalten sein: Ergebnisse bleiben intern und ungeprüft. Das unmittelbar angezeigte OCR-Rohergebnis dient der PII-Markierung; beim späteren Öffnen wird der bereinigte gespeicherte Stand angezeigt.
+
+Nach Speichern einer neuen Bildrevision wird der alte OCR-Stand als veraltet angezeigt. OCR erneut ausführen, um den gespeicherten Stand zu ersetzen. Die interne RAG-Suche findet nur aktuelle Fundstellen: **Interne Register einbeziehen**, Redaktionsrolle **HQ/intern**, Register **Interne OCR-Fundstellen**. Die Treffer können nicht als Lesertext übernommen werden und erzeugen keine automatische fachliche Antwort.
+
+Die Ergebnisse überstehen Neustarts und sind Teil der Datenbanksicherung. Endgültiges Löschen eines unbenutzten Bildes entfernt auch den OCR-Datensatz. Dies ist Text-/Fundstellensuche, noch keine semantische Suche.

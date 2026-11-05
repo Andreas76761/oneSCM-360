@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.8.3 · Stand 05.11.2026**
+**Prototyp 0.8.4 · Stand 05.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -301,6 +301,9 @@ Neu in v0.8.1: Klassifikations-, Wissens- und Medienvorschläge im Orchestrator 
 Das neue Register **Dashboard** zeigt Dokument-/Quellenanzahl, Bilder, freigegebene PII-geprüfte Bilder, Gliederungen, Chunks, Bibliotheksbausteine und gespeicherte Ausgaben. Die Speicheranzeige unterscheidet Anwendungsdaten (Datenbank samt Begleitdateien) und Gesamt-/Belegt-/Freispeicher des Datenbanklaufwerks. Mit **Kennzahlen aktualisieren** werden die Werte neu ermittelt.
 
 
-## Neu in v0.8.3
+## Neu in v0.8.4
 
 Persistente interne Sprach-/Datums-/Versionsflags für Quellen, Screens und interne Notizen, mit Analysevorschlag, manueller Bestätigung und Veraltet-Erkennung. Optionale lokale Tesseract-Analyse für Screens. Kapitelbezogene Bildaktivierung nach Ausgabe-Release und Domäne; keine Löschung und keine Übernahme interner Vermerke in Lesertexte. Details: Bedienung Kapitel 25–26.
+
+
+OCR-Ausbau v0.8.4: persistierte interne Zeilenfundstellen mit Positionen, Bildrevision und Veraltet-Erkennung; aktuelle Ergebnisse über interne RAG-Suche auffindbar. Details in Bedienung Kapitel 27.

@@ -213,3 +213,8 @@ Dashboard mit Dokument-/Bildanzahl, Zusatzkennzahlen, Dateitypverteilung, Anwend
 ## Nachtrag v0.8.3 · 05.11.2026
 
 Interne Sprach-/Datums-/Versionsflags dauerhaft gespeichert, manuell bestätigbar, mit Inhaltsfingerprint und Konfliktprüfung. Quellen, Medienregister und interne Notizen unterstützt; keine automatische Bestandsanalyse auf dem Windows-Rechner durch diese Entwicklungssitzung. Bildaktivierung je Kapitelzuordnung mit Release- und Domänenfilter umgesetzt. Roh-OCR-Persistierung, semantisches RAG und fachliche Mehrsprachenabnahme weiterhin offen.
+
+
+## Nachtrag v0.8.4 · 05.11.2026
+
+OCR-Zeilen, Positionen und Revisionen dauerhaft gespeichert. Bekannte PII-Zeilen und markierte Bereiche werden ausgeschlossen; keine Garantie vollständiger PII-Erkennung. Interne RAG-Suche berücksichtigt nur aktuelle OCR-Ergebnisse. Leserexport bleibt ausgeschlossen. Semantisches RAG und fachliche Mehrsprachenabnahme bleiben offen.

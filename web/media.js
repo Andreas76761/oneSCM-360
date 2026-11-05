@@ -42,6 +42,9 @@ async function editAsset(asset) {
   const result=await api("/api/media/image",{id:asset.id,revision:asset.revision,working_role:mediaRole(),original:true});
   const img=new Image(); img.src=result.image; await img.decode();
   if(assetEdit?.id!==asset.id) return;
+  const storedOCR=await api("/api/media/ocr-record",{id:asset.id,working_role:mediaRole()});
+  if(assetEdit?.id!==asset.id)return;
+  if(storedOCR)$("asset-ocr-text").textContent=(storedOCR.stale?"VERALTET – OCR erneut ausführen.\n":"Gespeicherte OCR · ungeprüft · ")+storedOCR.updated+"\n"+storedOCR.text;
   assetImage=img; drawAsset(); $("asset-progress").textContent="Bereiche markieren und anonymisierte Fassung prüfen.";
 }
 function invalidateAssetPreview() {assetPreviewValid=false;$("asset-pii-reviewed").checked=false;$("asset-pii-reviewed").disabled=true;}

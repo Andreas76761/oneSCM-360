@@ -312,6 +312,10 @@ class Media:
 
     def ocr(self, aid):
         from app import Invalid
+        with self.store.connect() as db:
+            current=db.execute("SELECT revision,payload FROM media WHERE id=?",(aid,)).fetchone()
+        if not current:raise Invalid("Bild nicht gefunden.")
+        asset_revision=current[0];asset=json.loads(current[1])
         binary = shutil.which("tesseract")
         if not binary:
             raise Invalid("Tesseract ist nicht installiert. Unter Windows lokal installieren und zum PATH hinzufügen; manuelle Markierungen sind weiterhin möglich.")
@@ -331,12 +335,13 @@ class Media:
         suggestions, pii_lines = [], set()
         for word in words:
             text = word["text"].strip(":;.,").casefold()
-            if text in {"userid", "user-id", "login", "iban", "fin", "vin", "kennzeichen", "benutzer", "e-mail", "email"}:
+            if text in {"userid", "user-id", "login", "iban", "fin", "vin", "kennzeichen", "benutzer", "e-mail", "email", "name", "erfasser", "bearbeiter", "reporter", "assignee", "creator", "kommentarautor"}:
                 pii_lines.add(word["line"])
         for word in words:
             if word["line"] in pii_lines or re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|\b[A-Z]{2}\d{2}[A-Z0-9]{10,}\b|\b[A-HJ-NPR-Z0-9]{17}\b", word["text"]):
                 suggestions.append({k: word[k] for k in ["x", "y", "w", "h"]} | {"mode": "mask"})
-        return {"text": " ".join(w["text"] for w in words), "regions": suggestions,
+        stored=self.store.ocr_records.save(aid,asset_revision,words,pii_lines,asset.get("redactions",[])+suggestions)
+        return {"stored":stored,"text": " ".join(w["text"] for w in words), "regions": suggestions,
                 "warning": "OCR-Hinweise sind unvollständig möglich. Namen, FIN, Kontodaten und weitere PII immer visuell prüfen."}
 
 

@@ -1,6 +1,7 @@
 """oneSCM-360: local, single-user outline and document prototype."""
 from __future__ import annotations
 import dashboard
+import ocr_records
 import content_flags
 import image_activation
 
@@ -707,6 +708,7 @@ class Store:
         self.sources.init()
         self.library = library.Library(self)
         self.media = media.Media(self)
+        self.ocr_records = ocr_records.OCRRecords(self)
         self.layouts = layouts.Layouts(self)
         self.orchestrator = orchestration.Orchestrator(self)
         self.internal = internal_knowledge.InternalKnowledge(self)
@@ -1129,6 +1131,9 @@ def make_server(store, port=8765):
                     return self.send(200, store.media.upload(base64.b64decode(data.get("base64", ""), validate=True), data.get("name"), data.get("language", "de"), data.get("metadata", {})))
                 if path == "/api/media/save":
                     return self.send(200, store.media.save(data))
+                if path == "/api/media/ocr-record":
+                    if data.get("working_role") not in ["HQ","intern"]:raise Invalid("OCR-Vermerke erfordern HQ oder intern.")
+                    return self.send(200,store.ocr_records.get(clean_text(data.get("id"),"Bild-ID",100)))
                 if path == "/api/media/ocr":
                     result = store.media.ocr(clean_text(data.get("id"), "Bild-ID", 100))
                     if data.get("outline_id"):
