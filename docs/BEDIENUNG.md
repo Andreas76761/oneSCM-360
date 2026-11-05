@@ -770,3 +770,21 @@ Die Übernahme erfolgt einzeln und atomar. Ein Fehler hinterlässt keine halbe Z
 Links **Dashboard** öffnen. Die Kennzahlen werden beim Öffnen neu geladen und lassen sich jederzeit über **Kennzahlen aktualisieren** erneuern. Dokumente zählen gespeicherte Quellen; Gliederungen und Ausgaben werden separat ausgewiesen. Bilder zählen Medienregister-Einträge einschließlich archivierter Bilder, nicht deren Revisionen. Eingebettete Bilder zählen erst nach Extraktion.
 
 Der Anwendungsbedarf umfasst die aktive Datenbank samt Journal-/WAL-Begleitdateien, einschließlich Quellen, Bilder und Revisionen. Programmdateien, heruntergeladene Dokumente und externe Sicherungen sind ausgeschlossen. Gesamtspeicher und belegter/freier Speicher beziehen sich auf das Laufwerk des Datenbankservers, bei lokalem Windows-Betrieb also auf das entsprechende lokale Laufwerk. Intern wiederverwendbarer Datenbankplatz ist bereits im Anwendungsbedarf enthalten und darf nicht addiert werden. Löschen verkleinert die Datenbankdatei nicht automatisch.
+
+## 25. Interne Sprach-, Datums- und Versionsvermerke (v0.8.3)
+
+1. **Interne Sprach- & Versionsflags** öffnen. Das Register zeigt importierte Quellen, Screens im Medienregister und Notizen aus dem internen Register.
+2. Einzelne Inhalte über **Analysieren** prüfen oder **Alle unbestätigten Inhalte analysieren** wählen. Bereits bestätigte Vermerke werden im Stapel nicht überschrieben. Einzelanalyse ersetzt den bisherigen Vermerk durch einen neuen prüfpflichtigen Vorschlag.
+3. Die Sprachkennung wird als Flag angezeigt (DE, EN, FR usw.; keine Länderzuordnung). Lokale Wortregeln erkennen Deutsch, Englisch, Französisch, Italienisch und Slowakisch; koreanische Schrift wird gesondert erkannt. Kurze, gemischte oder andere Texte bleiben offen. Dies ist keine sprachliche Fachprüfung.
+4. Datum und Version werden aus Titel und Text vorgeschlagen. Unterstützt werden Datumsformen JJJJ-MM-TT, JJJJ/MM/TT, JJJJ.MM.TT und TT.MM.JJJJ sowie Versionsangaben mit „Version“, „Release“ oder „v“. Mehrere Fundstellen bleiben zur Auswahl offen. Das Importdatum ist separat ausgewiesen und kein Gültigkeitsdatum.
+5. Angaben korrigieren, **Angaben fachlich geprüft** markieren und **Internen Vermerk speichern** wählen. Die Einträge werden dauerhaft in der lokalen Datenbank gespeichert und in der Arbeitsbereichssicherung mitgeführt. Nach Inhaltsänderungen werden sie als veraltet gekennzeichnet. Sie ändern keine Rollen-, Sprach- oder Releaseprofile und erscheinen nicht im Leseroutput.
+6. Für Screens optional **Screens lokal mit Tesseract lesen** aktivieren. Ohne Tesseract werden nur Titel und Untertitel ausgewertet. Die OCR-Analyse verarbeitet das Original lokal; gespeichert werden nur die ermittelten Flags, nicht der erkannte Rohtext. PII und tatsächliche Sprache stets visuell prüfen. Vollständige OCR-Fundstellenpersistierung ist weiterhin offen.
+
+## 26. Bilder je Kapitel, Release und Domäne aktivieren
+
+1. Ein Bild oder eine Klickstrecke zunächst einem Gliederungskapitel zuordnen.
+2. **Bilder aktivieren** öffnen. Jede vorhandene Zuordnung wird mit Gliederung und Kapitel angezeigt.
+3. Über den Aktiv-Schalter die gesamte Zuordnung ein-/ausschalten. Optional erlaubte Releases/Versionen und Domänen-IDs durch Kommas getrennt eintragen (z. B. `1.2, 1.3` bzw. `d1, d3`). Unterdomänen benötigen ihre eigene gepflegte ID.
+4. **Regel speichern** erzeugt eine neue Gliederungsrevision. Danach die Gliederung neu öffnen, bevor sie weiter bearbeitet wird. Offene lokale Änderungen zunächst speichern.
+
+Leere Filter erlauben alle Werte. Innerhalb eines Filters genügt ein Treffer; Release und Domäne müssen beide passen. Das Release wird mit dem Ausgabeprofil verglichen. Domänen werden mit den aktiven Zuordnungen des konkreten Kapitels verglichen; Eltern-/Unterdomänen werden nicht automatisch gleichgesetzt. Eine Klickstrecke wird als Ganzes geschaltet. Die Bildrevision bleibt unverändert und fest zugeordnet. Freigabe, PII-Prüfung und bestehende Sprach-/Rollenfilter gelten weiterhin. Bereits erzeugte oder historisch gespeicherte Ausgaben bleiben unverändert. Deaktivieren löscht keine Bilder.

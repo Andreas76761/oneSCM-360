@@ -1,6 +1,8 @@
 """oneSCM-360: local, single-user outline and document prototype."""
 from __future__ import annotations
 import dashboard
+import content_flags
+import image_activation
 
 import argparse
 import base64
@@ -716,6 +718,7 @@ class Store:
         self.rag = rag.RAG(self)
         self.source_design = source_design.SourceDesign(self)
         self.agent_hub = agent_hub.Hub(self)
+        self.content_flags = content_flags.Flags(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10, factory=ClosingConnection)
@@ -910,6 +913,8 @@ def make_server(store, port=8765):
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/image_activation.js": ("image_activation.js", "text/javascript; charset=utf-8"),
+                      "/content_flags.js": ("content_flags.js", "text/javascript; charset=utf-8"),
                       "/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
                       "/rag.js": ("rag.js", "text/javascript; charset=utf-8"),
                       "/source_collection.js": ("source_collection.js", "text/javascript; charset=utf-8"),
@@ -966,6 +971,10 @@ def make_server(store, port=8765):
                 if not isinstance(data, dict):
                     raise Invalid("Ungültige Anfrage.")
                 path = urlparse(self.path).path
+                if path == "/api/image-activation/list":return self.send(200,image_activation.listing(store))
+                if path == "/api/image-activation/save":return self.send(200,image_activation.save(store,data))
+                if path == "/api/content-flags/list":return self.send(200,store.content_flags.listing())
+                if path == "/api/content-flags/process":return self.send(200,store.content_flags.process(data))
                 if path == "/api/dashboard":
                     return self.send(200, dashboard.snapshot(store))
                 if path == "/api/chat/list":

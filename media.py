@@ -83,7 +83,7 @@ def render(raw, redactions, markers):
 
 
 def validate_assignments(value):
-    from app import Invalid, clean_text, choice, uid
+    from app import Invalid, clean_text, choice, uid, boolean
     from editorial import validate_chapter
     if not isinstance(value, list) or len(value) > 100:
         raise Invalid("Maximal 100 Medienzuordnungen je Kapitel.")
@@ -100,6 +100,13 @@ def validate_assignments(value):
         row = {"id": mid, "title": clean_text(item.get("title", ""), "Medientitel", 300), "kind": kind,
                "conditions": validate_chapter({"config": {"conditions": item.get("conditions", {})}})["conditions"],
                "note": clean_text(item.get("note", ""), "Medienvermerk", 5000), "frames": []}
+        activation = item.get("activation", {})
+        if not isinstance(activation, dict):raise Invalid("Ungültige Bildaktivierung.")
+        row["activation"] = {"enabled": boolean(activation.get("enabled", True), "Bild aktiv")}
+        for key in ["releases", "domains"]:
+            values = activation.get(key, [])
+            if not isinstance(values, list) or len(values)>208:raise Invalid("Ungültige Bildfilter.")
+            row["activation"][key] = list(dict.fromkeys(clean_text(v,"Bildfilter",100).strip() for v in values if v))
         for frame in frames:
             variants = frame.get("variants", [])
             if not isinstance(variants, list) or not 1 <= len(variants) <= 20:
@@ -338,6 +345,11 @@ def compose_chapter(c, p):
     figures, warnings, manifest = [], [], []
     snapshots = c.get("media_snapshots", {})
     for item in c.get("media", []):
+        activation=item.get("activation",{})
+        if not activation.get("enabled",True):continue
+        if activation.get("releases") and p.get("release") not in activation["releases"]:continue
+        domains={m["target_id"] for m in c.get("mappings",[]) if m.get("active")}
+        if activation.get("domains") and not domains.intersection(activation["domains"]):continue
         if not eligible({"inclusion": "Bedingt", "conditions": item["conditions"]}, p):
             continue
         frames, incomplete = [], False

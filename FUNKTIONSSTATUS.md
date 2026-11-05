@@ -208,3 +208,8 @@ Prüfung v0.8.0: 145 lokale automatisierte Tests erfolgreich, darunter socketfre
 ## Nachtrag v0.8.2 · 05.11.2026
 
 Dashboard mit Dokument-/Bildanzahl, Zusatzkennzahlen, Dateitypverteilung, Anwendungsbedarf und Laufwerksbelegung umgesetzt. Read-only, keine Löschung oder Speicherbereinigung. Browserprüfung für Leerzustand, Aktualisierung und Speicheranzeige erfolgreich. OCR-Persistierung, semantisches RAG und fachliche Mehrsprachenprüfung sind weiterhin offen; diese Version ergänzt ausschließlich das Dashboard.
+
+
+## Nachtrag v0.8.3 · 05.11.2026
+
+Interne Sprach-/Datums-/Versionsflags dauerhaft gespeichert, manuell bestätigbar, mit Inhaltsfingerprint und Konfliktprüfung. Quellen, Medienregister und interne Notizen unterstützt; keine automatische Bestandsanalyse auf dem Windows-Rechner durch diese Entwicklungssitzung. Bildaktivierung je Kapitelzuordnung mit Release- und Domänenfilter umgesetzt. Roh-OCR-Persistierung, semantisches RAG und fachliche Mehrsprachenabnahme weiterhin offen.
