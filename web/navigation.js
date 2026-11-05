@@ -1,7 +1,7 @@
 "use strict";
 (()=>{
  const toggle=$('navigation-toggle'),sidebar=$('main-navigation');let timer=null,inflight=false,again=false;
- const fresh=new Set(['appendices-button','image-activation-button','content-flags-button','agents-button','design-button']);
+ const fresh=new Set(['storage-button','appendices-button','image-activation-button','content-flags-button','agents-button','design-button']);
  function setOpen(open){sidebar.hidden=!open;document.body.classList.toggle('navigation-collapsed',!open);toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Navigation einklappen':'Navigation ausklappen');try{localStorage.setItem('onescm-navigation-open',String(open));}catch{}}
  let open=window.innerWidth>800;try{const value=localStorage.getItem('onescm-navigation-open');if(value!==null)open=value==='true';}catch{}setOpen(open);
  toggle.onclick=()=>{setOpen(sidebar.hidden);if(!sidebar.hidden)schedule();};

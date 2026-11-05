@@ -841,3 +841,15 @@ Hinter den Registern stehen die Eintragszahlen in Klammern. Die Zähler aktualis
 Die vier Inhaltsregister im Anhang zeigen ihre Eintragszahl sprachübergreifend; Vorschau zählt nicht interne Katalogeinträge, auch wenn deren Sprachprüfung noch offen ist. Die eigentliche Vorschau blendet ungeprüfte Fassungen weiterhin aus.
 
 **Neu** kennzeichnet in dieser Version Anhang, Bildaktivierung, interne Sprach-/Versionsflags, Agenten und Design. Das Label ist eine Releasekennzeichnung und kein persönlicher Ungelesen-Status.
+
+## 32. Speicherort und Inventar (v0.11.0)
+
+Standard unter Windows: `%LOCALAPPDATA%\oneSCM-360\onescm.sqlite3`. Quellen, Bilder, Gliederungen, Revisionen und interne Vermerke liegen in dieser SQLite-Datenbank. Ein Start mit `--data-dir` kann einen anderen Ort verwenden. **Speicher** zeigt deshalb den tatsächlichen absoluten Datenbankpfad. Heruntergeladene Dokumente liegen am gewählten Browser-Downloadort; externe Sicherungen am jeweils gewählten Speicherort.
+
+Die Übersicht listet alle Datensätze der Anwendungsdatenbank einschließlich Historien, Zuordnungen und technischen Verwaltungsdatensätzen, jeweils 50 pro Seite. Über **Bereich** eine Tabelle auswählen. Angezeigt werden Datum, logische Größe, vorhandene Sprache/Labels, Version, Revision und interner Vermerk. Nicht gepflegte Angaben bleiben „—“. Gespeicherte Sprach-/Versionsflags werden bei Quellen, Medien und internen Notizen ergänzt; ihre Aktualität bitte im Flagregister prüfen. Ein Datum ist je nach Datensatz Import-, Erstellungs- oder Änderungsdatum, nicht automatisch ein fachliches Gültigkeitsdatum.
+
+Logische Eintragsgrößen sind die Byte-Summen gespeicherter Felder. Sie entsprechen nicht der physischen SQLite-Dateibelegung; Indexe, freier interner Datenbankplatz und Journaldateien werden anders verwaltet. Der tatsächliche Datenbankbedarf wird separat ausgewiesen. Die Ansicht verändert oder löscht keine Daten. Datenbanken nicht bei laufendem Betrieb manuell verschieben; für Sicherungen die vorhandene Sicherungsfunktion verwenden.
+
+## 33. Dialogfenster verschieben und schließen
+
+Alle Dialoge erhalten oben eine Leiste **Fenster verschieben** und ein **×** zum Schließen. Die Leiste mit Maus oder Touch ziehen. Alternativ die Leiste per Tab fokussieren und mit Pfeiltasten bewegen. Beim Schließen wird die Position zurückgesetzt; beim nächsten Öffnen startet das Fenster wieder in seiner Standardposition. Die bestehende Schließen-/Abbrechen-Funktion bleibt erhalten. Schließen speichert Änderungen nicht automatisch. Browser-eigene Dateiauswahlfenster werden vom Betriebssystem gesteuert und sind davon unabhängig.

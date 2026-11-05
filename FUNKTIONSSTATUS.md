@@ -233,3 +233,8 @@ Fünf Anhangsregister mit DE/EN/FR-Einträgen, internen Vermerken und sprachbezo
 ## Nachtrag v0.10.1
 
 Burgermenü, lokale Speicherung der Navigationsstellung, Tastaturbedienung, responsive Navigation, Register- und Anhangszähler sowie Neu-Labels umgesetzt. Externe Sicherungen ohne erfundene Zählung als (—) ausgewiesen.
+
+
+## Nachtrag v0.11.0
+
+Speicherinventar aller Datenbanktabellen mit Metadaten, logischer Größe und tatsächlichem Pfad umgesetzt. Globale Dialog-Kopfleiste mit Ziehen, Pfeiltasten und Schließen. 164 Tests sowie Browserprüfung für Inventar und Dialogbewegung erfolgreich. Externe Downloads und Sicherungsdateien werden nicht inventarisiert.

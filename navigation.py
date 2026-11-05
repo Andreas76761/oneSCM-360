@@ -9,6 +9,7 @@ def counts(store):
   sources=count('sources');chunks=count('chunks');images=count('media');internal=count('internal_entries');library=count('library');n=len(outlines)
   values={
    'appendices-button':(count('appendix_entries'),'Anhangseinträge, alle Sprachen zusammen'),
+   'storage-button':(sum(count(t[0]) for t in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()),'Alle Datensätze einschließlich Historie im Speicherregister'),
    'dashboard-button':(sources+images,'Quellen und Bilder'),
    'overview-button':(n,'Gespeicherte Gliederungen'),
    'compare-button':(n,'Zum Vergleich verfügbare Gliederungen'),

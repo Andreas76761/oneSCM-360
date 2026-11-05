@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.10.1 · Stand 05.11.2026**
+**Prototyp 0.11.0 · Stand 05.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -320,3 +320,6 @@ Anhang mit fünf Registern: Glossar, Abkürzungen, Synonyme, FAQs und Vorschau. 
 
 
 Neu in v0.10.1: Burgermenü mit gespeicherter Ein-/Ausklappstellung, Registerzähler mit erklärenden Tooltips und Neu-Labels für die jüngsten Funktionen. Bedienung Kapitel 31.
+
+
+Neu in v0.11.0: Register **Speicher** mit tatsächlichem Datenbankpfad und paginiertem Inventar aller Datenbankeinträge. Dialogfenster sind über eine Kopfzeile verschiebbar und über × schließbar. Bedienung Kapitel 32–33.
