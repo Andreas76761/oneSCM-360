@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.10.0 · Stand 05.11.2026**
+**Prototyp 0.10.1 · Stand 05.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -317,3 +317,6 @@ Neunter Agent: Audit Agent mit internen PII-Fundstellen. Aktuelle Lesertexte wer
 ## Neu in v0.10.0
 
 Anhang mit fünf Registern: Glossar, Abkürzungen, Synonyme, FAQs und Vorschau. Persistente DE/EN/FR-Sprachfassungen mit getrennter Bestätigung, internen Vermerken und expliziter Übernahme in Gliederungen. Interne Einträge und Vermerke werden nicht in Lesertexte kopiert. Bedienung: Kapitel 30.
+
+
+Neu in v0.10.1: Burgermenü mit gespeicherter Ein-/Ausklappstellung, Registerzähler mit erklärenden Tooltips und Neu-Labels für die jüngsten Funktionen. Bedienung Kapitel 31.

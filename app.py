@@ -1,6 +1,7 @@
 """oneSCM-360: local, single-user outline and document prototype."""
 from __future__ import annotations
 import dashboard
+import navigation
 import appendices
 import pii_audit
 import ocr_records
@@ -921,6 +922,8 @@ def make_server(store, port=8765):
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/navigation.js": ("navigation.js", "text/javascript; charset=utf-8"),
+                      "/navigation.css": ("navigation.css", "text/css; charset=utf-8"),
                       "/appendices.js": ("appendices.js", "text/javascript; charset=utf-8"),
                       "/image_activation.js": ("image_activation.js", "text/javascript; charset=utf-8"),
                       "/content_flags.js": ("content_flags.js", "text/javascript; charset=utf-8"),
@@ -988,6 +991,7 @@ def make_server(store, port=8765):
                     return self.send(200,getattr(store.appendices,path.rsplit("/",1)[-1])(data))
                 if path == "/api/appendices/state":return self.send(200,store.appendices.state())
                 if path == "/api/audit/scan":return self.send(200,store.pii_audit.scan())
+                if path == "/api/navigation/counts":return self.send(200,navigation.counts(store))
                 if path == "/api/dashboard":
                     return self.send(200, dashboard.snapshot(store))
                 if path == "/api/chat/list":

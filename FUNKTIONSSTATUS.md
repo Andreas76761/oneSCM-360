@@ -228,3 +228,8 @@ Audit Agent, regelbasierte Exportblockade für PII-Kandidaten und Prüfung bekan
 ## Nachtrag v0.10.0
 
 Fünf Anhangsregister mit DE/EN/FR-Einträgen, internen Vermerken und sprachbezogener Bestätigung umgesetzt. Leser-Vorschau ohne interne Daten; geprüfte Sprachfassungen ausdrücklich als Gliederungsrevision einbindbar. Keine automatische Übersetzung und keine automatische Synchronisierung bereits übernommener Kapitel. Audit prüft auch den Anhangskatalog.
+
+
+## Nachtrag v0.10.1
+
+Burgermenü, lokale Speicherung der Navigationsstellung, Tastaturbedienung, responsive Navigation, Register- und Anhangszähler sowie Neu-Labels umgesetzt. Externe Sicherungen ohne erfundene Zählung als (—) ausgewiesen.

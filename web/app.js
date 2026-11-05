@@ -7,6 +7,7 @@ function message(text, error = false) { $("message").textContent = text; $("mess
 async function api(path, data) {
   const response = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json", "X-Local-Token":meta.token}, body:JSON.stringify(data)});
   if (!response.ok) { const result = await response.json(); throw new Error(result.error); }
+  if(path!=="/api/navigation/counts")window.dispatchEvent(new Event("onescm-data-change"));
   return ["/api/design/export", "/api/backup/export", "/api/variants/export", "/api/export", "/api/export/history", "/api/markdown/convert", "/api/job/report"].includes(path) ? response : response.json();
 }
 function run(fn) { return async (...args) => { try { document.querySelectorAll(".dialog-error").forEach(el=>el.remove()); await fn(...args); } catch (e) { message(e.message, true); const dialog=[...document.querySelectorAll("dialog[open]")].at(-1); if(dialog){const error=document.createElement("p");error.className="warning dialog-error";error.setAttribute("role","alert");error.textContent=e.message;dialog.prepend(error);error.scrollIntoView({block:"nearest"});} } }; }
@@ -187,4 +188,4 @@ $("apply-import").onclick = run(async () => {
   $("import-dialog").close(); render(); message("Gliederung importiert. Bitte Pflichtkapitel und Struktur prüfen.");
 });
 window.addEventListener("beforeunload",e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
-window.addEventListener("DOMContentLoaded", run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); if (meta.build) $("app-version").textContent = `v${meta.build.version} · ${meta.build.date.split("-").reverse().join(".")}`; list(); openOverview(); }));
+window.addEventListener("DOMContentLoaded", run(async () => { const response = await fetch("/api/state"); if (!response.ok) throw new Error("Lokale Anwendung nicht erreichbar."); meta = await response.json(); window.dispatchEvent(new Event("onescm-data-change")); if (meta.build) $("app-version").textContent = `v${meta.build.version} · ${meta.build.date.split("-").reverse().join(".")}`; list(); openOverview(); }));

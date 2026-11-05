@@ -1,4 +1,4 @@
-# Aktualisieren auf oneSCM-360 v0.10.0
+# Aktualisieren auf oneSCM-360 v0.10.1
 
 Stand: **05.11.2026**. Die neue Oberfläche wird vom lokalen Python-Server
 bereitgestellt. Ein bereits laufender Server liefert weiterhin seine alte Version,

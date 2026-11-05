@@ -831,3 +831,13 @@ Jeder Eintrag besitzt Deutsch, Englisch und Französisch, jeweils mit Begriff/Fr
 In **Vorschau** die Sprache wechseln. Es erscheinen ausschließlich bestätigte, nicht interne Sprachfassungen; fehlende oder ungeprüfte Dokumentfassungen werden gezählt. Zielgliederung wählen und die Übernahme bestätigen. Alle geprüften DE/EN/FR-Fassungen werden als neuer Gliederungsstand eingebunden; das Ausgabeprofil wählt später die Sprache. Word, PowerPoint, PDF und HTML werden über den bestehenden Ausgabeweg erzeugt. Umfangs- und Dokumenttypfilter gelten weiterhin, etwa für FAQs in kompakten Ausgaben.
 
 Beim Aktualisieren werden nur die durch diese Funktion verwalteten Anhangskapitel ersetzt. Manuelle Änderungen darin gehen verloren; die vorherige Gliederungsrevision bleibt in der Historie. Andere bereits vorhandene Glossar-/FAQ-Kapitel bleiben erhalten, daher mögliche Doppelungen redaktionell prüfen. Katalogänderungen wirken nicht automatisch auf bereits eingebundene Kapitel: Vorschau neu laden und ausdrücklich aktualisieren. Nach Übernahme die Gliederung neu öffnen. Die Datenbank und Arbeitsbereichssicherung enthalten den Anhangskatalog.
+
+## 31. Einklappbare Navigation und Registerzähler (v0.10.1)
+
+Über **☰** oben links die Navigation ein-/ausklappen. Die Einstellung wird in diesem Browser gespeichert. Auf kleinen Bildschirmen startet die Navigation beim ersten Besuch eingeklappt. Mit **Escape** innerhalb der Navigation wird sie geschlossen; der Tastaturfokus kehrt zum Menüknopf zurück.
+
+Hinter den Registern stehen die Eintragszahlen in Klammern. Die Zähler aktualisieren sich nach Anwendungsaktionen und bei Rückkehr ins Fenster. Ein Tooltip erläutert die Zählweise: Quellen zählt Dateien, Agenten zählt gespeicherte Aufträge, Bilder aktivieren zählt Kapitelzuordnungen. Werkzeugregister zählen ihre verfügbaren Eingaben; externe Sicherungen werden mit **(—)** angezeigt, weil sie nicht zentral verwaltet werden. Die RAG-Zahl ist ein Basisbestand, keine profilabhängige Trefferzahl. Aktionen wie „Gliederung anlegen“ erhalten keinen Bestandszähler.
+
+Die vier Inhaltsregister im Anhang zeigen ihre Eintragszahl sprachübergreifend; Vorschau zählt nicht interne Katalogeinträge, auch wenn deren Sprachprüfung noch offen ist. Die eigentliche Vorschau blendet ungeprüfte Fassungen weiterhin aus.
+
+**Neu** kennzeichnet in dieser Version Anhang, Bildaktivierung, interne Sprach-/Versionsflags, Agenten und Design. Das Label ist eine Releasekennzeichnung und kein persönlicher Ungelesen-Status.
