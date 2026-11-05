@@ -8,6 +8,7 @@ from knowledge_review import digest,signals,normalized
 import sources
 
 CATALOG=[
+ {"id":"audit","name":"Audit Agent","input":"Quellen, Notizen, Texte, OCR","output":"Interne PII-Fundstellen und Prüfbedarf","method":"Lokale Musterprüfung; visuelle Bildprüfung erforderlich"},
  {'id':'extraction','name':'Extraction Agent','input':'Dateien, Quellen','output':'Strukturierte Blöcke','method':'Lokal: vorhandene Importextraktion mit Fundstellen'},
  {'id':'classification','name':'Classification Agent','input':'Extrahierte Inhalte','output':'Domäne, Rolle, Markt, Sprache','method':'Lokale Regeln und gepflegter Quellenkontext; Unbekanntes bleibt offen'},
  {'id':'quality','name':'Quality Agent','input':'Inhalte und Gültigkeitsregeln','output':'Lücken, Konflikte, Dubletten','method':'Lokale Freigaberegeln und heuristischer Quellenvergleich'},
@@ -83,7 +84,9 @@ class Hub:
   if row['status'] in ['review','cancelled']:return row
   if self.stale(row):raise Conflict('Ausgangsrevisionen geändert. Neuen Auftrag vorbereiten.')
   stage=row['steps'][row['index']]['agent'];outline=row['outline'];chunks=row['chunks'];report={'agent':stage,'items':[],'note':''}
-  if stage=='extraction':
+  if stage=='audit':
+   report['items']=self.store.pii_audit.scan();report['note']='PII-Kandidaten mit Zeile und Zeichenposition. Ausgabe wird zusätzlich auf aktuelle Lesertexte geprüft. Freie Namen und Bilder fachlich prüfen.'
+  elif stage=='extraction':
    report['items']=[{'chunk_id':c['id'],'source_id':c['source_id'],'revision':c['revision'],'location':c['location'],'text':c['text'],'headings':[line.lstrip('# ').strip() for line in c['text'].splitlines() if line.startswith('#')]} for c in chunks]
    report['note']='Vorhandene Importextraktion strukturiert; kein erneutes OCR und keine automatische Freigabe.'
   elif stage=='classification':

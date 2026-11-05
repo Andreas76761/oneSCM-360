@@ -117,6 +117,9 @@ def batch(files, combined=False, title="Markdown-Dokumente", template=None):
     from docx import Document
     if not isinstance(files, list) or not 1 <= len(files) <= 100:
         raise Invalid("1–100 Markdown-Dateien auswählen.")
+    from pii_audit import findings,guard_template
+    guard_template(template)
+    if findings(title):raise Invalid("PII-Audit: Dokumenttitel zuerst anonymisieren.")
     prepared = []
     for index, item in enumerate(files, 1):
         if not isinstance(item, dict): raise Invalid("Ungültiger Markdown-Dateieintrag.")
@@ -124,6 +127,7 @@ def batch(files, combined=False, title="Markdown-Dokumente", template=None):
         if not name.lower().endswith((".md", ".markdown")):
             raise Invalid("Nur MD/Markdown-Dateien im Konverter verwenden.")
         text = clean_text(item.get("text"), "Markdown", 1_000_000)
+        if findings(name+"\n"+text):raise Invalid("PII-Audit: Markdown enthält PII-Kandidaten. Quelle zuerst anonymisieren.")
         prepared.append((name, text))
     if sum(len(text) for _, text in prepared) > 5_000_000:
         raise Invalid("Maximal 5 Millionen Zeichen je Stapel.")

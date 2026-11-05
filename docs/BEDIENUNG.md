@@ -797,3 +797,25 @@ Im Medieneditor **OCR** ausführen. Tesseract muss lokal installiert sein. Die E
 Nach Speichern einer neuen Bildrevision wird der alte OCR-Stand als veraltet angezeigt. OCR erneut ausführen, um den gespeicherten Stand zu ersetzen. Die interne RAG-Suche findet nur aktuelle Fundstellen: **Interne Register einbeziehen**, Redaktionsrolle **HQ/intern**, Register **Interne OCR-Fundstellen**. Die Treffer können nicht als Lesertext übernommen werden und erzeugen keine automatische fachliche Antwort.
 
 Die Ergebnisse überstehen Neustarts und sind Teil der Datenbanksicherung. Endgültiges Löschen eines unbenutzten Bildes entfernt auch den OCR-Datensatz. Dies ist Text-/Fundstellensuche, noch keine semantische Suche.
+
+## 28. Audit Agent und PII-Ausgabesperre (v0.9.0)
+
+Im Register **Agenten · Orchestrator** den **Audit Agent** auswählen, Auftrag vorbereiten und ausführen. Er prüft den aktuellen Arbeitsbereich: Quellen, interne Notizen, Kapiteltexte, Bibliothek und vorhandene OCR-Ergebnisse. Ergebnisse enthalten Kategorie, Zeile, Zeichenposition und einen neutralen Marker; Trefferwerte werden nicht im Bericht wiederholt. Bildberichte enthalten bekannte noch unmaskierte OCR-Rechtecke. Berichte sind interne Momentaufnahmen, keine Freigabe des gesamten Bestands.
+
+Erkannt werden lokale Muster für E-Mail, IBAN, FIN/VIN, internationale Telefonnummern und beschriftete Personenfelder, beispielsweise `Name:`, `UserID:`, `Login:` oder `Kennzeichen:`. Freie Namen, anders formatierte Angaben, nicht unterstützte Sprachen und Bildinhalte können unerkannt bleiben. „Keine Regel-Funde“ bedeutet nicht „PII-frei“.
+
+Für Screens zuerst OCR im Medieneditor ausführen und Bild visuell prüfen. Fehlende/veraltete OCR wird im Audit ausgewiesen. Bekannt gewordene personenbezogene OCR-Bereiche müssen vollständig durch gespeicherte Masken/Unkenntlichmachung abgedeckt werden. Neue OCR-Läufe ab v0.9.0 speichern diese Rechteckkandidaten; ältere OCR-Datensätze gegebenenfalls neu erzeugen.
+
+Vor Word/PPTX/PDF/HTML-Erzeugung werden aktuelle Lesertexte, Überschriften, Profile und Bildunterschriften erneut geprüft. Treffer sperren auch Prüfausgaben. Markdown-zu-Word und XML-Text eigener Office-Vorlagen werden ebenfalls geprüft. Erkannte Originalwerte im Text ersetzen oder entfernen, Bilder maskieren und erneut prüfen. Interne Notizen bleiben unabhängig davon aus Lesertexten ausgeschlossen. Die Kontrolle umfasst keine vollständige Gesichtserkennung und keine OCR eingebetteter Bilder in fremden Office-Templates; diese sind separat visuell zu prüfen. Historisch erzeugte Dateien werden nicht rückwirkend bereinigt.
+
+## 29. Drei Design-Startvorlagen
+
+Unter **Design → Farbpalette / Startvorlage** auswählen und **Designvorlage einsetzen** drücken. Danach Vorher/Nachher prüfen und bei Bedarf als eigenes Pattern speichern.
+
+| Vorlage | Typografie / Farbe | Empfohlene redaktionelle Struktur |
+|---|---|---|
+| Handbuch · Corporate Clear | Aptos 11 pt, Kapitel 24 pt, Unterkapitel 16 pt; Dunkelblau/Petrol; Outline-Icons | Einleitung, nummerierte Aufgaben/Klickstrecken, Glossar und FAQ |
+| Releaseletter · Change Focus | Aptos 11 pt, Kapitel 22 pt, Unterkapitel 15 pt; violette Akzente; 1,35-facher Zeilenabstand | Releaseüberblick, neue Funktionen, Änderungen, Einschränkungen, betroffene Rollen |
+| Quick Reference · Action Cards | Aptos 12 pt, Kapitel 22 pt, Unterkapitel 17 pt; Petrol/Anthrazit; kompakter Abstand | Voraussetzungen, kurze Schritte, Prüfergebnis und Tipps |
+
+Dies sind anpassbare Designpresets. Sie erzeugen keine fehlenden Kapiteltexte, keine automatische Kartenanordnung und garantieren keine feste Seitenzahl. Aptos muss auf dem Zielrechner vorhanden sein; PDF kann eine verfügbare Ersatzschrift verwenden. Druck- und Office-Abnahme bleiben erforderlich.

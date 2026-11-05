@@ -33,7 +33,7 @@ class DesignAgentRouteTests(unittest.TestCase):
   result=self.post('/api/design/export',{**data,'format':'docx'});self.assertEqual(result[0],200);self.assertTrue(result[1].startswith(b'PK'))
   self.assertEqual(self.get('/design-preview/missing')[0],404)
  def test_agent_catalog_and_step_routes(self):
-  catalog=self.post('/api/agents/catalog',{})[1];self.assertEqual(len(catalog),8)
+  catalog=self.post('/api/agents/catalog',{})[1];self.assertEqual(len(catalog),9)
   source=self.store.sources.upload('Input.txt',b'Test source',{})
   row=self.post('/api/agents/start',{'sources':[source['id']],'agents':['extraction']})[1]
   response=self.post('/api/agents/step',{'id':row['id'],'revision':row['revision']})

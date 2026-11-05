@@ -128,6 +128,8 @@ def slide_markdown(text):
 
 
 def html_export(plan, loader=None):
+    from pii_audit import guard
+    guard(plan)
     from app import profile_caption, Invalid
     t = layouts.theme(plan.get("layout", {}).get("theme"))
     label = "PRÜFAUSGABE" if plan.get("draft", True) else "FREIGEGEBENE AUSGABE"
@@ -221,6 +223,8 @@ def pdf_inline(children, theme=None):
 
 
 def pdf_export(plan, loader=None):
+    from pii_audit import guard
+    guard(plan)
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib import colors

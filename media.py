@@ -290,6 +290,9 @@ class Media:
             raise Invalid("Originale und ungeprüfte Bilder sind im Redaktionsmodus nur für HQ / intern verfügbar.")
         if original:
             return self.original(aid)
+        from pii_audit import uncovered_regions
+        if uncovered_regions(self.store.ocr_records.get(aid),item):
+            raise Invalid("PII-Audit: erkannte Bildbereiche zuerst vollständig maskieren.")
         with self.store.connect() as db:
             row = db.execute("SELECT rendered FROM media_history WHERE id=? AND revision=?", (aid,revision)).fetchone()
         if not row[0]:

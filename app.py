@@ -1,6 +1,7 @@
 """oneSCM-360: local, single-user outline and document prototype."""
 from __future__ import annotations
 import dashboard
+import pii_audit
 import ocr_records
 import content_flags
 import image_activation
@@ -463,6 +464,8 @@ def profile_caption(p):
 
 
 def office_export(plan, fmt, media_loader=None, template_bytes=None):
+    pii_audit.guard(plan)
+    pii_audit.guard_template(template_bytes)
     output = io.BytesIO()
     caption = profile_caption(plan["profile"])
     output_label = "PRÜFAUSGABE" if plan.get("draft", True) else "FREIGEGEBENE AUSGABE"
@@ -721,6 +724,7 @@ class Store:
         self.source_design = source_design.SourceDesign(self)
         self.agent_hub = agent_hub.Hub(self)
         self.content_flags = content_flags.Flags(self)
+        self.pii_audit = pii_audit.Audit(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10, factory=ClosingConnection)
@@ -977,6 +981,7 @@ def make_server(store, port=8765):
                 if path == "/api/image-activation/save":return self.send(200,image_activation.save(store,data))
                 if path == "/api/content-flags/list":return self.send(200,store.content_flags.listing())
                 if path == "/api/content-flags/process":return self.send(200,store.content_flags.process(data))
+                if path == "/api/audit/scan":return self.send(200,store.pii_audit.scan())
                 if path == "/api/dashboard":
                     return self.send(200, dashboard.snapshot(store))
                 if path == "/api/chat/list":

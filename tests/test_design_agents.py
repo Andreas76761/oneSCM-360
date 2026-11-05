@@ -46,7 +46,7 @@ class DesignAgentTests(unittest.TestCase):
   o,e=self.setup_outline_library()
   job=self.store.agent_hub.start({'outline_id':o['id'],'sources':[self.source['id']],'library_ref':{'id':e['id'],'revision':e['revision']},'agents':[a['id'] for a in agent_hub.CATALOG],'target_language':'en'})
   while job['status']=='queued':job=self.store.agent_hub.step({'id':job['id'],'revision':job['revision']})
-  self.assertEqual(job['index'],8);self.assertEqual(job['status'],'review');self.assertEqual(len(job['reports']),8)
+  self.assertEqual(job['index'],9);self.assertEqual(job['status'],'review');self.assertEqual(len(job['reports']),9)
   self.assertTrue(job['translation']['prompt']);self.assertEqual(job['translation']['proposal'],'')
   self.assertIn('render_request',job['reports'][-1])
   job=self.store.agent_hub.translation({'id':job['id'],'revision':job['revision'],'text':'Open the contract after approval.'})

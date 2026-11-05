@@ -218,3 +218,8 @@ Interne Sprach-/Datums-/Versionsflags dauerhaft gespeichert, manuell bestätigba
 ## Nachtrag v0.8.4 · 05.11.2026
 
 OCR-Zeilen, Positionen und Revisionen dauerhaft gespeichert. Bekannte PII-Zeilen und markierte Bereiche werden ausgeschlossen; keine Garantie vollständiger PII-Erkennung. Interne RAG-Suche berücksichtigt nur aktuelle OCR-Ergebnisse. Leserexport bleibt ausgeschlossen. Semantisches RAG und fachliche Mehrsprachenabnahme bleiben offen.
+
+
+## Nachtrag v0.9.0
+
+Audit Agent, regelbasierte Exportblockade für PII-Kandidaten und Prüfung bekannter OCR-Bereiche implementiert. Keine Garantie vollständiger PII-Erkennung; visuelle Prüfung und Bereinigung eigener Office-Vorlagen notwendig. Drei anpassbare Designpresets umgesetzt, keine automatische redaktionelle Umstrukturierung.

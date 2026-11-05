@@ -27,14 +27,14 @@ with tempfile.TemporaryDirectory() as folder:
    with page.expect_download() as event:page.locator('#design-export').click()
    assert Path(event.value.path()).read_bytes().startswith(b'PK')
    assert store.all()==[]
-   page.locator('#design-cancel').click();page.locator('#agents-button').click();expect(page.locator('#agents-catalog tbody tr')).to_have_count(8)
+   page.locator('#design-cancel').click();page.locator('#agents-button').click();expect(page.locator('#agents-catalog tbody tr')).to_have_count(9)
    page.locator('#agents-catalog input:checked').evaluate_all('(els)=>els.forEach(e=>e.checked=false)');page.locator('#agents-catalog [value=translation]').check();page.locator('#agents-catalog [value=knowledge]').check()
    value=page.locator('#agents-library option').nth(1).get_attribute('value');page.locator('#agents-library').select_option(value)
    page.locator('#agents-start').click();expect(page.locator('#agents-run')).to_be_visible();page.locator('#agents-run').click();expect(page.locator('#agent-translation-prompt')).to_contain_text('Vertrag nach Freigabe')
    page.locator('#agent-translation-result').fill('Open the contract after approval.');page.locator('#agent-translation-save').click();expect(page.locator('#agents-detail')).to_contain_text('Ungeprüfter Vorschlag')
    page.locator('#agent-translation-reviewed').check();page.locator('#agent-translation-accept').click();expect(page.locator('#message')).to_contain_text('Bibliotheksentwurf')
    translated=next(e for e in store.library.listing() if e['id']!=entry['id']);assert translated['block']['status']=='Entwurf'
-   proposal=page.locator('.agent-proposal[data-stage=knowledge]');proposal.locator('[data-field=title]').fill('Reviewed knowledge');proposal.locator('[data-field=text]').fill('Geprüfter Wissensentwurf.');proposal.locator('[data-field=reviewed]').check();proposal.locator('[data-accept-proposal]').click();expect(proposal.locator('[data-accept-proposal]')).to_be_disabled()
+   proposal=page.locator('.agent-proposal[data-stage=knowledge]');proposal.locator('[data-field=title]').fill('Reviewed knowledge');proposal.locator('[data-field=text]').fill('Geprüfter Wissensentwurf.');proposal.locator('[data-field=reviewed]').check();proposal.locator('[data-accept-proposal]').click();expect(proposal.locator('legend')).to_contain_text('übernommen')
    assert any(e['title']=='Reviewed knowledge' and e['block']['status']=='Entwurf' for e in store.library.listing())
    assert not errors,errors
    browser.close()
