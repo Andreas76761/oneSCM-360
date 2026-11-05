@@ -819,3 +819,15 @@ Unter **Design → Farbpalette / Startvorlage** auswählen und **Designvorlage e
 | Quick Reference · Action Cards | Aptos 12 pt, Kapitel 22 pt, Unterkapitel 17 pt; Petrol/Anthrazit; kompakter Abstand | Voraussetzungen, kurze Schritte, Prüfergebnis und Tipps |
 
 Dies sind anpassbare Designpresets. Sie erzeugen keine fehlenden Kapiteltexte, keine automatische Kartenanordnung und garantieren keine feste Seitenzahl. Aptos muss auf dem Zielrechner vorhanden sein; PDF kann eine verfügbare Ersatzschrift verwenden. Druck- und Office-Abnahme bleiben erforderlich.
+
+## 30. Anhang: fünf Register und drei Sprachen (v0.10.0)
+
+Links **Anhang · 5 Register** öffnen. Die Register sind **Glossar**, **Abkürzungsverzeichnis**, **Synonyme**, **FAQs** und **Vorschau**. Die ersten vier verwalten Inhalte, die Vorschau zeigt die daraus entstehenden Lesertexte.
+
+Jeder Eintrag besitzt Deutsch, Englisch und Französisch, jeweils mit Begriff/Frage und Erklärung/Antwort sowie eigener fachlicher Bestätigung. Bei Synonymen die Alternativen im Erklärungsfeld pflegen; bei Abkürzungen die Langform und Bedeutung. Fehlende Sprachfassungen bleiben leer; es erfolgt keine automatische Übersetzung. Änderungen an Begriff oder Text heben die Bestätigung im Formular auf.
+
+**Interner Vermerk** wird dauerhaft gespeichert und nie in Anhangskapitel kopiert. **Nur intern** schließt den gesamten Eintrag aus Dokumenten aus. Neue Einträge sind zunächst intern. Der Audit Agent berücksichtigt auch Anhangstexte und interne Vermerke. Lesertexte unterliegen bei Export weiterhin der PII-Sperre.
+
+In **Vorschau** die Sprache wechseln. Es erscheinen ausschließlich bestätigte, nicht interne Sprachfassungen; fehlende oder ungeprüfte Dokumentfassungen werden gezählt. Zielgliederung wählen und die Übernahme bestätigen. Alle geprüften DE/EN/FR-Fassungen werden als neuer Gliederungsstand eingebunden; das Ausgabeprofil wählt später die Sprache. Word, PowerPoint, PDF und HTML werden über den bestehenden Ausgabeweg erzeugt. Umfangs- und Dokumenttypfilter gelten weiterhin, etwa für FAQs in kompakten Ausgaben.
+
+Beim Aktualisieren werden nur die durch diese Funktion verwalteten Anhangskapitel ersetzt. Manuelle Änderungen darin gehen verloren; die vorherige Gliederungsrevision bleibt in der Historie. Andere bereits vorhandene Glossar-/FAQ-Kapitel bleiben erhalten, daher mögliche Doppelungen redaktionell prüfen. Katalogänderungen wirken nicht automatisch auf bereits eingebundene Kapitel: Vorschau neu laden und ausdrücklich aktualisieren. Nach Übernahme die Gliederung neu öffnen. Die Datenbank und Arbeitsbereichssicherung enthalten den Anhangskatalog.

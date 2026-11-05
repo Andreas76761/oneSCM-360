@@ -1,6 +1,7 @@
 """oneSCM-360: local, single-user outline and document prototype."""
 from __future__ import annotations
 import dashboard
+import appendices
 import pii_audit
 import ocr_records
 import content_flags
@@ -725,6 +726,7 @@ class Store:
         self.agent_hub = agent_hub.Hub(self)
         self.content_flags = content_flags.Flags(self)
         self.pii_audit = pii_audit.Audit(self)
+        self.appendices = appendices.Appendices(self)
 
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10, factory=ClosingConnection)
@@ -919,6 +921,7 @@ def make_server(store, port=8765):
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/appendices.js": ("appendices.js", "text/javascript; charset=utf-8"),
                       "/image_activation.js": ("image_activation.js", "text/javascript; charset=utf-8"),
                       "/content_flags.js": ("content_flags.js", "text/javascript; charset=utf-8"),
                       "/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
@@ -981,6 +984,9 @@ def make_server(store, port=8765):
                 if path == "/api/image-activation/save":return self.send(200,image_activation.save(store,data))
                 if path == "/api/content-flags/list":return self.send(200,store.content_flags.listing())
                 if path == "/api/content-flags/process":return self.send(200,store.content_flags.process(data))
+                if path in ["/api/appendices/save","/api/appendices/preview","/api/appendices/attach"]:
+                    return self.send(200,getattr(store.appendices,path.rsplit("/",1)[-1])(data))
+                if path == "/api/appendices/state":return self.send(200,store.appendices.state())
                 if path == "/api/audit/scan":return self.send(200,store.pii_audit.scan())
                 if path == "/api/dashboard":
                     return self.send(200, dashboard.snapshot(store))

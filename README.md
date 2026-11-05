@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.9.0 · Stand 05.11.2026**
+**Prototyp 0.10.0 · Stand 05.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -312,3 +312,8 @@ OCR-Ausbau v0.8.4: persistierte interne Zeilenfundstellen mit Positionen, Bildre
 ## Neu in v0.9.0
 
 Neunter Agent: Audit Agent mit internen PII-Fundstellen. Aktuelle Lesertexte werden vor Export regelbasiert geprüft; Treffer blockieren die Ausgabe. Bekannte unmaskierte OCR-Bereiche werden ebenfalls abgefangen. Drei Design-Startvorlagen für Handbuch, Releaseletter und Quick Reference stehen im Designstudio bereit. Grenzen und Bedienung: Kapitel 28–29 der Dokumentation.
+
+
+## Neu in v0.10.0
+
+Anhang mit fünf Registern: Glossar, Abkürzungen, Synonyme, FAQs und Vorschau. Persistente DE/EN/FR-Sprachfassungen mit getrennter Bestätigung, internen Vermerken und expliziter Übernahme in Gliederungen. Interne Einträge und Vermerke werden nicht in Lesertexte kopiert. Bedienung: Kapitel 30.

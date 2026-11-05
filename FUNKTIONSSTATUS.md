@@ -223,3 +223,8 @@ OCR-Zeilen, Positionen und Revisionen dauerhaft gespeichert. Bekannte PII-Zeilen
 ## Nachtrag v0.9.0
 
 Audit Agent, regelbasierte Exportblockade für PII-Kandidaten und Prüfung bekannter OCR-Bereiche implementiert. Keine Garantie vollständiger PII-Erkennung; visuelle Prüfung und Bereinigung eigener Office-Vorlagen notwendig. Drei anpassbare Designpresets umgesetzt, keine automatische redaktionelle Umstrukturierung.
+
+
+## Nachtrag v0.10.0
+
+Fünf Anhangsregister mit DE/EN/FR-Einträgen, internen Vermerken und sprachbezogener Bestätigung umgesetzt. Leser-Vorschau ohne interne Daten; geprüfte Sprachfassungen ausdrücklich als Gliederungsrevision einbindbar. Keine automatische Übersetzung und keine automatische Synchronisierung bereits übernommener Kapitel. Audit prüft auch den Anhangskatalog.

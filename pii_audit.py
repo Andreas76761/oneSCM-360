@@ -40,6 +40,8 @@ class Audit:
   from app import now
   from knowledge_review import digest
   records=self.store.content_flags.records()
+  for e in self.store.appendices.listing():
+   records.append({'ref':'appendix:'+e['id'],'title':'Anhang '+e['kind'],'text':'\n'.join([e['note'],*[t['title']+'\n'+t['text'] for t in e['translations'].values()]]),'fingerprint':digest(e)})
   for e in self.store.library.listing():records.append({'ref':'library:'+e['id'],'title':e['title'],'text':e['block']['text']+'\n'+e['block'].get('note',''),'fingerprint':digest(e)})
   for o in self.store.all():
    for c in o['chapters']:
