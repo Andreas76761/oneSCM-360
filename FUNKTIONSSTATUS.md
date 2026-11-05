@@ -203,3 +203,8 @@ Prüfung v0.8.0: 145 lokale automatisierte Tests erfolgreich, darunter socketfre
 - Chromium: Design ohne Gliederung, Vorher/Nachher, Patterns, Übersetzungs- und Wissensübernahme sowie Publikations- und RAG-Abläufe erfolgreich.
 - Die frühere automatische Freigabeblockade ist aufgehoben. Frühere Hinweise auf fehlende Browserprüfung betreffen den damaligen Stand.
 - Offen bleiben Windows-/Microsoft-Office-Abnahme, produktive Fachprüfung über drei Sprachen und zwei Rollen, persistierte OCR und semantisches RAG.
+
+
+## Nachtrag v0.8.2 · 05.11.2026
+
+Dashboard mit Dokument-/Bildanzahl, Zusatzkennzahlen, Dateitypverteilung, Anwendungsbedarf und Laufwerksbelegung umgesetzt. Read-only, keine Löschung oder Speicherbereinigung. Browserprüfung für Leerzustand, Aktualisierung und Speicheranzeige erfolgreich. OCR-Persistierung, semantisches RAG und fachliche Mehrsprachenprüfung sind weiterhin offen; diese Version ergänzt ausschließlich das Dashboard.

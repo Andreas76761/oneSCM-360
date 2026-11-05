@@ -763,3 +763,10 @@ werden; der Orchestrator veröffentlicht nichts automatisch.
 4. Übernahmen werden im internen Auftragsbericht protokolliert. Die Schaltfläche wird danach gesperrt. Geänderte Ausgangsstände erfordern einen neuen Auftrag. Nach einer Bildzuordnung die Gliederung neu öffnen.
 
 Die Übernahme erfolgt einzeln und atomar. Ein Fehler hinterlässt keine halbe Zuordnung. Sie veröffentlicht keine Inhalte. Der bestehende manuelle Übersetzungsablauf bleibt verfügbar.
+
+
+## 24. Dashboard (v0.8.2)
+
+Links **Dashboard** öffnen. Die Kennzahlen werden beim Öffnen neu geladen und lassen sich jederzeit über **Kennzahlen aktualisieren** erneuern. Dokumente zählen gespeicherte Quellen; Gliederungen und Ausgaben werden separat ausgewiesen. Bilder zählen Medienregister-Einträge einschließlich archivierter Bilder, nicht deren Revisionen. Eingebettete Bilder zählen erst nach Extraktion.
+
+Der Anwendungsbedarf umfasst die aktive Datenbank samt Journal-/WAL-Begleitdateien, einschließlich Quellen, Bilder und Revisionen. Programmdateien, heruntergeladene Dokumente und externe Sicherungen sind ausgeschlossen. Gesamtspeicher und belegter/freier Speicher beziehen sich auf das Laufwerk des Datenbankservers, bei lokalem Windows-Betrieb also auf das entsprechende lokale Laufwerk. Intern wiederverwendbarer Datenbankplatz ist bereits im Anwendungsbedarf enthalten und darf nicht addiert werden. Löschen verkleinert die Datenbankdatei nicht automatisch.

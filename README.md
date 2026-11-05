@@ -1,6 +1,6 @@
 # oneSCM-360 · Dokumentstudio
 
-**Prototyp 0.8.1 · Stand 04.11.2026**
+**Prototyp 0.8.2 · Stand 05.11.2026**
 
 Lokale Plattform für Gliederungen, wiederverwendbare Texte, Quellen und Screens.
 Aus derselben Wissensbasis entstehen rollen-, markt-, sparten- und sprachabhängige
@@ -294,3 +294,8 @@ geprüfte Screens können neuen oder bestehenden Kapiteln zugeordnet werden.
 Prüfstand v0.8.1: 151 automatisierte Tests einschließlich HTTP erfolgreich. Chromium-Abnahmen für Designstudio/Agenten, Publikation und RAG erfolgreich. Windows-/Microsoft-Office-Abnahme bleibt offen.
 
 Neu in v0.8.1: Klassifikations-, Wissens- und Medienvorschläge im Orchestrator bearbeiten, ausdrücklich prüfen und einzeln übernehmen. Herkunft, Übernahmezeit und Ziel werden protokolliert. Doppelte Übernahmen und veraltete Eingaben werden abgefangen; Wissensobjekte bleiben Entwürfe.
+
+
+## Dashboard v0.8.2
+
+Das neue Register **Dashboard** zeigt Dokument-/Quellenanzahl, Bilder, freigegebene PII-geprüfte Bilder, Gliederungen, Chunks, Bibliotheksbausteine und gespeicherte Ausgaben. Die Speicheranzeige unterscheidet Anwendungsdaten (Datenbank samt Begleitdateien) und Gesamt-/Belegt-/Freispeicher des Datenbanklaufwerks. Mit **Kennzahlen aktualisieren** werden die Werte neu ermittelt.

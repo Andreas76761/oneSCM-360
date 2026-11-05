@@ -1,5 +1,6 @@
 """oneSCM-360: local, single-user outline and document prototype."""
 from __future__ import annotations
+import dashboard
 
 import argparse
 import base64
@@ -909,6 +910,7 @@ def make_server(store, port=8765):
                                        "chunk_index": store.sources.index(),
                                        "roles": ROLES, "scopes": SCOPES, "languages": LANGUAGES})
             static = {"/agents.js": ("agents.js", "text/javascript; charset=utf-8"),
+                      "/dashboard.js": ("dashboard.js", "text/javascript; charset=utf-8"),
                       "/rag.js": ("rag.js", "text/javascript; charset=utf-8"),
                       "/source_collection.js": ("source_collection.js", "text/javascript; charset=utf-8"),
                       "/workspace_tools.js": ("workspace_tools.js", "text/javascript; charset=utf-8"),
@@ -964,6 +966,8 @@ def make_server(store, port=8765):
                 if not isinstance(data, dict):
                     raise Invalid("Ungültige Anfrage.")
                 path = urlparse(self.path).path
+                if path == "/api/dashboard":
+                    return self.send(200, dashboard.snapshot(store))
                 if path == "/api/chat/list":
                     return self.send(200, store.chat.listing())
                 if path == "/api/chat/get":
