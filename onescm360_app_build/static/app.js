@@ -764,6 +764,143 @@
     } finally { button.disabled = false; }
   });
 
+  // ---------- Interner Chat ----------
+  let chatInfo = null;
+  const CHAT_EXAMPLES = ["Warum ist CH01 blockiert?", "Wie ist die Coverage von CH01?", "Was darf der Dealer bei Aufträgen?",
+    "Zeige unbelegte kritische Claims", "Was bedeutet PI?", "Welche Konflikte sind offen?", "Was sagt Jira zu ONESCM-123?"];
+
+  loaders.chat = async () => {
+    if (!chatInfo) {
+      chatInfo = await api("/api/chat/info");
+      $("chat-tools").replaceChildren(...chatInfo.tools.map((t) => el("li", { title: t.description }, el("code", { text: t.name }), " – ", t.label)));
+      $("chat-examples").replaceChildren(...CHAT_EXAMPLES.map((q) => el("button", { type: "button", text: q, onclick: () => sendChat(q) })));
+      updateRouterInfo();
+    }
+    if (!$("chat-log").children.length) $("chat-log").append(el("div", { class: "chat-empty", text: "Stellen Sie eine Frage zum internen Wissensbestand – oder wählen Sie ein Beispiel." }));
+  };
+  function updateRouterInfo() {
+    if (!chatInfo) return;
+    $("chat-router-info").textContent = $("chat-mode").value === "model"
+      ? `Modell „${chatInfo.router.model}“ unter ${chatInfo.router.url} (nur localhost; ONESCM_ROUTER_URL / ONESCM_ROUTER_MODEL). Ist es nicht erreichbar, antwortet der Regel-Router.`
+      : "Regelbasierte Zuordnung – ohne KI-Modell, offline und reproduzierbar.";
+  }
+  $("chat-mode").addEventListener("change", updateRouterInfo);
+
+  function callText(call) {
+    return `${call.tool}(${JSON.stringify(call.arguments)})`;
+  }
+
+  async function goTo(link) {
+    if (!link) return;
+    if (link.tab === "claims") {
+      $("claim-chapter").value = link.chapterId || "";
+      showTab("claims");
+      await loaders.claims();
+      if (link.claimId) openClaim(link.claimId);
+      return;
+    }
+    if (link.tab === "coverage" && link.chapterId) $("cov-chapter").value = link.chapterId;
+    if (link.tab === "tables" && link.chapterId) $("tbl-chapter").value = link.chapterId;
+    showTab(link.tab);
+  }
+
+  function resultItem(item) {
+    if (item.type === "metric") {
+      const fill = el("div", { class: "bar-fill" });
+      fill.style.width = `${Math.min(100, item.value)}%`;
+      return el("li", {}, el("div", { class: "metric" }, el("span", { text: item.label }), el("div", { class: "bar" }, fill), el("strong", { text: pct(item.value) })));
+    }
+    if (item.type === "query") {
+      return el("li", {}, el("span", { class: "label mono", text: item.label }),
+        el("button", { type: "button", class: "small", text: "Kopieren", onclick: async () => {
+          try { await navigator.clipboard.writeText(item.label); toast("Suchanfrage kopiert."); } catch { toast("Kopieren nicht möglich – bitte markieren.", true); }
+        } }));
+    }
+    const link = item.type === "claim" ? { tab: "claims", chapterId: item.chapterId, claimId: item.id }
+      : item.type === "conflict" ? { tab: "coverage", chapterId: item.chapterId }
+      : item.type === "table" ? { tab: "tables", chapterId: item.chapterId }
+      : item.type === "import" ? { tab: "dashboard" } : null;
+    return el("li", { class: link ? "clickable" : "", title: link ? "Im Register öffnen" : null, onclick: link ? () => goTo(link) : null },
+      item.id ? el("span", { class: "mono", text: item.id }) : null,
+      item.chapterId ? el("span", { class: "mono", text: item.questionId || item.chapterId }) : null,
+      el("span", { class: "label", text: item.label }),
+      item.role ? el("span", { class: "badge", text: labelFor.role(item.role) }) : null,
+      item.criticality ? badge(item.criticality) : null,
+      item.status ? badge(item.status) : null,
+      item.evidence !== undefined ? el("span", { class: "muted", text: `Evidence ${Number(item.evidence).toFixed(2).replace(".", ",")}` }) : null);
+  }
+
+  function feedbackBar(answer) {
+    const box = el("div", { class: "feedback" }, "Passt die Funktion?");
+    const done = (text) => box.replaceChildren(el("span", { text }));
+    const send = async (tool, correct) => {
+      try {
+        await api("/api/chat/feedback", { method: "POST", body: { message: answer.message, tool, arguments: tool === answer.call.tool ? answer.call.arguments : {}, correct } });
+        done(correct && tool === answer.call.tool ? "✓ Als Trainingsbeispiel gespeichert." : `✓ Korrektur „${tool}“ als Trainingsbeispiel gespeichert.`);
+      } catch (e) { toast(e.message, true); }
+    };
+    const select = el("select", { "aria-label": "Richtige Funktion" });
+    fillSelect(select, chatInfo.tools.map((t) => t.name).filter((n) => n !== answer.call.tool), { empty: "andere Funktion wählen …" });
+    select.addEventListener("change", () => { if (select.value) send(select.value, true); });
+    if (answer.call.tool !== "none") box.append(el("button", { type: "button", class: "small", text: "✓ Ja", onclick: () => send(answer.call.tool, true) }));
+    box.append(select);
+    return box;
+  }
+
+  function renderAnswer(answer) {
+    const parts = [
+      el("div", {}, el("span", { class: "call", text: answer.call.tool === "none" ? "keine Funktion" : callText(answer.call) }),
+        el("span", { class: "call-meta", text: answer.router === "model" ? "Router: lokales Modell" : "Router: Regeln" })),
+      ...answer.notes.map((n) => el("div", { class: "note", text: n })),
+      el("h3", { text: answer.title }),
+      el("p", { text: answer.text }),
+    ];
+    if (answer.items && answer.items.length) parts.push(el("ul", { class: "result-list" }, answer.items.map(resultItem)));
+    if (answer.suggestion) parts.push(el("div", { class: "muted" }, "Vorschlag: ", el("span", { class: "mono", text: callText(answer.suggestion) })));
+    if (answer.link) parts.push(el("div", { class: "actions" }, el("button", { type: "button", class: "small secondary", text: "Im Register öffnen", onclick: () => goTo(answer.link) })));
+    parts.push(feedbackBar(answer));
+    return el("div", { class: "msg bot", dataset: { tool: answer.call.tool } }, parts);
+  }
+
+  async function sendChat(text) {
+    const message = (text ?? $("chat-input").value).trim();
+    if (!message) return;
+    await loaders.chat();
+    const log = $("chat-log");
+    log.querySelector(".chat-empty")?.remove();
+    log.append(el("div", { class: "msg user", text: message }));
+    const pending = el("div", { class: "msg bot pending", text: "Router wählt eine Funktion …" });
+    log.append(pending);
+    log.scrollTop = log.scrollHeight;
+    $("chat-input").value = "";
+    $("chat-send").disabled = true;
+    try {
+      const answer = await api("/api/chat", { method: "POST", body: { message, mode: $("chat-mode").value } });
+      pending.replaceWith(renderAnswer(answer));
+    } catch (e) {
+      pending.replaceWith(el("div", { class: "msg bot" }, el("div", { class: "note", text: e.message })));
+    } finally {
+      $("chat-send").disabled = false;
+      log.scrollTop = log.scrollHeight;
+      $("chat-input").focus();
+    }
+  }
+  $("chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat(); });
+  $("chat-input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+  $("chat-eval").addEventListener("click", async () => {
+    const button = $("chat-eval");
+    button.disabled = true;
+    $("chat-eval-result").replaceChildren(el("p", { class: "muted", text: "Router-Test läuft …" }));
+    try {
+      const r = await api("/api/chat/evaluate", { method: "POST", body: { mode: $("chat-mode").value } });
+      const failed = r.results.filter((x) => !x.ok);
+      $("chat-eval-result").replaceChildren(
+        el("div", { class: `alert ${failed.length ? "warn" : "ok"}`, id: "chat-eval-score", text: `Success: ${r.passed} / ${r.total}` }),
+        failed.length ? el("ul", { class: "list" }, failed.map((f) => el("li", {}, `„${f.message}“: erwartet `, el("code", { text: f.expected.tool }), ", erhalten ", el("code", { text: callText(f.actual) })))) : "");
+    } catch (e) { $("chat-eval-result").replaceChildren(el("div", { class: "alert error", text: e.message })); }
+    finally { button.disabled = false; }
+  });
+
   // ---------- Dokumentation ----------
   loaders.docs = async () => {
     const { readme } = await api("/api/docs");

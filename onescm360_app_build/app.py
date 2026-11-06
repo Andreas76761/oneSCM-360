@@ -16,6 +16,7 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from services import claim_service, conflict_service, coverage_service
 from services.chapter_service import ChapterError, ChapterService
+from services.chat_service import ChatError, ChatService
 from services.classification_service import ClassificationError, ClassificationService
 from services.export_service import ExportService, table_csv
 from services.import_service import LANGUAGES, MAX_BYTES, ImportError_, ImportService
@@ -81,6 +82,7 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.errorhandler(RuleError)
     @app.errorhandler(KnowledgeError)
+    @app.errorhandler(ChatError)
     def domain_error(exc):
         return jsonify(error=str(exc)), exc.status
 
@@ -134,6 +136,11 @@ def create_app(config: dict | None = None) -> Flask:
                     record["gate"] = gate
                     imports.save(record)
         return snapshot
+
+    chat = ChatService(data, knowledge, imports, rules, classification, compute_coverage, chapters, ROOT / "chat_eval.json",
+                       config.get("ROUTER_URL", os.environ.get("ONESCM_ROUTER_URL", "")),
+                       config.get("ROUTER_MODEL", os.environ.get("ONESCM_ROUTER_MODEL", "")))
+    app.extensions["onescm"]["chat"] = chat
 
     # -- pages ---------------------------------------------------------------------------
     @app.get("/")
@@ -370,6 +377,33 @@ def create_app(config: dict | None = None) -> Flask:
             record["exportedAt"] = result["manifest"]
             imports.save(record)
         return jsonify(result), 201
+
+    # -- internal chat bot ------------------------------------------------------------------------
+    @app.get("/api/chat/info")
+    def chat_info():
+        return jsonify(chat.info())
+
+    @app.post("/api/chat")
+    def chat_ask():
+        payload = body()
+        return jsonify(chat.ask(str(payload.get("message", "")), str(payload.get("mode", "rules"))))
+
+    @app.post("/api/chat/feedback")
+    def chat_feedback():
+        return jsonify(chat.feedback(body())), 201
+
+    @app.post("/api/chat/evaluate")
+    def chat_evaluate():
+        return jsonify(chat.evaluate(str(body().get("mode", "rules"))))
+
+    @app.get("/api/chat/training-data")
+    def chat_training_data():
+        fmt = request.args.get("format", "notebook")
+        if fmt not in ("notebook", "messages"):
+            return jsonify(error="Format muss notebook oder messages sein."), 400
+        content = chat.training_data(fmt).encode("utf-8")
+        return send_file(io.BytesIO(content), mimetype="application/jsonl", as_attachment=True,
+                         download_name=f"onescm360_router_{fmt}.jsonl")
 
     # -- consumption & docs ------------------------------------------------------------------------
     @app.get("/api/consumption/confirmed")

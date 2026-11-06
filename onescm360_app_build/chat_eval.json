@@ -1,0 +1,29 @@
+{
+  "description": "Router-Testsatz (wie check_success_rate im FunctionGemma-Notebook). Getrennt von den Trainingsdaten halten.",
+  "cases": [
+    {"message": "Was darf der Händler bei einer Vertragsstornierung tun?", "tool": "search_knowledge", "arguments": {"role": "Dealer"}},
+    {"message": "Welche Regeln gelten für Preisänderungen im Finance Management?", "tool": "search_knowledge", "arguments": {"domain": "finance-management"}},
+    {"message": "Was wissen wir über die Laufzeit von Serviceverträgen in Kapitel 2?", "tool": "search_knowledge", "arguments": {"chapter": "CH02"}},
+    {"message": "Welche Aufgaben hat Market Operations bei der Rechnungsprüfung?", "tool": "search_knowledge", "arguments": {"role": "MO"}},
+    {"message": "Wie steht CH01 aktuell da?", "tool": "get_coverage", "arguments": {"chapter": "CH01"}},
+    {"message": "Readiness von Kapitel 3 bitte", "tool": "get_coverage", "arguments": {"chapter": "CH03"}},
+    {"message": "Wie gut sind die Rollen in CH01 abgedeckt?", "tool": "get_coverage", "arguments": {"chapter": "CH01", "dimension": "roles"}},
+    {"message": "Was hält das Gate von CH05 auf, warum ist es blocked?", "tool": "list_blockers", "arguments": {"chapter": "CH05"}},
+    {"message": "Gibt es Widersprüche in CH01?", "tool": "list_conflicts", "arguments": {"chapter": "CH01"}},
+    {"message": "Zeig mir alle offenen Konflikte", "tool": "list_conflicts", "arguments": {"status": "OPEN"}},
+    {"message": "Welche kritischen Aussagen haben noch keinen Nachweis?", "tool": "find_claims", "arguments": {"criticality": "CRITICAL", "evidence": "missing"}},
+    {"message": "Liste die bestätigten Claims aus CH01", "tool": "find_claims", "arguments": {"chapter": "CH01", "validation_status": "CONFIRMED"}},
+    {"message": "Welche Claims stützen sich nur auf Rovo?", "tool": "find_claims", "arguments": {"evidence": "indirect"}},
+    {"message": "Zeige CLM-1A2B3C4D", "tool": "get_claim", "arguments": {"claim_id": "CLM-1A2B3C4D"}},
+    {"message": "Wofür steht PI?", "tool": "lookup_rule", "arguments": {"term": "PI"}},
+    {"message": "Was heißt Eligibility?", "tool": "lookup_rule", "arguments": {"term": "Eligibility"}},
+    {"message": "Wie schreibt man onescm richtig? Schreibweise bitte", "tool": "lookup_rule"},
+    {"message": "Welche englischen Dateien wurden hochgeladen?", "tool": "list_imports", "arguments": {"language": "EN"}},
+    {"message": "Zeige die Importe für die Rolle HQ", "tool": "list_imports", "arguments": {"role": "HQ"}},
+    {"message": "Gibt es eine Tabelle zu Rollen und Rechten?", "tool": "search_tables"},
+    {"message": "Was steht in Jira zu ONESCM-123?", "tool": "search_external", "arguments": {"system": "jira", "query": "ONESCM-123"}},
+    {"message": "Such das bitte in Confluence: Release Notes PI17", "tool": "search_external", "arguments": {"system": "confluence"}},
+    {"message": "Frage Rovo, welche Märkte VAN nutzen", "tool": "search_external", "arguments": {"system": "rovo"}},
+    {"message": "Wie ist das Wetter in Stuttgart?", "tool": "search_external", "arguments": {"system": "web"}}
+  ]
+}

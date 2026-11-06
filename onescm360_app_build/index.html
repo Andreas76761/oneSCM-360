@@ -21,6 +21,7 @@
     <button data-tab="tables">Tabellen</button>
     <button data-tab="coverage">Coverage</button>
     <button data-tab="sync">Synchronisation</button>
+    <button data-tab="chat">Interner Chat</button>
     <button data-tab="docs">Dokumentation</button>
   </nav>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
@@ -174,6 +175,39 @@
           <li>CSV-Dateien manuell in die SharePoint-Listen „oneSCM Knowledge Blocks“, „Claims“, „Evidence“ und „Coverage“ übernehmen.</li>
         </ol>
         <p class="muted">Cloudstatus im manuellen Betriebsmodus: <strong>NOT_VERIFIABLE_WITHOUT_GRAPH</strong>.</p>
+      </div>
+    </section>
+
+    <!-- Interner Chat -->
+    <section id="tab-chat" class="panel" hidden aria-labelledby="h-chat">
+      <div class="panel-head"><h1 id="h-chat">Interner Chat</h1><span class="muted">Jede Frage wird genau einer Funktion zugeordnet (Router) und auf den lokalen Daten ausgeführt. Der Chat ändert keine Daten.</span></div>
+      <div class="chat-layout">
+        <div class="card chat-main">
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+          <div id="chat-examples" class="chips"></div>
+          <form id="chat-form" class="chat-form" novalidate>
+            <textarea id="chat-input" rows="2" maxlength="2000" placeholder="Frage stellen, z. B. „Warum ist CH01 blockiert?“ – Enter sendet, Umschalt+Enter für neue Zeile" aria-label="Frage"></textarea>
+            <button type="submit" id="chat-send" class="primary">Senden</button>
+          </form>
+        </div>
+        <aside class="chat-side">
+          <div class="card">
+            <h2>Router</h2>
+            <label>Modus<select id="chat-mode"><option value="rules">Regeln (offline, nachvollziehbar)</option><option value="model">Lokales Modell (z. B. FunctionGemma über Ollama)</option></select></label>
+            <p class="muted" id="chat-router-info"></p>
+            <div class="actions"><button type="button" id="chat-eval" class="secondary">Router testen</button></div>
+            <div id="chat-eval-result"></div>
+          </div>
+          <div class="card">
+            <h2>Trainingsdaten</h2>
+            <p class="muted">Vorlagen über alle Kapitel, Rollen und Domänen plus Ihr Feedback aus dem Chat – im Format des FunctionGemma-Notebooks. Die Fragen des Router-Tests sind ausgeschlossen.</p>
+            <div class="actions"><a class="button-link" id="chat-train-notebook" href="/api/chat/training-data?format=notebook">JSONL (Notebook-Format)</a><a class="button-link" href="/api/chat/training-data?format=messages">JSONL (Chat-Format)</a></div>
+          </div>
+          <div class="card">
+            <h2>Funktionen</h2>
+            <ul id="chat-tools" class="tool-list"></ul>
+          </div>
+        </aside>
       </div>
     </section>
 

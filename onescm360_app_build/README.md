@@ -53,6 +53,7 @@ powershell.exe -ExecutionPolicy Bypass -File '.\start_onescm360.ps1' -OneDriveRo
 | Tabellen | Separat extrahierte Tabellen ansehen, Quellfrage zuordnen, als JSON oder CSV herunterladen. |
 | Coverage | Readiness, sechs Dimensionen, Gate, Hard Blocker, Konflikte (auflösen mit Begründung), Rollenabdeckung. |
 | Synchronisation | Verbindung zum lokalen OneDrive-Ordner, Ordnerstruktur anlegen, Kapitel exportieren, Hinweise zum manuellen SharePoint-Transfer. |
+| Interner Chat | Fragen in natürlicher Sprache. Ein Router ordnet jede Frage genau einer Funktion mit Parametern zu und führt sie auf den lokalen Daten aus (siehe unten). Nur lesend. |
 | Dokumentation | Diese Datei. |
 
 ## Fachliche Regeln
@@ -172,6 +173,50 @@ Hard Blocker:
 - widersprüchlicher Produktivstatus
 - gebrochene referentielle Integrität (auch `CHAPTER_MISMATCH` und `INVALID_JSON`)
 
+## Interner Chat (Router nach FunctionGemma-Prinzip)
+
+Vorbild ist das Google-Notebook „Fine-tuning with FunctionGemma“ (`google/functiongemma-270m-it`). Ein kleines Modell lernt dort, eine Frage dem richtigen Werkzeug zuzuordnen, im Beispiel interne Wissensbasis oder Google-Suche. Die Anwendung führt das Werkzeug danach aus.
+
+So arbeitet der Chat:
+
+1. Ein **Router** macht aus der Frage genau einen Funktionsaufruf, z. B. `get_coverage({"chapter": "CH01"})`.
+2. Die App führt die Funktion auf den lokalen Daten aus. Die Antwort zeigt den Aufruf und das Ergebnis mit Links in die Register.
+3. Der Chat ändert keine Daten.
+4. Antworten aus Claims mit Status `DRAFT` oder `REVIEWED` sind als nicht bestätigt markiert. Abgelehnte Claims erscheinen nie.
+
+| Funktion | Zweck |
+|---|---|
+| `search_knowledge` | internes Wissen durchsuchen (optional Kapitel, Rolle, Domäne) |
+| `get_coverage` | Readiness, Gate und Dimensionen eines Kapitels |
+| `list_blockers` | Hard Blocker eines Kapitels |
+| `list_conflicts` | Konflikte, optional nach Status |
+| `find_claims` | Claims nach Kapitel, Status, Evidence (`missing`/`indirect`/`direct`), Rolle, Kritikalität |
+| `get_claim` | einen Claim mit Evidence |
+| `lookup_rule` | Begriff im Regelwerk |
+| `list_imports` | Importe nach Kapitel, Sprache, Rolle, Domäne |
+| `search_tables` | Tabellen durchsuchen |
+| `search_external` | Jira, Confluence, Rovo oder Web |
+
+`search_external` wird erkannt, ist aber nicht angebunden, gemäß der Entscheidung „kein Graph, keine Tokens“. Der Chat liefert dann eine kopierbare Suchanfrage.
+
+### Router-Modi
+
+- **Regeln (Standard):** offline, ohne KI-Modell, reproduzierbar.
+- **Lokales Modell:** Das Modell wird über die Ollama-API `/api/chat` mit den Funktionsdeklarationen aufgerufen.
+  - Adresse und Modell kommen aus `ONESCM_ROUTER_URL` (Standard `http://127.0.0.1:11434`, nur localhost erlaubt) und `ONESCM_ROUTER_MODEL` (Standard `functiongemma`).
+  - Erkannt werden Ollama-`tool_calls` und das rohe FunctionGemma-Format `<start_function_call>call:…{…}<end_function_call>`.
+  - Unbekannte Funktionen und ungültige Parameter werden verworfen.
+  - Ist das Modell nicht erreichbar oder die Antwort ungültig, antwortet der Regel-Router und zeigt einen Hinweis.
+
+### Router-Test und Trainingsdaten
+
+- **Router testen:** prüft den gewählten Router gegen den Testsatz `chat_eval.json` mit 24 Fragen und zeigt `Success: x / 24`, wie `check_success_rate` im Notebook.
+- **Feedback:** Unter jeder Antwort bestätigen Sie die Funktion („✓ Ja“) oder wählen die richtige. Das Feedback landet in `data/chat_feedback.jsonl`.
+- **Trainingsdaten:** Der Export enthält Vorlagen über alle Kapitel, Rollen, Domänen und Regelwerksbegriffe sowie das bestätigte Feedback. Die Fragen des Testsatzes sind ausgeschlossen. Formate:
+  - Notebook-Format: `user_content`, `tool_name`, `tool_arguments` als JSON-String.
+  - Chat-Format: `messages` mit Rollen `developer`/`user`/`assistant` und `tool_calls` sowie `tools`.
+- Das Fine-Tuning selbst ist nicht Teil der App. Es läuft wie im Notebook mit Transformers/TRL `SFTTrainer`, z. B. in Colab.
+
 ## Export (OneDrive)
 
 Der Export legt bei Bedarf diese Struktur an:
@@ -261,6 +306,7 @@ onescm360_app_build/
 ├── static/                 app.js, style.css
 ├── rules.json              editierbares Regelwerk
 ├── classification.json     Rollen und Domänen für den Mehrfachimport
+├── chat_eval.json          Testsatz für den Chat-Router
 ├── chapters/CH01…CH16.json Kapitelkonfiguration (Fragen, Kritikalität, Rollen)
 ├── schemas/                import.schema.json, claim.schema.json
 ├── services/               import, docx/html parser, rules, claims, knowledge, conflicts, coverage, export
