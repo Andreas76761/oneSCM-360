@@ -370,7 +370,7 @@ def main():
             page.locator("#chat-mode").select_option("model")
             page.locator("#chat-input").fill("Berechne die Coverage für CH01")
             page.locator("#chat-send").click()
-            expect(last().locator(".note")).to_contain_text("Regel-Router")
+            expect(last().locator(".chat-note")).to_contain_text("Regel-Router")
             page.locator("#chat-mode").select_option("rules")
             with page.expect_download() as training:
                 page.locator("#chat-train-notebook").click()

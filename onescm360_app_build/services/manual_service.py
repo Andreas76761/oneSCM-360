@@ -56,6 +56,7 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
     title = f"oneSCM360 Handbuch – {chapter['chapterId']} {chapter['title']}"
     sources = sorted({r["sourceFile"]["name"] for r in imports if r.get("status") == "COMPLETED"})
     e = html.escape
+    readiness = f"{coverage['readiness']:.1f}".replace(".", ",")
     h = [f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>{e(title)}</title><style>"
          "body{font-family:'Segoe UI',Arial,sans-serif;max-width:900px;margin:32px auto;padding:0 20px;color:#1d2733;line-height:1.5}"
          "h1{font-size:24px}h2{font-size:18px;margin-top:28px;border-bottom:1px solid #dbe1e7;padding-bottom:4px}"
@@ -71,14 +72,14 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
          "<table class=\"meta\">",
          f"<tr><td>Stand</td><td>{now:%d.%m.%Y %H:%M}</td></tr>",
          f"<tr><td>Kapitelschema</td><td>{e(chapter.get('schemaStatus', ''))}</td></tr>",
-         f"<tr><td>Gate / Readiness</td><td>{e(coverage['gate'])} · {coverage['readiness']:.1f} %</td></tr>",
+         f"<tr><td>Gate / Readiness</td><td>{e(coverage['gate'])} · {readiness} %</td></tr>",
          f"<tr><td>Enthaltene Aussagen</td><td>{len(included)} ({', '.join(STATUS_TEXT[s] for s in sorted(allowed_status, key=list(STATUS_TEXT).index))})</td></tr>",
          f"<tr><td>Quellen</td><td>{e(', '.join(sources) or '—')}</td></tr>",
          "</table>"]
     if stage != "Released":
         h.append("<p class=\"empty\">Kein freigegebener Handbuchstand. Inhalte können sich noch ändern.</p>")
     md = [f"# {title}", "", f"**Stufe:** {stage} · **Stand:** {now:%d.%m.%Y %H:%M} · **Gate:** {coverage['gate']} · "
-          f"**Readiness:** {coverage['readiness']:.1f} %", "", f"Quellen: {', '.join(sources) or '—'}", ""]
+          f"**Readiness:** {readiness} %", "", f"Quellen: {', '.join(sources) or '—'}", ""]
 
     group = None
     answered = 0

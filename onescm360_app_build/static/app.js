@@ -965,7 +965,7 @@
     const parts = [
       el("div", {}, el("span", { class: "call", text: answer.call.tool === "none" ? "keine Funktion" : callText(answer.call) }),
         el("span", { class: "call-meta", text: answer.router === "model" ? "Router: lokales Modell" : answer.router === "confirmed" ? "bestätigt" : "Router: Regeln" })),
-      ...answer.notes.map((n) => el("div", { class: "note", text: n })),
+      ...answer.notes.map((n) => el("div", { class: "chat-note", text: n })),
       stepList(answer.steps && answer.steps.length > 1 || answer.denied ? answer.steps : null),
       el("h3", { text: answer.title }),
       el("p", { text: answer.text }),
@@ -1006,7 +1006,7 @@
       const answer = await chatApi("/api/chat", { message, mode: $("chat-mode").value });
       pending.replaceWith(renderAnswer(answer));
     } catch (e) {
-      pending.replaceWith(el("div", { class: "msg bot" }, el("div", { class: "note", text: e.message })));
+      pending.replaceWith(el("div", { class: "msg bot" }, el("div", { class: "chat-note", text: e.message })));
     } finally {
       $("chat-send").disabled = false;
       log.scrollTop = log.scrollHeight;
