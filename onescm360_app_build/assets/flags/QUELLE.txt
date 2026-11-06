@@ -1,0 +1,2 @@
+flag-icons 7.2.3 (4x3), https://flagicons.lipis.dev, MIT-Lizenz – siehe LICENSE.txt.
+Ausgewählt für oneSCM360: 12 Flaggen, unverändert übernommen.

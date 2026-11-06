@@ -208,27 +208,42 @@ Sie liegen in `design_templates.json`, bearbeitet wird die Kopie in `data\design
 - **Schriften:** für Überschriften und Fließtext, aus einer Liste Word-tauglicher Schriften.
 - **Typografie** je Element (Deckblatt-Titel und -Untertitel, Überschrift 1–3, Fließtext, Tabellenkopf und -inhalt, Hinweisbox, Bildunterschrift, Quellenzeile, Badges): Schrift, Größe, Schnitt, kursiv, Versalien, Zeilenabstand, Abstand vor und nach, Farbe.
 - **Farbpalette:** 20 Rollen, darunter Primär, Akzent, Statusfarben mit Flächen, Sparte PC und Sparte Van.
-- **Elemente:** Linie unter H1, Zebra-Zeilen, Tabellenkopf-Farbe, Zellinnenrand, Rahmen der Hinweisbox, Rundung der Badges, Seitenverhältnisse der Platzhalter, Quellenzeilen.
+- **Schnellvorlagen:** Farbschemata „Corporate Navy“, „Klar Grau“ und „Hoher Kontrast“ (Farben und Schriften) sowie eine Größenskala, die Überschriften aus Grundgröße × Skala (1,125 bis 1,333) berechnet.
+- **Layoutboxen (12):** Info, Tipp, Offen, Achtung, Konflikt, Nicht aktiviert, Belegt, Voraussetzung, Ergebnis, Quelle, Intern, Weiter mit. Je Box sind Icon (★ = empfohlene Alternativen), Rahmen- und Flächenfarbe, Titel, Beispieltext, Name der Word-Formatvorlage und Word-Symbol einstellbar.
+- **Elemente:** Linie unter H1, Zebra-Zeilen, Tabellenkopf-Farbe und -Stil (dunkel, hell, nur Linien), Zellinnenrand, Box-Stil (Balken, Rahmen, Fläche, Karte, minimal) mit Eckenradius und Innenabstand, Icon-Stil (Linie, gefüllt, Duo, ohne) und Strichstärke, Badge-Form (Pille, eckig, Kontur) und -Rundung, Seitenverhältnisse der Platzhalter (16:9, 16:10, 4:3, …), Quellenzeilen.
 - **Icons** je Verwendungszweck sowie Icon-Farbe und -Größe.
 
 Alle Eingaben werden gegen feste Listen bzw. Wertebereiche geprüft, so lässt sich weder CSS noch HTML einschleusen. Vorlagen lassen sich duplizieren, löschen, als JSON exportieren und importieren. Ausgelieferte Vorlagen lassen sich auf den Auslieferungszustand zurücksetzen. Jede Änderung wird gesichert, die letzten 30 Stände bleiben in `data\backups`.
 
 ### Ausgaben je Vorlage
 
-- **Design-Pattern (HTML):** Deckblatt, Metadaten-Tabelle, Typografie, Tabellen, Badges, Hinweisboxen, Platzhalter mit Callouts, Farbpalette, Icons. Offline lauffähig und druckbar.
+- **Design-Pattern (HTML):** Deckblatt, Metadaten-Tabelle, Typografie, Tabellen mit Rollen-Badges, Kennzeichnungen, Rollen und Länderflaggen, die 12 Layoutboxen, Platzhalter mit Callouts, Farbpalette, Icons je Verwendungszweck, Spezifikation je Layoutbox und die Icon-Bibliothek. Offline lauffähig und druckbar.
+- **CSS-Variablen:** Farben, Schriften, Größen und Box-Farben als `:root`-Variablen, z. B. für Confluence oder Webseiten.
 - **Word-Vorlage (.dotx) und Musterdokument (.docx):** mit diesen Formatvorlagen:
   - Standard, Titel, Untertitel, Untertitel EN
   - Überschrift 1–3 (Word-Standardnamen, also für Navigation und Inhaltsverzeichnis nutzbar), Beschriftung
-  - Quellenzeile, Hinweis Info / Tipp / Offen / Kritisch (linker Rahmen und Schattierung)
+  - Quellenzeile, Platzhalter Bild
+  - je Layoutbox eine Absatzvorlage (z. B. „Hinweis Tipp“, „Box Verweis“) mit Rahmen und Schattierung passend zum Box-Stil; Word kann in Formatvorlagen kein SVG speichern, darum steht dort das Word-Symbol vor dem Titel
   - Zeichenformat „Badge“, Tabellenformatvorlage „oneSCM Tabelle“
   - Seitenformat, Ränder, Spalten sowie Kopf- und Fußzeile mit Seitenzahlen
 
   Semibold gibt es in Word nur als Fett.
 - **Handbuchstand** im Register Synchronisation: wird mit der gewählten Designvorlage erzeugt. Er enthält Deckblatt, Metadaten, Hinweis zur Quellenbasis, die Box [OFFEN – VALIDIERUNG ERFORDERLICH] für nicht freigegebene Stände, Badges für Status (Offen, Geprüft) und Sparte (PC, Van, beide), Quellenzeilen sowie Kopf- und Fußzeile.
 
-### Icons
+### Icons und Flaggen
 
-33 einheitliche Linien-Icons (24 × 24, Strichstärke 1,8), für diese App gezeichnet, ohne Fremdlizenz. Sie sind gruppiert nach Hinweisen, Rollen & Organisation, Systemen & Prozessen, Dokumenten & Medien und Sparten. Sie laden sie einzeln oder als ZIP herunter, als SVG in der gewählten Farbe. In Word fügen Sie sie über Einfügen → Bilder → Dieses Gerät ein.
+Alle Icons sind 24 × 24 große Linien-Icons, die Galerie lässt sich nach Set filtern:
+
+| Set | Anzahl | Herkunft |
+|---|---|---|
+| oneSCM360 | 33 | für diese App gezeichnet (Hinweise, Rollen & Organisation, Systeme & Prozesse, Dokumente & Medien, Sparten) |
+| Dokumentsymbole | 40 | [Lucide](https://lucide.dev), ISC-Lizenz – z. B. Info, Tipp, Offen, Achtung, Kritisch, Erledigt, Gesperrt, Intern, Checkliste, Schrittfolge, Weiter mit, Quelle, Handbuch, Meilenstein, Workflow, Datenquelle |
+| Rollen | 6 | Lucide: Dealer (Store), MO (Briefcase), Markt (Globus), HQ (Gebäude), IT (Monitor mit Zahnrad), intern (Schloss) |
+| Flaggen | 12 | [flag-icons](https://flagicons.lipis.dev), MIT-Lizenz: DE, AT, CH, FR, IT, ES, NL, BE, GB, PL, US, EU |
+
+Die Dateien liegen in `assets/lucide` und `assets/flags`, jeweils mit `LICENSE.txt` und `QUELLE.txt`. Beim Laden werden die SVGs auf erlaubte Elemente reduziert. Icons laden Sie einzeln oder als ZIP herunter, als SVG in der gewählten Farbe; Flaggen bleiben mehrfarbig. Das ZIP enthält je Set einen Ordner und die Lizenztexte. In Word fügen Sie sie über Einfügen → Bilder → Dieses Gerät ein.
+
+Vorlagen, die mit einer älteren Version gespeichert wurden, werden beim Start automatisch ergänzt (Layoutboxen, Box-, Icon- und Tabellenstile). Eigene Werte bleiben erhalten, vorher wird eine Sicherung in `data\backups` angelegt.
 
 ## Interner Chat: Router, Security Policy, Tool Registry
 

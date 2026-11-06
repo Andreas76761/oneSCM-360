@@ -245,7 +245,18 @@
             <p class="muted">Platzhalter: <span id="ds-placeholders" class="mono"></span>. {page}/{pages} werden in Word zu Seitenzahl-Feldern.</p></details>
           <details class="card" open><summary>Schriften &amp; Typografie</summary><div class="form-grid" id="ds-fonts"></div>
             <div class="table-wrap"><table id="ds-typo"><thead><tr><th>Element</th><th>Schrift</th><th>Größe pt</th><th>Schnitt</th><th title="kursiv">K</th><th title="Versalien">V</th><th>Zeilen&shy;abstand</th><th>vor pt</th><th>nach pt</th><th>Farbe</th></tr></thead><tbody></tbody></table></div></details>
+          <details class="card"><summary>Schnellvorlagen: Farbschema &amp; Größenskala</summary>
+            <p class="muted">Farbschema setzt Primär-, Akzent-, Text- und Linienfarbe sowie die Schriften. Die Größenskala berechnet Überschriften aus Grundgröße × Skala (H3 = ×1, H2 = ×2, H1 = ×3 Stufen).</p>
+            <div class="actions" id="ds-schemes"></div>
+            <div class="form-grid">
+              <label>Grundgröße Fließtext (pt)<input type="number" id="ds-scale-base" min="9" max="13" step="0.5" value="11"></label>
+              <label>Größenskala<select id="ds-scale-ratio"><option value="1.125">1,125 dezent</option><option value="1.2">1,2 ausgewogen</option><option value="1.25" selected>1,25 klar</option><option value="1.333">1,333 kräftig</option></select></label>
+              <div class="actions"><button type="button" id="ds-scale-apply" class="secondary">Größenskala anwenden</button></div>
+            </div></details>
           <details class="card"><summary>Farbpalette</summary><div class="color-grid" id="ds-colors"></div></details>
+          <details class="card"><summary>Layoutboxen (12)</summary>
+            <p class="muted">★ = empfohlene Icons für die Box. Zweck und Einsatz sind fest, alles andere ist einstellbar. Das Word-Symbol ersetzt in Word das Icon.</p>
+            <div class="table-wrap"><table id="ds-boxes"><thead><tr><th>Box</th><th>Icon</th><th>Rahmen</th><th>Fläche</th><th>Titel</th><th>Beispieltext</th><th>Word-Formatvorlage</th><th>Symbol</th></tr></thead><tbody></tbody></table></div></details>
           <details class="card"><summary>Tabellen, Hinweisboxen, Badges, Platzhalter</summary><div class="form-grid" id="ds-elements"></div></details>
           <details class="card"><summary>Icons</summary><div class="form-grid" id="ds-icons"></div></details>
           <div id="ds-message"></div>
@@ -255,6 +266,7 @@
               <a class="button-link" id="ds-dl-pattern" href="#">Design-Pattern (HTML)</a>
               <a class="button-link" id="ds-dl-dotx" href="#">Word-Vorlage (.dotx)</a>
               <a class="button-link" id="ds-dl-docx" href="#">Musterdokument (.docx)</a>
+              <a class="button-link" id="ds-dl-css" href="#">CSS-Variablen</a>
             </div>
           </div>
         </form>
@@ -264,8 +276,10 @@
         </div>
       </div>
       <div class="card">
-        <div class="panel-head queue-head"><h2>Icon-Auswahl</h2><label class="inline">Farbe <select id="ds-icon-color"></select></label><a class="button-link" id="ds-icons-zip" href="/api/design/icons.zip">Alle Icons als ZIP (SVG)</a></div>
-        <p class="muted">Einheitliche Linien-Icons (24 × 24, für Word über Einfügen → Bilder als SVG). Klick lädt das Icon in der gewählten Farbe herunter.</p>
+        <div class="panel-head queue-head"><h2>Icon-Auswahl</h2>
+          <label class="inline">Set <select id="ds-icon-set"><option value="">Alle</option><option value="onescm">oneSCM360 (33)</option><option value="document">Dokumentsymbole (40)</option><option value="roles">Rollen (6)</option><option value="flags">Flaggen (12)</option></select></label>
+          <label class="inline">Farbe <select id="ds-icon-color"></select></label><a class="button-link" id="ds-icons-zip" href="/api/design/icons.zip">Alle Icons als ZIP (SVG)</a></div>
+        <p class="muted">Linien-Icons 24 × 24: oneSCM360 (eigene Gestaltung), Dokumentsymbole und Rollen aus Lucide (ISC-Lizenz), Flaggen aus flag-icons (MIT-Lizenz). Klick lädt das Icon als SVG herunter – in Word über Einfügen → Bilder → Dieses Gerät.</p>
         <div id="ds-gallery"></div>
       </div>
     </section>

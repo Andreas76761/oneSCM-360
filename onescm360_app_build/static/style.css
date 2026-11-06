@@ -197,3 +197,14 @@ tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font
 .gallery code { color: var(--muted); font-size: 10.5px; }
 .small-link { padding: 3px 9px; font-size: 12px; }
 @media (max-width: 1200px) { .design-layout { grid-template-columns: 1fr; } .design-preview { position: static; } .design-frame { height: 640px; } }
+
+#ds-boxes td { vertical-align: middle; }
+#ds-boxes input.hex { width: 82px; font-family: Consolas, monospace; }
+#ds-boxes input[type=color] { width: 32px; height: 28px; padding: 1px; }
+#ds-boxes .boxname { font-weight: 600; white-space: nowrap; }
+#ds-boxes .boxname span { display: block; font-weight: 400; color: var(--muted); font-size: 11px; white-space: normal; max-width: 160px; }
+#ds-boxes .colorpair { display: flex; gap: 4px; align-items: center; }
+#ds-boxes input[data-path$=".symbol"] { width: 44px; text-align: center; }
+#ds-boxes input[data-path$=".text"] { min-width: 220px; }
+#ds-boxes .icon-pick select { max-width: 170px; }
+.gallery img.flag { width: 40px; height: 30px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }

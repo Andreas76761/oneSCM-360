@@ -18,8 +18,33 @@ W_NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" 
         'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
 TWIPS_PER_CM = 567
 PAGE_SIZES = {"A4": (11906, 16838), "Letter": (12240, 15840)}
-BOXES = [("HinweisInfo", "Hinweis Info", "info", "infoBg"), ("HinweisTipp", "Hinweis Tipp", "ok", "okBg"),
-         ("HinweisOffen", "Hinweis Offen", "warn", "warnBg"), ("HinweisKritisch", "Hinweis Kritisch", "crit", "critBg")]
+
+
+def _style_id(name: str) -> str:
+    return "".join(ch for ch in name.title() if ch.isalnum())[:40] or "Box"
+
+
+def _box_ppr(t, box) -> str:
+    """Paragraph border/shading for a layout box according to the box style (Word knows only paragraph borders)."""
+    el = t["elements"]
+    c, bg = box["color"].lstrip("#"), box["background"].lstrip("#")
+    width = max(2, int(el["boxBorder"] * 6))  # px → eighths of a point
+    style = el["boxStyle"]
+    if style == "frame":
+        side = max(2, width // 2)
+        borders = "".join(f'<w:{s} w:val="single" w:sz="{side}" w:space="6" w:color="{c}"/>' for s in ("top", "left", "bottom", "right"))
+        return f"<w:pBdr>{borders}</w:pBdr>"
+    if style == "fill":
+        return f'<w:shd w:val="clear" w:color="auto" w:fill="{c}"/>'
+    if style == "card":
+        return (f'<w:pBdr><w:top w:val="single" w:sz="{width}" w:space="6" w:color="{c}"/></w:pBdr>'
+                f'<w:shd w:val="clear" w:color="auto" w:fill="{bg}"/>')
+    if style == "minimal":
+        line = _hex(t, "line")
+        return (f'<w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="{line}"/>'
+                f'<w:bottom w:val="single" w:sz="4" w:space="6" w:color="{line}"/></w:pBdr>')
+    return (f'<w:pBdr><w:left w:val="single" w:sz="{width}" w:space="8" w:color="{c}"/></w:pBdr>'
+            f'<w:shd w:val="clear" w:color="auto" w:fill="{bg}"/>')
 
 
 def _hex(t, key):
@@ -78,16 +103,29 @@ def styles_xml(t: dict) -> str:
              _paragraph_style(t, "Heading3", "heading 3", "h3", outline=2),
              _paragraph_style(t, "Caption", "caption", "caption"),
              _paragraph_style(t, "Quellenzeile", "Quellenzeile", "source")]
-    border = max(2, int(el["boxBorder"] * 6))  # px → eighths of a point (1 px ≈ 0.75 pt)
-    for style_id, name, color, background in BOXES:
-        parts.append(_paragraph_style(
-            t, style_id, name, "box",
-            extra_ppr=(f'<w:pBdr><w:left w:val="single" w:sz="{border}" w:space="8" w:color="{_hex(t, color)}"/></w:pBdr>'
-                       f'<w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, background)}"/><w:ind w:left="170" w:right="113"/>')))
+    for box in t["boxes"]:
+        style = _paragraph_style(t, _style_id(box["wordStyle"]), box["wordStyle"], "box",
+                                 extra_ppr=_box_ppr(t, box) + '<w:ind w:left="170" w:right="113"/>')
+        if el["boxStyle"] == "fill":  # white text on the coloured surface
+            style = style.replace(f'<w:color w:val="{_hex(t, t["typography"]["box"]["color"])}"/>', '<w:color w:val="FFFFFF"/>')
+        parts.append(style)
+    parts.append(_paragraph_style(t, "PlatzhalterBild", "Platzhalter Bild", "caption",
+                                  extra_ppr=(f'<w:pBdr>' + "".join(f'<w:{s} w:val="dashed" w:sz="12" w:space="12" w:color="{_hex(t, "placeholder")}"/>'
+                                                                   for s in ("top", "left", "bottom", "right")) + "</w:pBdr>"
+                                             f'<w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, "soft")}"/><w:jc w:val="center"/>'),
+                                  color_key="muted").replace("<w:i/><w:iCs/>", ""))
     badge = t["typography"]["badge"]
     parts.append('<w:style w:type="character" w:styleId="Badge"><w:name w:val="Badge"/><w:qFormat/>'
                  f'<w:rPr><w:b/><w:caps/><w:color w:val="{_hex(t, "warn")}"/><w:sz w:val="{int(badge["size"] * 2)}"/>'
                  f'<w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, "warnBg")}"/></w:rPr></w:style>')
+    head_style = el.get("tableHeadStyle", "dark")
+    if head_style == "dark":
+        head_rpr, head_tcpr = _run_props(t, "tableHead"), f'<w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, el["tableHeadBg"])}"/>'
+    else:
+        head_rpr = _run_props(t, "tableHead", "navy")
+        rule = _hex(t, "petrol" if head_style == "light" else "navy")
+        head_tcpr = (f'<w:tcBorders><w:bottom w:val="single" w:sz="12" w:color="{rule}"/></w:tcBorders>'
+                     + (f'<w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, "soft")}"/>' if head_style == "light" else ""))
     pad_v, pad_h = int(el["cellPaddingV"] * 20), int(el["cellPaddingH"] * 20)
     line = _hex(t, "line")
     zebra = (f'<w:tblStylePr w:type="band2Horz"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, "soft")}"/></w:tcPr></w:tblStylePr>'
@@ -99,8 +137,8 @@ def styles_xml(t: dict) -> str:
         f'<w:insideH w:val="single" w:sz="4" w:color="{line}"/></w:tblBorders>'
         f'<w:tblCellMar><w:top w:w="{pad_v}" w:type="dxa"/><w:left w:w="{pad_h}" w:type="dxa"/>'
         f'<w:bottom w:w="{pad_v}" w:type="dxa"/><w:right w:w="{pad_h}" w:type="dxa"/></w:tblCellMar></w:tblPr>'
-        f'<w:tblStylePr w:type="firstRow">{_run_props(t, "tableHead")}'
-        f'<w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="{_hex(t, el["tableHeadBg"])}"/></w:tcPr></w:tblStylePr>{zebra}</w:style>')
+        f'<w:tblStylePr w:type="firstRow">{head_rpr}'
+        f'<w:tcPr>{head_tcpr}</w:tcPr></w:tblStylePr>{zebra}</w:style>')
     parts.append('<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/>'
                  '<w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/>'
                  '<w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>')
@@ -128,6 +166,15 @@ def _hf(t, kind, text, values):
             f'<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>{"".join(runs)}</w:p></w:{tag}>')
 
 
+def _box_paragraph(t, box) -> str:
+    """Sample paragraph of a layout box: Word symbol and bold title in the box colour, then the text."""
+    color = "FFFFFF" if t["elements"]["boxStyle"] == "fill" else box["color"].lstrip("#")
+    head = f'{box["symbol"]} {box["title"]} '.lstrip()
+    return _p(_style_id(box["wordStyle"]), "",
+              f'<w:r><w:rPr><w:b/><w:color w:val="{color}"/></w:rPr><w:t xml:space="preserve">{escape(head)}</w:t></w:r>'
+              f'<w:r><w:t xml:space="preserve">{escape(box["text"])}</w:t></w:r>')
+
+
 def document_xml(t: dict, values: dict) -> str:
     rows = [("Bereich", "Zweck", "Hauptrolle", "Sparte"),
             ("Contract Calculation", "Produkte anlegen, Preise und Gruppen zuordnen.", "MPC", "beide"),
@@ -151,15 +198,14 @@ def document_xml(t: dict, values: dict) -> str:
     body = "".join([
         _p("Title", t["documentTitle"]), _p("Subtitle", f"Kapitel {values['chapter']} – {values['chapterTitle']}"),
         _p("UntertitelEN", "English Chapter Title"),
-        _p("HinweisInfo", "", '<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Hinweis zur Quellenbasis: </w:t></w:r>'
-                              '<w:r><w:t>Text der Hinweisbox (Info).</w:t></w:r>'),
+
         _p("Heading1", "1 Überschrift 1"), _p("Heading2", "1.1 Überschrift 2"), _p("Heading3", "Überschrift 3"),
         _p("Normal", "Fließtext in der Formatvorlage „Standard“. Status-Kennzeichnung als Zeichenformat „Badge“: ", None)[:-6]
         + badge + "</w:p>",
         "".join(table), _p("Quellenzeile", "Quellen: ONESCM-77, -78, -593"),
-        _p("HinweisTipp", "Tipp: In Word mit Rechtsklick → „Felder aktualisieren“ (F9)."),
-        _p("HinweisOffen", "[OFFEN – VALIDIERUNG ERFORDERLICH] Information muss vom Fachbereich bestätigt werden."),
-        _p("HinweisKritisch", "Nicht Bestandteil von oneSCM: Abgrenzung / Konflikt."),
+        "".join(_box_paragraph(t, box) for box in t["boxes"]),
+        _p("PlatzhalterBild", "", '<w:r><w:rPr><w:b/></w:rPr><w:t>SCREENSHOT</w:t></w:r><w:r><w:br/>'
+                                  '<w:t>[Maske / Bereich] – Bild hier einfügen</w:t></w:r>'),
         _p("Caption", "Abbildung 1.1 – [Titel] · Rolle: [MPC / MO / Dealer] · Sparte: [PC / Van]"),
     ])
     sect = (f'<w:sectPr><w:headerReference w:type="default" r:id="rIdHeader1"/><w:footerReference w:type="default" r:id="rIdFooter1"/>'

@@ -1,12 +1,20 @@
-"""oneSCM360 icon set: consistent 24×24 outline icons drawn for this app (no third-party licence).
+"""Icon library of the design studio.
 
-Every icon is a list of primitive shapes so that it can be rendered safely as SVG
-on the server (downloads, manuals) and in the browser (DOM, no innerHTML).
-Style: stroke 1.8, round caps and joins, colour via currentColor.
+Three outline sets (24×24, round caps, colour via currentColor):
+  * oneSCM360 – 33 icons drawn for this app (no third-party licence)
+  * Dokument  – 40 document symbols from Lucide (ISC licence, assets/lucide)
+  * Rollen    – 6 role icons (Dealer, MO, Markt, HQ, IT, intern) from Lucide
+plus 12 country flags from flag-icons (MIT licence, assets/flags), shown as images.
+
+Every outline icon is reduced to whitelisted SVG elements and attributes, so it can be
+rendered safely on the server (downloads, manuals) and in the browser (DOM, no innerHTML).
 """
 from __future__ import annotations
 
+import base64
 import re
+import xml.etree.ElementTree as ET
+from pathlib import Path
 
 P, C, R, D = "path", "circle", "rect", "dot"
 
@@ -79,34 +87,122 @@ ICONS: dict[str, dict] = {
 _COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 
+def _elements(icon) -> list[list]:
+    """Uniform element list [tag, {attrs}] for own primitives and vendored icons."""
+    out = []
+    for shape in icon["shapes"]:
+        kind = shape[0]
+        if kind == "el":
+            out.append([shape[1], dict(shape[2])])
+        elif kind == P:
+            out.append(["path", {"d": shape[1]}])
+        elif kind == C:
+            out.append(["circle", {"cx": shape[1], "cy": shape[2], "r": shape[3]}])
+        elif kind == R:
+            out.append(["rect", {"x": shape[1], "y": shape[2], "width": shape[3], "height": shape[4], "rx": shape[5]}])
+        elif kind == D:
+            out.append(["circle", {"cx": shape[1], "cy": shape[2], "r": 1.1, "fill": "currentColor", "stroke": "none"}])
+    return out
+
+
 def icon_list() -> list[dict]:
-    return [{"name": name, "label": icon["label"], "category": icon["category"],
-             "shapes": [list(shape) for shape in icon["shapes"]]} for name, icon in ICONS.items()]
+    return [{"name": name, "label": icon["label"], "category": icon["category"], "set": icon.get("set", "onescm"),
+             "role": icon.get("role", ""), "elements": _elements(icon)} for name, icon in ICONS.items()]
 
 
-def svg(name: str, color: str = "#00708A", size: int = 24, symbol_id: str | None = None) -> str:
+def svg(name: str, color: str = "#00708A", size: int = 24, symbol_id: str | None = None, stroke: float | None = None) -> str:
     """Return a standalone SVG (or a <symbol> when symbol_id is given) for a known icon."""
     if name not in ICONS:
         raise KeyError(name)
     if not _COLOR.match(color or ""):
         color = "#00708A"
     parts = []
-    for shape in ICONS[name]["shapes"]:
-        kind = shape[0]
-        if kind == P:
-            parts.append(f'<path d="{shape[1]}"/>')
-        elif kind == C:
-            parts.append(f'<circle cx="{shape[1]}" cy="{shape[2]}" r="{shape[3]}"/>')
-        elif kind == R:
-            parts.append(f'<rect x="{shape[1]}" y="{shape[2]}" width="{shape[3]}" height="{shape[4]}" rx="{shape[5]}"/>')
-        elif kind == D:
-            parts.append(f'<circle cx="{shape[1]}" cy="{shape[2]}" r="1.1" fill="currentColor" stroke="none"/>')
+    for tag, attrs in _elements(ICONS[name]):
+        parts.append(f"<{tag} " + " ".join(f'{k}="{v}"' for k, v in attrs.items()) + "/>")
     body = "".join(parts)
-    if symbol_id:  # inside HTML: colour follows the surrounding text colour
-        attrs = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
+    if symbol_id:  # inside HTML: colour and stroke width follow CSS (svg.ic / currentColor)
+        attrs = 'fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"'
         return f'<symbol id="{symbol_id}" viewBox="0 0 24 24" {attrs}>{body}</symbol>'
     # standalone file (Word, PowerPoint): explicit colour, no currentColor
     body = body.replace("currentColor", color)
-    attrs = f'fill="none" stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
+    width = stroke if stroke else (2 if ICONS[name].get("set") in ("document", "roles") else 1.8)
+    attrs = f'fill="none" stroke="{color}" stroke-width="{width}" stroke-linecap="round" stroke-linejoin="round"'
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" {attrs}>'
             f'<title>{ICONS[name]["label"]}</title>{body}</svg>')
+
+
+# ---------------------------------------------------------------------------- vendored libraries
+ASSETS = Path(__file__).resolve().parents[1] / "assets"
+LUCIDE_DOCUMENT = [  # name in Lucide → German label (40 document symbols)
+    ("info", "Info"), ("lightbulb", "Tipp"), ("clock", "Offen / Zeit"), ("hourglass", "Warten / in Arbeit"),
+    ("triangle-alert", "Achtung"), ("octagon-alert", "Kritisch"), ("circle-x", "Fehler / nicht erfüllt"),
+    ("circle-check", "Erledigt"), ("shield-check", "Belegt / geprüft"), ("toggle-left", "Nicht aktiviert"),
+    ("ban", "Nicht zulässig"), ("lock", "Gesperrt"), ("eye-off", "Intern / vertraulich"), ("key-round", "Voraussetzung / Berechtigung"),
+    ("list-checks", "Checkliste"), ("list-ordered", "Schrittfolge"), ("square-check-big", "Ergebnis"), ("arrow-right", "Weiter mit"),
+    ("arrow-left-right", "Abgleich / Konflikt"), ("link", "Quelle / Verknüpfung"), ("file-text", "Dokument"),
+    ("file-check", "Freigegebenes Dokument"), ("book-open", "Handbuch"), ("notebook-pen", "Redaktion / Notiz"),
+    ("message-square", "Kommentar"), ("circle-help", "FAQ / Frage"), ("bookmark", "Lesezeichen"), ("star", "Empfehlung"),
+    ("target", "Ziel"), ("flag", "Markierung"), ("milestone", "Meilenstein / Release"), ("calendar", "Termin / PI"),
+    ("history", "Änderungshistorie"), ("workflow", "Prozess"), ("git-branch", "Variante / Verzweigung"),
+    ("network", "Schnittstelle"), ("database", "Datenquelle"), ("monitor", "Screenshot / Maske"), ("image", "Bild"),
+    ("chart-column", "Auswertung"),
+]
+LUCIDE_ROLES = [  # role id → (Lucide icon, label)
+    ("Dealer", "store", "Dealer"), ("MO", "briefcase-business", "MO (Market Operations)"), ("Market", "globe", "Markt"),
+    ("HQ", "building-2", "HQ"), ("IT", "monitor-cog", "IT"), ("intern", "lock-keyhole", "intern"),
+]
+FLAGS = [("de", "Deutschland"), ("at", "Österreich"), ("ch", "Schweiz"), ("fr", "Frankreich"), ("it", "Italien"),
+         ("es", "Spanien"), ("nl", "Niederlande"), ("be", "Belgien"), ("gb", "Vereinigtes Königreich"), ("pl", "Polen"),
+         ("us", "USA"), ("eu", "Europäische Union")]
+_ALLOWED = {"path": {"d"}, "circle": {"cx", "cy", "r"}, "rect": {"x", "y", "width", "height", "rx", "ry"},
+            "line": {"x1", "y1", "x2", "y2"}, "polyline": {"points"}, "polygon": {"points"}, "ellipse": {"cx", "cy", "rx", "ry"}}
+_SAFE_VALUE = re.compile(r"^[0-9A-Za-z .,\-]*$")
+
+
+def _parse_outline(path: Path) -> list:
+    """Reduce a vendored SVG to whitelisted primitives: [("el", tag, {attr: value})]."""
+    root = ET.fromstring(path.read_text(encoding="utf-8"))
+    shapes = []
+    for node in root.iter():
+        tag = node.tag.split("}")[-1]
+        if tag == "svg":
+            continue
+        if tag not in _ALLOWED:
+            raise ValueError(f"{path.name}: Element <{tag}> nicht erlaubt")
+        attrs = {k: v for k, v in node.attrib.items() if k in _ALLOWED[tag]}
+        if not all(_SAFE_VALUE.match(v) for v in attrs.values()):
+            raise ValueError(f"{path.name}: unzulässiger Attributwert")
+        shapes.append(("el", tag, attrs))
+    return shapes
+
+
+def _load_library():
+    for name, label in LUCIDE_DOCUMENT:
+        ICONS[f"doc-{name}"] = {"label": label, "category": "Dokumentsymbole (Lucide)", "set": "document",
+                                "shapes": _parse_outline(ASSETS / "lucide" / f"{name}.svg")}
+    for role_id, name, label in LUCIDE_ROLES:
+        ICONS[f"role-{role_id.lower()}"] = {"label": label, "category": "Rollen", "set": "roles", "role": role_id,
+                                            "shapes": _parse_outline(ASSETS / "lucide" / f"{name}.svg")}
+
+
+for _icon in ICONS.values():
+    _icon.setdefault("set", "onescm")
+_load_library()
+
+
+def role_icon(role_id: str) -> str | None:
+    return next((n for n, i in ICONS.items() if i.get("role") == role_id), None)
+
+
+def flag_list() -> list[dict]:
+    return [{"code": code, "label": label} for code, label in FLAGS]
+
+
+def flag_svg(code: str) -> bytes:
+    if code not in dict(FLAGS):
+        raise KeyError(code)
+    return (ASSETS / "flags" / f"{code}.svg").read_bytes()
+
+
+def flag_data_uri(code: str) -> str:
+    return "data:image/svg+xml;base64," + base64.b64encode(flag_svg(code)).decode("ascii")

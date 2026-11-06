@@ -110,7 +110,8 @@ class DesignTemplateTests(AppCase, unittest.TestCase):
         self.assertIn(b"template.main+xml", archive.read("[Content_Types].xml"))
         styles = archive.read("word/styles.xml").decode()
         for name in ("heading 1", "heading 2", "heading 3", "caption", "Quellenzeile", "Hinweis Info", "Hinweis Tipp", "Hinweis Offen",
-                     "Hinweis Kritisch", "oneSCM Tabelle", "Badge", "Untertitel EN"):
+                     "Hinweis Achtung", "Hinweis Konflikt", "Hinweis Nicht aktiviert", "Hinweis Belegt", "Box Voraussetzung",
+                     "Box Ergebnis", "Box Quelle", "Box Intern", "Box Verweis", "Platzhalter Bild", "oneSCM Tabelle", "Badge", "Untertitel EN"):
             self.assertIn(f'w:val="{name}"', styles)
         document = archive.read("word/document.xml").decode()
         self.assertIn('w:orient="landscape"', document)
@@ -133,13 +134,19 @@ class DesignTemplateTests(AppCase, unittest.TestCase):
         self.assertEqual(document.styles["Normal"].font.size.pt, 12)
         self.assertEqual(round(document.sections[0].top_margin.cm, 1), 2.5)
         self.assertIn("Hinweis Offen", {s.name for s in document.styles})
+        texts = [p.text for p in document.paragraphs]
+        self.assertIn("⏳ [OFFEN – VALIDIERUNG ERFORDERLICH] Diese Angabe muss vom Fachbereich bestätigt werden.", texts)  # Word symbol fallback
+        self.assertEqual(next(p for p in document.paragraphs if p.text.startswith("➜")).style.name, "Box Verweis")
 
 
 class IconTests(AppCase, unittest.TestCase):
     def test_icon_set(self):
         schema = self.client.get("/api/design/schema").get_json()
         names = [i["name"] for i in schema["icons"]]
-        self.assertGreaterEqual(len(names), 30)
+        self.assertEqual(len(names), 79)  # 33 own + 40 document symbols + 6 roles
+        self.assertEqual(sum(1 for i in schema["icons"] if i["set"] == "document"), 40)
+        self.assertEqual({i["role"] for i in schema["icons"] if i["set"] == "roles"}, {"Dealer", "MO", "Market", "HQ", "IT", "intern"})
+        self.assertEqual(len(schema["flags"]), 12)
         for required in ("info", "lightbulb", "pending", "warning", "report", "verified", "toggle_off", "badge", "hub", "description",
                          "screenshot", "image", "process", "car", "van"):
             self.assertIn(required, names)
@@ -151,7 +158,97 @@ class IconTests(AppCase, unittest.TestCase):
         self.assertIn('stroke="#00708A"', self.client.get("/api/design/icons/info.svg?color=red").get_data(as_text=True))  # invalid → default
         self.assertEqual(self.client.get("/api/design/icons/skull.svg").status_code, 404)
         archive = zipfile.ZipFile(io.BytesIO(self.client.get("/api/design/icons.zip").data))
-        self.assertEqual(len([n for n in archive.namelist() if n.endswith(".svg")]), len(icons.ICONS))
+        self.assertEqual(len([n for n in archive.namelist() if n.endswith(".svg")]), len(icons.ICONS) + 12)
+        self.assertIn("onescm_icons/Dokumentsymbole/LIZENZ.txt", archive.namelist())
+        self.assertIn("ISC License", archive.read("onescm_icons/Dokumentsymbole/LIZENZ.txt").decode())
+        self.assertIn("onescm_icons/Flaggen/flagge_de.svg", archive.namelist())
+        lucide = self.client.get("/api/design/icons/role-dealer.svg").get_data(as_text=True)
+        self.assertIn('stroke-width="2"', lucide)
+        flag = self.client.get("/api/design/flags/de.svg")
+        self.assertEqual(flag.mimetype, "image/svg+xml")
+        self.assertEqual(self.client.get("/api/design/flags/xx.svg").status_code, 404)
+
+    def test_vendored_icons_are_sanitised(self):
+        for name, icon in icons.ICONS.items():
+            for tag, attrs in icons._elements(icon):
+                self.assertIn(tag, ("path", "circle", "rect", "line", "polyline", "polygon", "ellipse"), name)
+                self.assertFalse(any(k.startswith("on") or "href" in k for k in attrs), name)
+
+
+class MigrationTests(unittest.TestCase):
+    def test_version_1_templates_get_boxes_and_keep_own_values(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            old = json.loads((ROOT / "design_templates.json").read_text(encoding="utf-8"))
+            for t in old["templates"]:
+                t.pop("boxes", None)
+                for k in ("boxStyle", "iconStyle", "tableHeadStyle", "badgeShape"):
+                    t["elements"].pop(k, None)
+            old["templates"][0]["colors"]["navy"] = "#123456"
+            old["templates"].append({**old["templates"][0], "id": "eigene", "name": "Eigene"})
+            old["version"] = 1
+            data = Path(tmp) / "design_templates.json"
+            data.write_text(json.dumps(old), encoding="utf-8")
+            svc = design_service.DesignService(ROOT / "design_templates.json", data, Path(tmp) / "backups")
+            t = svc.get("handbuch")
+            self.assertEqual(len(t["boxes"]), 12)
+            self.assertEqual(t["colors"]["navy"], "#123456")
+            self.assertEqual(svc.get("releaseletter")["elements"]["boxStyle"], "frame")
+            self.assertEqual(len(svc.get("eigene")["boxes"]), 12)
+            self.assertEqual(json.loads(data.read_text(encoding="utf-8"))["version"], 2)
+            self.assertTrue(list((Path(tmp) / "backups").glob("design-*.json")))
+
+
+class LayoutBoxTests(AppCase, unittest.TestCase):
+    def template(self, tid="handbuch"):
+        return self.client.get(f"/api/design/templates/{tid}").get_json()
+
+    def test_twelve_boxes_from_the_pattern(self):
+        boxes = {b["id"]: b for b in self.template()["boxes"]}
+        self.assertEqual(list(boxes), ["info", "tip", "open", "warn", "conflict", "off", "ok", "pre", "res", "src", "int", "next"])
+        self.assertEqual((boxes["tip"]["color"], boxes["tip"]["background"], boxes["tip"]["wordStyle"]), ("#0E7C66", "#E3F4EF", "Hinweis Tipp"))
+        self.assertEqual((boxes["int"]["color"], boxes["int"]["symbol"], boxes["next"]["wordStyle"]), ("#9D174D", "🔒", "Box Verweis"))
+        self.assertEqual(boxes["open"]["alternatives"], ["doc-clock", "doc-hourglass", "doc-flag"])
+
+    def test_box_validation_and_editing(self):
+        t = self.template()
+        t["boxes"][1].update(color="#123456", title="Praxistipp:", icon="doc-star", symbol="★")
+        saved = self.put("/api/design/templates/handbuch", t).get_json()
+        self.assertEqual((saved["boxes"][1]["color"], saved["boxes"][1]["title"], saved["boxes"][1]["icon"]), ("#123456", "Praxistipp:", "doc-star"))
+        self.assertEqual(saved["boxes"][1]["purpose"], "Arbeitserleichterung")  # purpose stays as defined
+        for change, message in ((("color", "blau"), "HEX"), (("icon", "skull"), "Icon"), (("wordStyle", "Hinweis Info"), "doppelt")):
+            bad = json.loads(json.dumps(t))
+            bad["boxes"][2][change[0]] = change[1]
+            r = self.put("/api/design/templates/handbuch", bad)
+            self.assertEqual(r.status_code, 400)
+            self.assertIn(message, r.get_json()["error"])
+        legacy = {k: v for k, v in t.items() if k != "boxes"}  # templates from older versions get the default boxes
+        self.assertEqual(len(design_service.validate(legacy)["boxes"]), 12)
+
+    def test_styles_change_the_css(self):
+        t = self.template()
+        css = lambda **el: design_service.css(design_service.validate({**t, "elements": {**t["elements"], **el}}))
+        self.assertIn("border-left:4px solid var(--c)", css(boxStyle="bar"))
+        self.assertIn(".box{background:var(--c);color:#fff}", css(boxStyle="fill"))
+        self.assertIn("box-shadow:0 1px 4px", css(boxStyle="card"))
+        self.assertIn(".icw{background:var(--c);color:#fff !important;border-radius:50%", css(iconStyle="solid"))
+        self.assertIn(".box .icw{display:none}", css(iconStyle="none"))
+        self.assertIn("th{background:none;color:var(--navy)", css(tableHeadStyle="lines"))
+        self.assertIn(".badge{border-radius:2px}", css(badgeShape="square"))
+        self.assertIn("svg{stroke-width:2.2}", css(iconStroke=2.2))
+        self.assertIn("aspect-ratio:16/10", css(placeholderRatio="16:10"))
+        for bad in ({"boxStyle": "neon"}, {"iconStyle": "3d"}):
+            self.assertEqual(design_service.validate({**t, "elements": {**t["elements"], **bad}})["elements"]["boxStyle"], "bar")
+
+    def test_pattern_sections_and_variables(self):
+        page = self.client.get("/api/design/templates/handbuch/pattern.html").get_data(as_text=True)
+        for text in ("4 Layoutboxen", "8 Spezifikation je Layoutbox", "9 Icon-Bibliothek", "Box Voraussetzung", "Vor Veröffentlichung entfernen.",
+                     'alt="Flagge Deutschland"', "MO (Market Operations)", "Dokumentsymbole (Lucide) (40)", "Lucide (ISC-Lizenz)"):
+            self.assertIn(text, page)
+        css = self.client.get("/api/design/templates/training/variables.css").get_data(as_text=True)
+        self.assertIn("--navy: #0B2A4A;", css)
+        self.assertIn(".box-pre { --c: #2F5DA8; --bg: #E6EDF8; } /* Voraussetzung · Word: Box Voraussetzung */", css)
 
 
 class DesignedManualTests(AppCase, unittest.TestCase):
@@ -163,6 +260,8 @@ class DesignedManualTests(AppCase, unittest.TestCase):
         self.assertIn("oneSCM Training · Modul 01", training)
         self.assertIn("font-size:12pt", training)
         self.assertEqual(self.client.get("/api/manual/CH01/preview?design=fehlt").status_code, 404)
+        self.assertIn('class="box bx-open"', handbook)  # open-validation layout box
+        self.assertIn('<span class="rb"><svg aria-hidden="true"><use href="#i-role-dealer"/></svg>Dealer</span>', handbook)  # role badge
         r = self.post("/api/manual/CH01", {"stage": "Draft", "design": "releaseletter"}).get_json()
         self.assertEqual(r["stats"]["design"], "oneSCM Release Letter")
 

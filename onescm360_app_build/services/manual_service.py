@@ -38,7 +38,8 @@ def stage_allowed(stage: str, gate: str) -> tuple[bool, str]:
 def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[dict], tables: list[dict],
                  coverage: dict, rules: list[dict], imports: list[dict], design: dict) -> dict:
     """Return {"html", "markdown", "stats", "title"} for one chapter and stage, formatted with a design template."""
-    from .design_service import css, fill_without_pages, icon_use, symbols
+    from .design_service import box_html, css, fill_without_pages, role_badge, symbols
+    from .icons import role_icon
 
     allowed_status = STAGES[stage]
     by_claim: dict[str, list] = {}
@@ -69,7 +70,8 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
                       "BOTH": '<span class="badge b-both">beide</span>', "CV": '<span class="badge b-off">CV</span>'}
     show_sources = design["elements"].get("showSourceLines", True)
     h = [f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>{e(title)}</title><style>{css(design)}</style></head><body>",
-         symbols(design), '<div class="page">',
+         symbols(design, {b["icon"] for b in design["boxes"]} | {role_icon(r) for r in {c.get("role") for c in included} if role_icon(r)}),
+         '<div class="page">',
          f'<div class="hf top"><span>{e(fill_without_pages(design["header"], values))}</span><span>{e(stage)}</span></div>',
          f'<p class="title">{e(design["documentTitle"])}</p>',
          f'<p class="subtitle">Kapitel {e(number)} – {e(chapter["title"])}</p>',
@@ -82,11 +84,10 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
          f"<tr><td>Kapitelschema</td><td>{e(chapter.get('schemaStatus', ''))}</td></tr>",
          "<tr><td>Erstellt mit</td><td>oneSCM360 Knowledge Studio</td></tr>",
          "</table>",
-         f'<div class="box info">{icon_use(design, "info")}<p><strong>Hinweis zur Quellenbasis:</strong> '
-         f'{e(", ".join(sources) or "noch keine abgeschlossenen Importe")}. Aussagen werden nur übernommen, wenn sie die Stufe {e(stage)} erreicht haben.</p></div>']
+         box_html(design, "info", f'{e(", ".join(sources) or "noch keine abgeschlossenen Importe")}. '
+                                  f"Aussagen werden nur übernommen, wenn sie die Stufe {e(stage)} erreicht haben.")]
     if stage != "Released":
-        h.append(f'<div class="box warn">{icon_use(design, "open")}<p><strong>[OFFEN – VALIDIERUNG ERFORDERLICH]</strong> '
-                 "Kein freigegebener Handbuchstand. Inhalte können sich noch ändern.</p></div>")
+        h.append(box_html(design, "open", "Kein freigegebener Handbuchstand. Inhalte können sich noch ändern."))
     h.append('<div class="cols">')
     md = [f"# {title}", "", f"**Stufe:** {stage} · **Stand:** {now:%d.%m.%Y %H:%M} · **Gate:** {coverage['gate']} · "
           f"**Readiness:** {readiness} %", "", f"Quellen: {', '.join(sources) or '—'}", ""]
@@ -111,10 +112,10 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
             for claim in items:
                 refs = sorted({ev.get("jiraKey") or ev.get("sourceTitle") or ev.get("sourceType") for ev in by_claim.get(claim["claimId"], [])} - {""})
                 refs_for_question.update(refs)
-                scope = " · ".join(x for x in (claim.get("role", ""), f"PI{claim['pi']}" if claim.get("pi") is not None else "",
-                                               claim.get("maturity", "")) if x)
+                scope = " · ".join(x for x in (f"PI{claim['pi']}" if claim.get("pi") is not None else "", claim.get("maturity", "")) if x)
+                role = role_badge(claim["role"], claim["role"]) if claim.get("role") else ""
                 h.append(f"<li>{e(claim['canonicalStatement'])} {status_badge[claim['validationStatus']]} "
-                         f"{division_badge.get(claim.get('division', ''), '')}"
+                         f"{division_badge.get(claim.get('division', ''), '')} {role}"
                          + (f' <span class="src">[{e(scope)}]</span>' if scope else "") + "</li>")
                 md.append(f"- {claim['canonicalStatement']}"
                           + (f" _({STATUS_TEXT[claim['validationStatus']]})_" if claim["validationStatus"] != "CONFIRMED" else "")

@@ -449,7 +449,10 @@ def create_app(config: dict | None = None) -> Flask:
     def design_schema():
         return jsonify(fonts=design_service.FONTS, documentTypes=design_service.DOC_TYPES, colors=design_service.COLORS,
                        elements=design_service.ELEMENTS, iconRoles=design_service.ICON_ROLES, placeholders=design_service.PLACEHOLDERS,
-                       ratios=design_service.RATIOS, weights=design_service.WEIGHTS, icons=icon_set.icon_list())
+                       ratios=design_service.RATIOS, weights=design_service.WEIGHTS, icons=icon_set.icon_list(),
+                       flags=icon_set.flag_list(), boxStyles=design_service.BOX_STYLES, iconStyles=design_service.ICON_STYLES,
+                       tableHeadStyles=design_service.TABLE_HEAD_STYLES, badgeShapes=design_service.BADGE_SHAPES,
+                       boxDefaults=design_service.BOX_DEFAULTS)
 
     @app.get("/api/design/templates")
     def design_list():
@@ -518,6 +521,23 @@ def create_app(config: dict | None = None) -> Flask:
         return send_file(io.BytesIO(word_template.build(template, kind)), mimetype=mime, as_attachment=True,
                          download_name=f"{template_id}_Formatvorlage.{kind}")
 
+    @app.get("/api/design/templates/<template_id>/variables.css")
+    def design_variables(template_id):
+        template = designs.get(template_id)
+        return send_file(io.BytesIO(design_service.variables_css(template).encode("utf-8")), mimetype="text/css",
+                         as_attachment=True, download_name=f"{template_id}_variablen.css")
+
+    @app.get("/api/design/flags/<code>.svg")
+    def design_flag(code):
+        try:
+            data_bytes = icon_set.flag_svg(code)
+        except KeyError:
+            return jsonify(error="Flagge nicht gefunden."), 404
+        response = send_file(io.BytesIO(data_bytes), mimetype="image/svg+xml", download_name=f"flagge_{code}.svg",
+                             as_attachment=request.args.get("download") == "1")
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"
+        return response
+
     @app.get("/api/design/templates/<template_id>/export.json")
     def design_export(template_id):
         template = {k: v for k, v in designs.get(template_id).items() if k not in ("id", "shipped")}
@@ -539,10 +559,15 @@ def create_app(config: dict | None = None) -> Flask:
         color = request.args.get("color", "#00708A")
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-            for name in icon_set.ICONS:
-                archive.writestr(f"onescm_icons/onescm_{name}.svg", icon_set.svg(name, color))
-            archive.writestr("onescm_icons/LIESMICH.txt", "oneSCM360 Icon-Set: 24x24 Linien-Icons, für diese App gezeichnet. "
-                             "In Word: Einfügen > Bilder > Dieses Gerät (SVG).\n")
+            folders = {"onescm": "oneSCM360", "document": "Dokumentsymbole", "roles": "Rollen"}
+            for name, icon in icon_set.ICONS.items():
+                archive.writestr(f"onescm_icons/{folders[icon['set']]}/{name}.svg", icon_set.svg(name, color))
+            for flag in icon_set.flag_list():
+                archive.writestr(f"onescm_icons/Flaggen/flagge_{flag['code']}.svg", icon_set.flag_svg(flag["code"]))
+            for licence, folder in (("lucide", "Dokumentsymbole"), ("flags", "Flaggen")):
+                archive.writestr(f"onescm_icons/{folder}/LIZENZ.txt", (ROOT / "assets" / licence / "LICENSE.txt").read_bytes())
+            archive.writestr("onescm_icons/LIESMICH.txt", "oneSCM360 Icons: oneSCM360 (eigene Gestaltung), Dokumentsymbole und Rollen "
+                             "(Lucide, ISC-Lizenz), Flaggen (flag-icons, MIT-Lizenz). In Word: Einfügen > Bilder > Dieses Gerät (SVG).\n")
         return send_file(io.BytesIO(buffer.getvalue()), mimetype="application/zip", as_attachment=True, download_name="onescm_icons.zip")
 
     # -- manual versions (Handbuchstände) ----------------------------------------------------------------
