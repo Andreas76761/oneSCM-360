@@ -54,6 +54,7 @@ powershell.exe -ExecutionPolicy Bypass -File '.\start_onescm360.ps1' -OneDriveRo
 | Tabellen | Separat extrahierte Tabellen ansehen, Quellfrage zuordnen, als JSON oder CSV herunterladen. |
 | Coverage | Readiness, sechs Dimensionen, Gate, Hard Blocker, Konflikte (auflösen mit Begründung), Rollenabdeckung. |
 | Synchronisation | Verbindung zum lokalen OneDrive-Ordner, Ordnerstruktur anlegen, Kapitel exportieren, Handbuchstand erzeugen (Draft/Reviewed/Released), regelbasierte Datenbereinigung, Hinweise zum manuellen SharePoint-Transfer. |
+| Designstudio | Designvorlagen für Benutzerhandbuch, Release Letter, Quick Reference, Trainingsunterlage und eigene Vorlagen. Alle Werte sind variabel, mit Live-Vorschau, Download als Design-Pattern (HTML), Word-Vorlage (.dotx) und Musterdokument (.docx) sowie einer Icon-Auswahl (siehe unten). |
 | Interner Chat | Fragen in natürlicher Sprache. Der Router wählt genau ein Tool aus der Tool Registry, die Security Policy prüft (default DENY), dann wird es auf den lokalen Daten ausgeführt. Mit Audit-Protokoll, Routing-Testsuite und Trainingsdaten-Export (siehe unten). |
 | Dokumentation | Diese Datei. |
 
@@ -183,6 +184,51 @@ Hard Blocker:
 - ungeklärte kritische Berechtigung, finanzielle Regel, irreversible Aktion oder Security/Compliance-Aussage (Claim nicht `CONFIRMED`)
 - widersprüchlicher Produktivstatus
 - gebrochene referentielle Integrität (auch `CHAPTER_MISMATCH` und `INVALID_JSON`)
+
+## Designstudio
+
+Grundlage ist das Design-Pattern für das oneSCM-Benutzerhandbuch: Struktur aus Kapitel 01 abgeleitet, Typografie und Farben als Vorschlag.
+
+### Ausgelieferte Vorlagen
+
+Sie liegen in `design_templates.json`, bearbeitet wird die Kopie in `data\design_templates.json`.
+
+| Vorlage | Eigenschaften |
+|---|---|
+| oneSCM Benutzerhandbuch | Werte des Design-Patterns: Segoe UI / Calibri, Titel 28 pt, H1 20 pt, H2 14 pt, Fließtext 11 pt mit 1,35 Zeilenabstand, Navy #0B2A4A, Petrol #00708A, A4 mit Rändern 2,5 / 2,0 cm |
+| oneSCM Release Letter | kompakter, kleinere Überschriften, ohne Linie unter H1 |
+| oneSCM Quick Reference | Querformat, zwei Spalten, dichte Typografie, schmale Ränder |
+| oneSCM Trainingsunterlage | größere Schrift, mehr Weißraum, deutlichere Hinweisboxen |
+
+### Einstellbare Werte
+
+- **Allgemein:** Name, Dokumenttyp, Dokumenttitel, Beschreibung.
+- **Seite:** A4 oder Letter, hoch oder quer, Ränder, Spalten.
+- **Kopf- und Fußzeile:** mit Platzhaltern `{chapter}`, `{chapterTitle}`, `{version}`, `{date}`, `{stage}`, `{release}`, `{page}`, `{pages}`. In Word werden `{page}` und `{pages}` zu Seitenzahl-Feldern.
+- **Schriften:** für Überschriften und Fließtext, aus einer Liste Word-tauglicher Schriften.
+- **Typografie** je Element (Deckblatt-Titel und -Untertitel, Überschrift 1–3, Fließtext, Tabellenkopf und -inhalt, Hinweisbox, Bildunterschrift, Quellenzeile, Badges): Schrift, Größe, Schnitt, kursiv, Versalien, Zeilenabstand, Abstand vor und nach, Farbe.
+- **Farbpalette:** 20 Rollen, darunter Primär, Akzent, Statusfarben mit Flächen, Sparte PC und Sparte Van.
+- **Elemente:** Linie unter H1, Zebra-Zeilen, Tabellenkopf-Farbe, Zellinnenrand, Rahmen der Hinweisbox, Rundung der Badges, Seitenverhältnisse der Platzhalter, Quellenzeilen.
+- **Icons** je Verwendungszweck sowie Icon-Farbe und -Größe.
+
+Alle Eingaben werden gegen feste Listen bzw. Wertebereiche geprüft, so lässt sich weder CSS noch HTML einschleusen. Vorlagen lassen sich duplizieren, löschen, als JSON exportieren und importieren. Ausgelieferte Vorlagen lassen sich auf den Auslieferungszustand zurücksetzen. Jede Änderung wird gesichert, die letzten 30 Stände bleiben in `data\backups`.
+
+### Ausgaben je Vorlage
+
+- **Design-Pattern (HTML):** Deckblatt, Metadaten-Tabelle, Typografie, Tabellen, Badges, Hinweisboxen, Platzhalter mit Callouts, Farbpalette, Icons. Offline lauffähig und druckbar.
+- **Word-Vorlage (.dotx) und Musterdokument (.docx):** mit diesen Formatvorlagen:
+  - Standard, Titel, Untertitel, Untertitel EN
+  - Überschrift 1–3 (Word-Standardnamen, also für Navigation und Inhaltsverzeichnis nutzbar), Beschriftung
+  - Quellenzeile, Hinweis Info / Tipp / Offen / Kritisch (linker Rahmen und Schattierung)
+  - Zeichenformat „Badge“, Tabellenformatvorlage „oneSCM Tabelle“
+  - Seitenformat, Ränder, Spalten sowie Kopf- und Fußzeile mit Seitenzahlen
+
+  Semibold gibt es in Word nur als Fett.
+- **Handbuchstand** im Register Synchronisation: wird mit der gewählten Designvorlage erzeugt. Er enthält Deckblatt, Metadaten, Hinweis zur Quellenbasis, die Box [OFFEN – VALIDIERUNG ERFORDERLICH] für nicht freigegebene Stände, Badges für Status (Offen, Geprüft) und Sparte (PC, Van, beide), Quellenzeilen sowie Kopf- und Fußzeile.
+
+### Icons
+
+33 einheitliche Linien-Icons (24 × 24, Strichstärke 1,8), für diese App gezeichnet, ohne Fremdlizenz. Sie sind gruppiert nach Hinweisen, Rollen & Organisation, Systemen & Prozessen, Dokumenten & Medien und Sparten. Sie laden sie einzeln oder als ZIP herunter, als SVG in der gewählten Farbe. In Word fügen Sie sie über Einfügen → Bilder → Dieses Gerät ein.
 
 ## Interner Chat: Router, Security Policy, Tool Registry
 
@@ -400,6 +446,7 @@ onescm360_app_build/
 ├── security_policy.json    Security Policy v1 (INTERNAL_RESTRICTED, default DENY, Profile)
 ├── chat_eval.json          Routing-Testsuite
 ├── cleanup_rules.json      Regeln der Datenbereinigung
+├── design_templates.json   ausgelieferte Designvorlagen (bearbeitet wird data\design_templates.json)
 ├── chapters/CH01…CH16.json ausgelieferte Kapitelschemas (eigene Fassungen: data\chapters)
 ├── schemas/                import.schema.json, claim.schema.json
 ├── services/               import, docx/html parser, rules, claims, knowledge, conflicts, coverage, export

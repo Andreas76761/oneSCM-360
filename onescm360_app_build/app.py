@@ -9,8 +9,10 @@ import io
 import json
 import os
 import re
+import secrets
 import shutil
 import sys
+import zipfile
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
@@ -21,6 +23,8 @@ from services.chapter_service import ChapterError, ChapterService
 from services.chat_service import ChatError, ChatService
 from services.cleanup_service import CleanupError, CleanupService
 from services.manual_service import ManualError, build_manual, safe_stamp, stage_allowed
+from services import design_service, icons as icon_set, word_template
+from services.design_service import DesignError, DesignService
 from services.policy_service import PolicyError, PolicyService, install_network_guard
 from services.classification_service import ClassificationError, ClassificationService
 from services.export_service import ExportService, table_csv
@@ -95,6 +99,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.errorhandler(ChatError)
     @app.errorhandler(PolicyError)
     @app.errorhandler(ManualError)
+    @app.errorhandler(DesignError)
     @app.errorhandler(CleanupError)
     def domain_error(exc):
         return jsonify(error=str(exc)), exc.status
@@ -428,8 +433,120 @@ def create_app(config: dict | None = None) -> Flask:
     def sync_export():
         return jsonify(export_chapter(body().get("chapterId", ""))), 201
 
+    # -- design studio -------------------------------------------------------------------------------
+    designs = DesignService(ROOT / "design_templates.json", data.root / "design_templates.json", data.backups)
+    previews: dict[str, str] = {}
+
+    def html_response(content: str, download: str | None = None):
+        response = app.response_class(content, mimetype="text/html")
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        if download:
+            response.headers["Content-Disposition"] = f'attachment; filename="{download}"'
+        return response
+
+    @app.get("/api/design/schema")
+    def design_schema():
+        return jsonify(fonts=design_service.FONTS, documentTypes=design_service.DOC_TYPES, colors=design_service.COLORS,
+                       elements=design_service.ELEMENTS, iconRoles=design_service.ICON_ROLES, placeholders=design_service.PLACEHOLDERS,
+                       ratios=design_service.RATIOS, weights=design_service.WEIGHTS, icons=icon_set.icon_list())
+
+    @app.get("/api/design/templates")
+    def design_list():
+        return jsonify(designs.list())
+
+    @app.post("/api/design/templates")
+    def design_create():
+        payload = body()
+        return jsonify(designs.create(str(payload.get("baseId", "")), str(payload.get("name", "")))), 201
+
+    @app.get("/api/design/templates/<template_id>")
+    def design_get(template_id):
+        return jsonify(designs.get(template_id))
+
+    @app.put("/api/design/templates/<template_id>")
+    def design_update(template_id):
+        return jsonify(designs.update(template_id, body()))
+
+    @app.delete("/api/design/templates/<template_id>")
+    def design_delete(template_id):
+        designs.delete(template_id)
+        return jsonify(deleted=template_id)
+
+    @app.post("/api/design/templates/<template_id>/reset")
+    def design_reset(template_id):
+        return jsonify(designs.reset(template_id))
+
+    @app.post("/api/design/templates/import")
+    def design_import():
+        upload = request.files.get("file")
+        if not upload:
+            return jsonify(error="Bitte eine Vorlagendatei (.json) auswählen."), 400
+        try:
+            payload = json.loads(upload.read(500_001).decode("utf-8-sig"))
+        except (ValueError, UnicodeDecodeError):
+            return jsonify(error="Die Datei ist keine gültige JSON-Designvorlage."), 400
+        return jsonify(designs.import_template(payload)), 201
+
+    @app.post("/api/design/preview")
+    def design_preview_create():
+        template = design_service.validate(body())
+        token = secrets.token_hex(8)
+        previews[token] = design_service.pattern_html(template)
+        while len(previews) > 20:
+            previews.pop(next(iter(previews)))
+        return jsonify(url=f"/api/design/preview/{token}")
+
+    @app.get("/api/design/preview/<token>")
+    def design_preview(token):
+        if token not in previews:
+            return jsonify(error="Vorschau abgelaufen – bitte neu erzeugen."), 404
+        return html_response(previews[token])
+
+    @app.get("/api/design/templates/<template_id>/pattern.html")
+    def design_pattern(template_id):
+        template = designs.get(template_id)
+        return html_response(design_service.pattern_html(template), f"{template_id}_DesignPattern.html")
+
+    @app.get("/api/design/templates/<template_id>/word.<kind>")
+    def design_word(template_id, kind):
+        if kind not in ("dotx", "docx"):
+            return jsonify(error="Format muss dotx oder docx sein."), 400
+        template = designs.get(template_id)
+        mime = ("application/vnd.openxmlformats-officedocument.wordprocessingml.template" if kind == "dotx"
+                else "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        return send_file(io.BytesIO(word_template.build(template, kind)), mimetype=mime, as_attachment=True,
+                         download_name=f"{template_id}_Formatvorlage.{kind}")
+
+    @app.get("/api/design/templates/<template_id>/export.json")
+    def design_export(template_id):
+        template = {k: v for k, v in designs.get(template_id).items() if k not in ("id", "shipped")}
+        return send_file(io.BytesIO(json.dumps(template, ensure_ascii=False, indent=2).encode("utf-8")), mimetype="application/json",
+                         as_attachment=True, download_name=f"{template_id}_Designvorlage.json")
+
+    @app.get("/api/design/icons/<name>.svg")
+    def design_icon(name):
+        color = request.args.get("color", "#00708A")
+        if name not in icon_set.ICONS:
+            return jsonify(error="Icon nicht gefunden."), 404
+        response = send_file(io.BytesIO(icon_set.svg(name, color).encode("utf-8")), mimetype="image/svg+xml", as_attachment=True,
+                             download_name=f"onescm_{name}.svg")
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"
+        return response
+
+    @app.get("/api/design/icons.zip")
+    def design_icons_zip():
+        color = request.args.get("color", "#00708A")
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name in icon_set.ICONS:
+                archive.writestr(f"onescm_icons/onescm_{name}.svg", icon_set.svg(name, color))
+            archive.writestr("onescm_icons/LIESMICH.txt", "oneSCM360 Icon-Set: 24x24 Linien-Icons, für diese App gezeichnet. "
+                             "In Word: Einfügen > Bilder > Dieses Gerät (SVG).\n")
+        return send_file(io.BytesIO(buffer.getvalue()), mimetype="application/zip", as_attachment=True, download_name="onescm_icons.zip")
+
     # -- manual versions (Handbuchstände) ----------------------------------------------------------------
-    def manual_for(chapter_id: str, stage: str) -> dict:
+    def manual_for(chapter_id: str, stage: str, design_id: str = "") -> dict:
         chapter = chapters.get(chapter_id)
         snapshot = compute_coverage(chapter_id)
         ok, reason = stage_allowed(stage, snapshot["gate"])
@@ -437,12 +554,13 @@ def create_app(config: dict | None = None) -> Flask:
             raise ManualError(reason, 400 if stage not in ("Draft", "Reviewed", "Released") else 409)
         kdata = knowledge.load()
         records = imports.records(chapter_id)
+        design = designs.get(design_id) if design_id else designs.default_for("handbuch")
         return build_manual(chapter, stage, kdata["claims"], kdata["evidence"],
-                            [t for r in records for t in r.get("tables", [])], snapshot, rules.list(), records)
+                            [t for r in records for t in r.get("tables", [])], snapshot, rules.list(), records, design)
 
     @app.get("/api/manual/<chapter_id>/preview")
     def manual_preview(chapter_id):
-        manual = manual_for(chapter_id, request.args.get("stage", "Draft"))
+        manual = manual_for(chapter_id, request.args.get("stage", "Draft"), request.args.get("design", ""))
         response = app.response_class(manual["html"], mimetype="text/html")
         response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
@@ -450,8 +568,9 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.post("/api/manual/<chapter_id>")
     def manual_generate(chapter_id):
-        stage = str(body().get("stage", "Draft"))
-        manual = manual_for(chapter_id, stage)
+        payload = body()
+        stage = str(payload.get("stage", "Draft"))
+        manual = manual_for(chapter_id, stage, str(payload.get("design", "")))
         status = exporter.status()
         if status["localStatus"] != "READY_FOR_CLIENT":
             raise ManualError(f"{status['localStatus']}: {status['reason']}")
