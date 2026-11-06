@@ -172,6 +172,18 @@ def main():
             expect(page.locator("#imp-media img")).to_have_count(1)
             page.locator("#imp-media img").scroll_into_view_if_needed()  # thumbnails load lazily
             page.wait_for_function("() => { const i = document.querySelector('#imp-media img'); return i && i.complete && i.naturalWidth === 1; }")
+            card = page.locator('#imp-media .media-card[data-media="image1.png"]')
+            expect(card.locator('input[type="checkbox"]')).not_to_be_checked()  # not anchored under a question in the file
+            card.locator('input[type="checkbox"]').check()
+            expect(page.locator("#toast")).to_contain_text("einer Frage zugeordnet")
+            expect(card.locator('input[type="checkbox"]')).not_to_be_checked()
+            card.locator("select").select_option("02-F02")
+            expect(card.locator('input[type="checkbox"]')).to_be_checked()
+            card.locator('input[type="text"]').fill("Marktkonfiguration")
+            card.locator('input[type="text"]').press("Tab")
+            expect(page.locator("#toast")).to_contain_text("Bildbeschreibung gespeichert")
+            ch02 = page.request.get(f"{url}/api/manual/CH02/preview?stage=Draft").text()
+            assert "data:image/png;base64," in ch02 and "– Marktkonfiguration</figcaption>" in ch02, "Bild fehlt im Handbuch CH02"
             queue_row("ch01.html").get_by_role("button", name="Ergebnis").click()
             expect(page.locator("#imp-summary")).to_contain_text("BLOCKED")
             shot("02-import")

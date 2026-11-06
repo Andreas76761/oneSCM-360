@@ -394,6 +394,16 @@ Der Word-Handbuchstand nutzt die Formatvorlagen der gewählten Designvorlage:
 
 Aus DOCX-Dateien extrahierte Bilder liegen unter `data/media/CHxx/<Import-ID>/`. Das Import-Ergebnis zeigt sie als Vorschaubilder. EMF, WMF, TIFF und SVG werden nur zum Herunterladen angeboten, SVG wegen möglicher Skripte nie direkt angezeigt.
 
+### Bilder im Handbuchstand
+
+- **Zuordnung:** Beim Import merkt sich die App, unter welcher Frage ein Bild im Word-Dokument steht, auch in Tabellenzellen. Der Alternativtext des Bildes (in Word: Rechtsklick → Alternativtext bearbeiten) wird zur Bildbeschreibung.
+- **Im Handbuch:** Bilder mit Frage kommen automatisch in den Handbuchstand, Bilder vor der ersten Frage nicht.
+- **Ändern:** Im Import-Ergebnis lassen sich je Bild die Frage, die Beschreibung und „im Handbuch“ ändern. Diese Entscheidung gilt auch für dasselbe Bild in späteren Importen (Erkennung über die Prüfsumme).
+- **Darstellung:** Das Bild steht unter den Aussagen der Frage, mit der Bildunterschrift „Abbildung 1.1-1 – Beschreibung“. Dasselbe Bild aus mehreren Importen (z. B. DE- und EN-Fassung) erscheint einmal.
+- **HTML:** Die Bilder sind eingebettet, die Datei funktioniert also auch ohne die App. Möglich sind PNG, JPEG, GIF, WebP und BMP.
+- **Word:** Die Bilder werden auf die Textbreite verkleinert (nie vergrößert, höchstens 16 cm hoch) und haben einen feinen Rahmen. Möglich sind PNG, JPEG, GIF, BMP, EMF und WMF.
+- **Grenzen:** Bilder über 15 MB und Bilder aus archivierten Importen werden nicht übernommen.
+
 ## Daten und Bereinigung
 
 Ablage unter `data\`:

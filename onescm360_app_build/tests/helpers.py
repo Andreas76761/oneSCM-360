@@ -72,10 +72,18 @@ def html_table(rows, header=True) -> str:
 
 
 def make_docx(blocks, media: dict[str, bytes] | None = None) -> bytes:
-    """blocks: list of str (paragraph), ("h", str) heading, or list-of-rows (table)."""
+    """blocks: list of str (paragraph), ("h", str) heading, ("img", media name, alt text) picture, or list-of-rows (table)."""
     body = []
+    rels = []
     for block in blocks:
-        if isinstance(block, str):
+        if isinstance(block, tuple) and block[0] == "img":
+            rid = f"rId{len(rels) + 10}"
+            rels.append(f'<Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/{block[1]}"/>')
+            body.append('<w:p><w:r><w:drawing><wp:inline><wp:extent cx="100" cy="100"/>'
+                        f'<wp:docPr id="{len(rels)}" name="Bild" descr="{escape(block[2])}"/><a:graphic><a:graphicData><pic:pic>'
+                        f'<pic:blipFill><a:blip r:embed="{rid}"/></pic:blipFill></pic:pic></a:graphicData></a:graphic>'
+                        "</wp:inline></w:drawing></w:r></w:p>")
+        elif isinstance(block, str):
             body.append(f"<w:p><w:r><w:t xml:space=\"preserve\">{escape(block)}</w:t></w:r></w:p>")
         elif isinstance(block, tuple) and block[0] == "h":
             body.append(f"<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>{escape(block[1])}</w:t></w:r></w:p>")
@@ -87,13 +95,20 @@ def make_docx(blocks, media: dict[str, bytes] | None = None) -> bytes:
                 rows.append(f"<w:tr>{trpr}{cells}</w:tr>")
             body.append("<w:tbl>" + "".join(rows) + "</w:tbl>")
     document = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
-                "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>"
+                "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\""
+                " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\""
+                " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\""
+                " xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+                " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><w:body>"
                 + "".join(body) + "<w:sectPr/></w:body></w:document>")
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("[Content_Types].xml", "<?xml version=\"1.0\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"
                          "<Default Extension=\"xml\" ContentType=\"application/xml\"/></Types>")
         archive.writestr("word/document.xml", document)
+        if rels:
+            archive.writestr("word/_rels/document.xml.rels", "<?xml version=\"1.0\"?><Relationships "
+                             "xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + "".join(rels) + "</Relationships>")
         for name, data in (media or {}).items():
             archive.writestr(f"word/media/{name}", data)
     return buffer.getvalue()

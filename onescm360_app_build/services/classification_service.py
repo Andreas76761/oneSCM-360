@@ -135,7 +135,7 @@ class ClassificationService:
         for block in blocks:
             if block["kind"] == "text":
                 parts.append(block["text"])
-            else:
+            elif block["kind"] == "table":
                 parts.extend(" ".join(row) for row in block["rows"])
         text = "\n".join(parts)
         valid = {c["chapterId"] for c in self.chapters.list()}

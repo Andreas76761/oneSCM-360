@@ -133,7 +133,7 @@ class ImportService:
             parsed = parse_docx(data) if ftype == "docx" else parse_html(data)
         except ParseError as exc:
             raise ImportError_(str(exc), 422, "PARSE_ERROR") from exc
-        if not any(b["kind"] == "table" or b["text"].strip() for b in parsed["blocks"]):
+        if not any(b["kind"] == "table" or b.get("text", "").strip() for b in parsed["blocks"]):
             raise ImportError_("Das Dokument enthält keinen lesbaren Inhalt.", 422, "NO_CONTENT")
         return {"name": name, "type": ftype, "size": len(data), **self.classification.classify(name, parsed["blocks"])}
 
@@ -213,7 +213,11 @@ class ImportService:
         preamble = []
         table_seq = self._next_table_number(record["chapterId"], record["importId"])
         has_content = False
+        placements: dict[str, dict] = {}  # media file name → question and alt text, first occurrence wins
         for block in parsed["blocks"]:
+            if block["kind"] == "image":
+                placements.setdefault(block["name"], {"questionId": current, "alt": block.get("alt", "")})
+                continue
             if block["kind"] == "table":
                 has_content = True
                 table_seq += 1
@@ -299,12 +303,25 @@ class ImportService:
             record["validationStatus"] = "WARNINGS"
         else:
             record["validationStatus"] = "VALID"
+        decided = {}  # images edited by hand in earlier imports of this chapter keep that decision
+        if parsed.get("media"):
+            for other in self.records(record["chapterId"]):
+                if other.get("importId") != record["importId"]:
+                    for m in other.get("media", []):
+                        if m.get("edited") and m.get("sha256"):
+                            decided[m["sha256"]] = m
         for item in parsed.get("media", []):
             folder = self.data.media / record["chapterId"] / record["importId"]
             folder.mkdir(parents=True, exist_ok=True)
             target = folder / safe_filename(item["name"], "bild")
             target.write_bytes(item["data"])
-            record["media"].append({"name": target.name, "size": len(item["data"])})
+            place = placements.get(item["name"], {})
+            digest = hashlib.sha256(item["data"]).hexdigest()
+            entry = {"name": target.name, "size": len(item["data"]), "questionId": place.get("questionId"),
+                     "alt": place.get("alt", ""), "inManual": bool(place.get("questionId")), "sha256": digest}
+            if digest in decided:
+                entry.update({k: decided[digest][k] for k in ("questionId", "alt", "inManual") if k in decided[digest]}, edited=True)
+            record["media"].append(entry)
 
     def _next_table_number(self, chapter_id: str, import_id: str) -> int:
         highest = 0
@@ -346,6 +363,32 @@ class ImportService:
             return table
 
     # -- cleanup ---------------------------------------------------------------------
+    def update_media(self, import_id: str, name: str, payload: dict) -> dict:
+        """Change an extracted image's question, alt text or whether it appears in manual versions."""
+        with LOCK:
+            record = self.get(import_id)
+            item = next((m for m in record.get("media", []) if m["name"] == name), None)
+            if item is None:
+                raise ImportError_("Medium nicht gefunden.", 404)
+            if "questionId" in payload:
+                qid = payload["questionId"] or None
+                known = {q["questionId"] for q in self.chapters.get(record["chapterId"])["questions"]}
+                if qid is not None and qid not in known:
+                    raise ImportError_(f"Frage „{qid}“ gibt es in {record['chapterId']} nicht.")
+                item["questionId"] = qid
+            if "alt" in payload:
+                alt = str(payload["alt"] or "").strip()
+                if len(alt) > 300:
+                    raise ImportError_("Bildbeschreibung höchstens 300 Zeichen.")
+                item["alt"] = alt
+            if "inManual" in payload:
+                item["inManual"] = bool(payload["inManual"])
+            if item.get("inManual") and not item.get("questionId"):
+                raise ImportError_("Ein Bild kommt nur ins Handbuch, wenn es einer Frage zugeordnet ist.")
+            item["edited"] = True
+            self.save(record)
+            return item
+
     def archive(self, import_id: str, force: bool = False) -> dict:
         with LOCK:
             record = self.get(import_id)

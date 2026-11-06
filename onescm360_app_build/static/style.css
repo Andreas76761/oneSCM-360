@@ -156,8 +156,12 @@ tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font
 .local-first { margin: 0; padding-left: 18px; font-size: 12px; } .local-first li { margin: 1px 0; }
 
 .manual-frame { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 12px; background: #fff; }
-.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.media-grid a { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: var(--ink); font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #fff; }
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.media-grid a { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: var(--ink); font-size: 12px; }
+.media-card { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: #fff; font-size: 13px; }
+.media-card select, .media-card input[type="text"] { width: 100%; min-width: 0; }
+.media-card label.inline { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; }
+.media-card input[type="checkbox"] { width: auto; margin: 0; }
 .media-grid img { width: 100%; height: 110px; object-fit: contain; background: #f6f8fa; border-radius: 4px; }
 .media-grid .file { height: 110px; display: flex; align-items: center; justify-content: center; background: #f6f8fa; color: var(--muted); border-radius: 4px; }
 
