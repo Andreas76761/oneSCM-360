@@ -1,10 +1,12 @@
+import io
 import json
 import os
 import time
+import zipfile
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from helpers import CH01_HTML, ROOT, AppCase, html_doc, make_docx, p
+from helpers import CH01_HTML, ROOT, AppCase, H, html_doc, make_docx, p
 from services.design_service import validate
 from services.manual_service import build_manual, stage_allowed
 
@@ -140,6 +142,108 @@ class MediaTests(AppCase, unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/media/{rec['importId']}/image9.png").status_code, 404)
         self.assertEqual(self.client.get(f"/api/media/{rec['importId']}/..%2F..%2Fknowledge.json").status_code, 404)
         self.assertEqual(self.client.get("/api/media/IMP-20260101-000000-ABCDEF/image1.png").status_code, 404)
+
+
+def png(width: int, height: int) -> bytes:
+    """A real PNG of the given size (one colour), so header parsing and rendering can be checked."""
+    import struct
+    import zlib
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    raw = b"".join(b"\x00" + b"\x00\x70\x8a" * width for _ in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+class ManualImageTests(AppCase, unittest.TestCase):
+    def import_with_images(self, name="bilder.docx", note="Stand A"):
+        docx = make_docx([note, ("img", "image9.png", "Logo vor der ersten Frage"),
+                          "01-F01 Ziel", "oneSCM unterstützt den Dealer bei Aufträgen.", ("img", "image1.png", "Übersichtsmaske"),
+                          "01-F04 Rollen", "Der Dealer darf Aufträge stornieren.", ("img", "image2.emf", ""),
+                          [["Rolle", "Recht"], ["Dealer", "Bestellen"]], ("img", "image3.png", "Rollenmatrix")],
+                         media={"image1.png": png(800, 450), "image2.emf": b"\x01\x00\x00\x00" + bytes(100),
+                                "image3.png": png(40, 20), "image9.png": png(10, 10)})
+        return self.upload(docx, name).get_json()["importRecord"]
+
+    def test_classify_preview_with_images(self):
+        docx = make_docx(["01-F01 Ziel", "Der Dealer sieht die Übersicht.", ("img", "image1.png", "Maske")], media={"image1.png": png(4, 4)})
+        r = self.client.post("/api/import/classify", data={"file": (io.BytesIO(docx), "CH01_Bilder_DE.docx")},
+                             headers=H, content_type="multipart/form-data")
+        self.assertEqual(r.status_code, 200, r.get_data(as_text=True))
+        self.assertEqual(r.get_json()["chapterId"], "CH01")
+
+    def test_images_are_assigned_to_their_question(self):
+        rec = self.import_with_images()
+        media = {m["name"]: m for m in rec["media"]}
+        self.assertEqual((media["image1.png"]["questionId"], media["image1.png"]["alt"], media["image1.png"]["inManual"]),
+                         ("01-F01", "Übersichtsmaske", True))
+        self.assertEqual(media["image2.emf"]["questionId"], "01-F04")
+        self.assertEqual(media["image3.png"]["questionId"], "01-F04")
+        self.assertEqual((media["image9.png"]["questionId"], media["image9.png"]["inManual"]), (None, False))
+
+    def test_assignment_can_be_changed(self):
+        rec = self.import_with_images()
+        url = f"/api/media/{rec['importId']}/image9.png"
+        self.assertEqual(self.client.patch(url, json={"questionId": "01-F02"}).status_code, 403)  # CSRF header missing
+        bad = self.client.patch(url, json={"inManual": True}, headers=H)
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("einer Frage zugeordnet", bad.get_json()["error"])
+        self.assertEqual(self.client.patch(url, json={"questionId": "01-F99"}, headers=H).status_code, 400)
+        item = self.client.patch(url, json={"questionId": "01-F02", "inManual": True, "alt": "Logo"}, headers=H).get_json()
+        self.assertEqual((item["questionId"], item["inManual"], item["alt"]), ("01-F02", True, "Logo"))
+        self.client.patch(f"/api/media/{rec['importId']}/image3.png", json={"inManual": False}, headers=H)
+        stored = {m["name"]: m for m in self.client.get(f"/api/imports/{rec['importId']}").get_json()["media"]}
+        self.assertEqual(stored["image9.png"]["questionId"], "01-F02")
+        self.assertFalse(stored["image3.png"]["inManual"])
+        self.assertEqual(self.client.patch(f"/api/media/{rec['importId']}/fehlt.png", json={}, headers=H).status_code, 404)
+
+    def test_manual_html_and_word_contain_images(self):
+        rec = self.import_with_images()
+        self.client.patch(f"/api/media/{rec['importId']}/image3.png", json={"inManual": False}, headers=H)
+        self.import_with_images("bilder_kopie.docx", "Stand B")  # another file with the same pictures: appear only once
+        page = self.client.get("/api/manual/CH01/preview?stage=Draft").get_data(as_text=True)
+        self.assertEqual(page.count("data:image/png;base64,"), 1)
+        self.assertIn("Abbildung 1.1-1 – Übersichtsmaske", page)
+        self.assertIn("EMF-Grafik, nur im Word-Handbuchstand sichtbar", page)
+        self.assertNotIn("Rollenmatrix", page)
+        r = self.client.get("/api/manual/CH01/docx?stage=Draft")
+        with zipfile.ZipFile(io.BytesIO(r.data)) as z:
+            names = z.namelist()
+            doc = z.read("word/document.xml").decode("utf-8")
+            rels = z.read("word/_rels/document.xml.rels").decode("utf-8")
+            types = z.read("[Content_Types].xml").decode("utf-8")
+            self.assertEqual(z.read("word/media/bild1.png")[:4], b"\x89PNG")
+        self.assertEqual(sorted(n for n in names if n.startswith("word/media/")), ["word/media/bild1.png", "word/media/bild2.emf"])
+        self.assertIn('r:embed="rIdImg1"', doc)
+        self.assertIn('Target="media/bild1.png"', rels)
+        self.assertIn('Extension="emf"', types)
+        self.assertIn("Abbildung 1.1-1 – Übersichtsmaske", doc)
+        self.assertIn('descr="Übersichtsmaske"', doc)
+        # 800 × 450 px at 96 dpi is 21.2 cm wide: scaled down to the text width of the A4 template
+        import re
+        cx, cy = map(int, re.search(r'<wp:extent cx="(\d+)" cy="(\d+)"/>', doc).groups())
+        self.assertAlmostEqual(cx / 360000, 16.0, delta=0.05)  # A4 minus margins 2.5 cm each side
+        self.assertAlmostEqual(cy / cx, 450 / 800, delta=0.001)
+        r = self.post("/api/manual/CH01", {"stage": "Draft"}).get_json()
+        self.assertEqual(r["stats"]["images"], 2)
+
+    def test_word_manual_with_images_opens_in_python_docx(self):
+        try:
+            import docx
+        except ImportError:
+            self.skipTest("python-docx nicht installiert")
+        self.import_with_images()
+        document = docx.Document(io.BytesIO(self.client.get("/api/manual/CH01/docx?stage=Draft").data))
+        self.assertEqual(len(document.inline_shapes), 3)
+
+    def test_image_size_from_headers(self):
+        from services.word_template import image_size
+        self.assertEqual(image_size(png(123, 45), "png"), (123, 45))
+        self.assertEqual(image_size(b"GIF89a" + (300).to_bytes(2, "little") + (200).to_bytes(2, "little"), "gif"), (300, 200))
+        jpeg = b"\xff\xd8\xff\xe0\x00\x04ab\xff\xc0\x00\x11\x08" + (480).to_bytes(2, "big") + (640).to_bytes(2, "big") + bytes(12)
+        self.assertEqual(image_size(jpeg, "jpg"), (640, 480))
+        self.assertIsNone(image_size(b"kaputt", "png"))
 
 
 if __name__ == "__main__":

@@ -12,6 +12,11 @@ import xml.etree.ElementTree as ET
 from .html_parser import ParseError
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+WP = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+V = "{urn:schemas-microsoft-com:vml}"
+REL = "{http://schemas.openxmlformats.org/package/2006/relationships}"
 MAX_XML_BYTES = 200 * 1024 * 1024
 MAX_MEDIA_BYTES = 200 * 1024 * 1024
 MEDIA_EXT = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".emf", ".wmf", ".svg", ".webp"}
@@ -78,7 +83,26 @@ def _table(tbl) -> dict | None:
     return {"kind": "table", "hasHeader": header, "rows": rows}
 
 
-def _walk(container, blocks):
+def _images(p, rels: dict) -> list[dict]:
+    """Images anchored in a paragraph: DrawingML (a:blip) and legacy VML (v:imagedata), with alt text."""
+    found = []
+    for drawing in p.iter(W + "drawing"):
+        doc_pr = next(drawing.iter(WP + "docPr"), None)
+        alt = ((doc_pr.get("descr") or doc_pr.get("title") or "") if doc_pr is not None else "").strip()
+        for blip in drawing.iter(A + "blip"):
+            target = rels.get(blip.get(R + "embed") or blip.get(R + "link") or "")
+            if target:
+                found.append({"kind": "image", "name": target, "alt": alt[:300]})
+                break
+    for data in p.iter(V + "imagedata"):
+        target = rels.get(data.get(R + "id") or "")
+        if target:
+            found.append({"kind": "image", "name": target, "alt": (data.get("title") or "").strip()[:300]})
+    return found
+
+
+def _walk(container, blocks, rels=None):
+    rels = rels or {}
     for child in container:
         if child.tag == W + "p":
             style = _para_style(child)
@@ -86,14 +110,17 @@ def _walk(container, blocks):
                 line = re.sub(r"[ \t ]+", " ", line).strip()
                 if line:
                     blocks.append({"kind": "text", "style": style, "text": line})
+            blocks.extend(_images(child, rels))
         elif child.tag == W + "tbl":
             table = _table(child)
             if table:
                 blocks.append(table)
+            for cell_p in child.iter(W + "p"):  # screenshots inside table cells still belong to the current question
+                blocks.extend(_images(cell_p, rels))
         elif child.tag == W + "sdt":
             content = child.find(W + "sdtContent")
             if content is not None:
-                _walk(content, blocks)
+                _walk(content, blocks, rels)
 
 
 def parse_docx(data: bytes) -> dict:
@@ -115,8 +142,17 @@ def parse_docx(data: bytes) -> dict:
         body = root.find(W + "body")
         if body is None:
             raise ParseError("Die DOCX-Datei enthält keinen Dokumentkörper.")
+        rels = {}
+        if "word/_rels/document.xml.rels" in names:
+            try:
+                for rel in ET.fromstring(archive.read("word/_rels/document.xml.rels")).iter(REL + "Relationship"):
+                    target = rel.get("Target") or ""
+                    if target.startswith(("media/", "/word/media/")):
+                        rels[rel.get("Id")] = target.rsplit("/", 1)[-1]
+            except (ET.ParseError, zipfile.BadZipFile, OSError, RuntimeError):
+                rels = {}
         blocks: list[dict] = []
-        _walk(body, blocks)
+        _walk(body, blocks, rels)
         media = []
         total = 0
         for name in sorted(names):

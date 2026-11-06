@@ -9,6 +9,7 @@ Offen/Kritisch (left border + shading), Badge (character style) and the table st
 from __future__ import annotations
 
 import io
+import struct
 import zipfile
 from xml.sax.saxutils import escape
 
@@ -16,7 +17,14 @@ from .design_service import fill
 
 W_NS = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
         'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
+DOC_NS = (W_NS + ' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
+          ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+          ' xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"')
 TWIPS_PER_CM = 567
+EMU_PER_CM = 360000
+EMU_PER_PX = 9525  # 96 dpi
+IMAGE_TYPES = {"png": "image/png", "jpeg": "image/jpeg", "jpg": "image/jpeg", "gif": "image/gif", "bmp": "image/bmp",
+               "emf": "image/x-emf", "wmf": "image/x-wmf"}
 PAGE_SIZES = {"A4": (11906, 16838), "Letter": (12240, 15840)}
 
 
@@ -242,6 +250,66 @@ def toc(title: str = "Inhalt") -> str:
             + '<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>')
 
 
+def image_size(data: bytes, ext: str) -> tuple[int, int] | None:
+    """Pixel size from the file header (PNG, JPEG, GIF, BMP); EMF from its frame (0.01 mm → px at 96 dpi)."""
+    try:
+        if ext == "png" and data[:8] == b"\x89PNG\r\n\x1a\n":
+            return struct.unpack(">II", data[16:24])
+        if ext == "gif" and data[:3] == b"GIF":
+            return struct.unpack("<HH", data[6:10])
+        if ext == "bmp" and data[:2] == b"BM":
+            w, h = struct.unpack("<ii", data[18:26])
+            return abs(w), abs(h)
+        if ext in ("jpg", "jpeg") and data[:2] == b"\xff\xd8":
+            i = 2
+            while i + 9 < len(data):
+                if data[i] != 0xFF:
+                    i += 1
+                    continue
+                marker = data[i + 1]
+                if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
+                    h, w = struct.unpack(">HH", data[i + 5:i + 9])
+                    return w, h
+                if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:
+                    i += 2
+                    continue
+                i += 2 + struct.unpack(">H", data[i + 2:i + 4])[0]
+        if ext == "emf" and struct.unpack("<I", data[:4])[0] == 1:
+            left, top, right, bottom = struct.unpack("<iiii", data[24:40])
+            return round((right - left) / 2540 * 96), round((bottom - top) / 2540 * 96)
+    except struct.error:
+        return None
+    return None
+
+
+def text_width_cm(t: dict) -> float:
+    width, _ = PAGE_SIZES[t["page"]["format"]]
+    if t["page"]["orientation"] == "landscape":
+        width = PAGE_SIZES[t["page"]["format"]][1]
+    usable = width / TWIPS_PER_CM - t["page"]["marginLeft"] - t["page"]["marginRight"]
+    columns = t["page"]["columns"]
+    return (usable - (columns - 1) * 1.0) / columns
+
+
+def image(t: dict, rid: str, number: int, size_px: tuple[int, int] | None, alt: str, max_height_cm: float = 16.0) -> str:
+    """Inline picture paragraph, scaled to the text width (never enlarged) and to max_height_cm."""
+    w_px, h_px = size_px if size_px and size_px[0] > 0 and size_px[1] > 0 else (454, 302)  # 12 × 8 cm fallback
+    cx, cy = w_px * EMU_PER_PX, h_px * EMU_PER_PX
+    scale = min(1.0, text_width_cm(t) * EMU_PER_CM / cx, max_height_cm * EMU_PER_CM / cy)
+    cx, cy = int(cx * scale), int(cy * scale)
+    descr = escape(alt, {'"': "&quot;"})
+    return ('<w:p><w:pPr><w:keepNext/><w:spacing w:before="120" w:after="60"/></w:pPr><w:r><w:drawing>'
+            f'<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="{cx}" cy="{cy}"/>'
+            f'<wp:docPr id="{number}" name="Bild {number}" descr="{descr}"/>'
+            '<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+            '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic>'
+            f'<pic:nvPicPr><pic:cNvPr id="{number}" name="Bild {number}" descr="{descr}"/><pic:cNvPicPr/></pic:nvPicPr>'
+            f'<pic:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            f'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+            f'<a:ln w="6350"><a:solidFill><a:srgbClr val="{_hex(t, "line")}"/></a:solidFill></a:ln></pic:spPr>'
+            "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>")
+
+
 def page_break() -> str:
     return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
 
@@ -260,7 +328,7 @@ def _section(t: dict) -> str:
 
 
 def _document(t: dict, body: str) -> str:
-    return f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document {W_NS}><w:body>{body}{_section(t)}</w:body></w:document>'
+    return f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document {DOC_NS}><w:body>{body}{_section(t)}</w:body></w:document>'
 
 
 def document_xml(t: dict, values: dict) -> str:
@@ -300,18 +368,26 @@ def build(t: dict, kind: str = "dotx") -> bytes:
     return package(t, document_xml(t, values), values, kind=kind, title=t["name"])
 
 
-def build_document(t: dict, body: str, values: dict, title: str) -> bytes:
-    """A .docx with the template's styles, page setup, header/footer and the given body XML."""
-    return package(t, _document(t, body), values, kind="docx", title=title, update_fields=True)
+def build_document(t: dict, body: str, values: dict, title: str, media: list[tuple[str, str, bytes]] | None = None) -> bytes:
+    """A .docx with the template's styles, page setup, header/footer and the given body XML.
+
+    media: (relationship id, file name in word/media, bytes) for the pictures the body refers to."""
+    return package(t, _document(t, body), values, kind="docx", title=title, update_fields=True, media=media)
 
 
-def package(t: dict, document: str, values: dict, *, kind: str, title: str, update_fields: bool = False) -> bytes:
+def package(t: dict, document: str, values: dict, *, kind: str, title: str, update_fields: bool = False,
+            media: list[tuple[str, str, bytes]] | None = None) -> bytes:
+    media = media or []
+    image_defaults = "".join(f'<Default Extension="{ext}" ContentType="{IMAGE_TYPES[ext]}"/>'
+                             for ext in sorted({name.rsplit(".", 1)[1] for _, name, _ in media}))
+    image_rels = "".join(f'<Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+                         f'Target="media/{name}"/>' for rid, name, _ in media)
     main_type = ("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml" if kind == "dotx"
                  else "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml")
     content_types = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
                      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-                     '<Default Extension="xml" ContentType="application/xml"/>'
+                     '<Default Extension="xml" ContentType="application/xml"/>' + image_defaults +
                      f'<Override PartName="/word/document.xml" ContentType="{main_type}"/>'
                      '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
                      '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>'
@@ -332,7 +408,7 @@ def package(t: dict, document: str, values: dict, *, kind: str, title: str, upda
                 '<Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>'
                 '<Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>'
                 '<Relationship Id="rIdFooter1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
-                "</Relationships>")
+                + image_rels + "</Relationships>")
     settings = (f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings {W_NS}>'
                 '<w:defaultTabStop w:val="708"/><w:characterSpacingControl w:val="doNotCompress"/>'
                 + ('<w:updateFields w:val="true"/>' if update_fields else "") + "</w:settings>")
@@ -347,6 +423,8 @@ def package(t: dict, document: str, values: dict, *, kind: str, title: str, upda
         z.writestr("word/_rels/document.xml.rels", doc_rels)
         z.writestr("word/document.xml", document)
         z.writestr("word/numbering.xml", NUMBERING)
+        for _, name, data in media:
+            z.writestr(f"word/media/{name}", data)
         z.writestr("word/styles.xml", styles_xml(t))
         z.writestr("word/settings.xml", settings)
         z.writestr("word/header1.xml", _hf(t, "header", t["header"], values))

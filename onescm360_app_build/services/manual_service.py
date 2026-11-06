@@ -9,14 +9,48 @@ HTML (opens in Word and browsers), Word (.docx with the design template's styles
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import html
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .claim_service import evidence_factor
 
 STAGES = {"Draft": {"DRAFT", "REVIEWED", "CONFIRMED"}, "Reviewed": {"REVIEWED", "CONFIRMED"}, "Released": {"CONFIRMED"}}
 STATUS_TEXT = {"DRAFT": "ungeprüft", "REVIEWED": "geprüft", "CONFIRMED": "freigegeben"}
+HTML_IMAGES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "webp": "image/webp", "bmp": "image/bmp"}
+WORD_IMAGES = {"png", "jpg", "jpeg", "gif", "bmp", "emf", "wmf"}
+MAX_IMAGE_BYTES = 15 * 1024 * 1024
+
+
+def manual_images(imports: list[dict], media_root: Path | None) -> dict[str, list[dict]]:
+    """Images per question from completed imports: assigned to a question, marked for the manual, file present.
+    The same picture from several imports (e.g. DE and EN version) appears once."""
+    per_question: dict[str, list[dict]] = {}
+    if media_root is None:
+        return per_question
+    seen = set()
+    for record in imports:
+        if record.get("status") != "COMPLETED":
+            continue
+        for item in record.get("media", []):
+            qid = item.get("questionId")
+            ext = item["name"].rsplit(".", 1)[-1].lower() if "." in item["name"] else ""
+            if not qid or not item.get("inManual") or (ext not in HTML_IMAGES and ext not in WORD_IMAGES):
+                continue
+            path = Path(media_root) / record["chapterId"] / record["importId"] / item["name"]
+            if not path.is_file() or path.stat().st_size > MAX_IMAGE_BYTES:
+                continue
+            data = path.read_bytes()
+            digest = item.get("sha256") or hashlib.sha256(data).hexdigest()
+            if digest in seen:
+                continue
+            seen.add(digest)
+            per_question.setdefault(qid, []).append({"data": data, "ext": ext, "alt": item.get("alt", ""), "name": item["name"],
+                                                     "importId": record["importId"]})
+    return per_question
 
 
 class ManualError(ValueError):
@@ -36,7 +70,7 @@ def stage_allowed(stage: str, gate: str) -> tuple[bool, str]:
 
 
 def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[dict], tables: list[dict],
-                 coverage: dict, rules: list[dict], imports: list[dict], design: dict) -> dict:
+                 coverage: dict, rules: list[dict], imports: list[dict], design: dict, media_root: Path | None = None) -> dict:
     """Return {"html", "docx", "markdown", "stats", "title"} for one chapter and stage, formatted with a design template."""
     from . import word_template as wt
     from .design_service import box_html, css, fill_without_pages, role_badge, symbols
@@ -56,6 +90,9 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
         if table.get("sourceQuestionId") and not table.get("reviewRequired"):
             tables_by_q.setdefault(table["sourceQuestionId"], []).append(table)
 
+    images_by_q = manual_images(imports, media_root)
+    word_media: list[tuple[str, str, bytes]] = []
+    figure_no = 0
     now = datetime.now(timezone.utc).astimezone()
     number = chapter["chapterId"][2:]
     title = f"{design['documentTitle']} – {chapter['chapterId']} {chapter['title']}"
@@ -70,7 +107,9 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
     division_badge = {"PC": '<span class="badge b-pc">PC</span>', "VAN": '<span class="badge b-van">Van</span>',
                       "BOTH": '<span class="badge b-both">beide</span>', "CV": '<span class="badge b-off">CV</span>'}
     show_sources = design["elements"].get("showSourceLines", True)
-    h = [f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>{e(title)}</title><style>{css(design)}</style></head><body>",
+    shot_css = (f".shot{{margin:10px 0 14px;break-inside:avoid}}.shot img{{max-width:100%;max-height:16cm;border:1px solid {design['colors']['line']};"
+                f"display:block}}.shot figcaption{{margin-top:4px}}")
+    h = [f"<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>{e(title)}</title><style>{css(design)}{shot_css}</style></head><body>",
          symbols(design, {b["icon"] for b in design["boxes"]} | {role_icon(r) for r in {c.get("role") for c in included} if role_icon(r)}),
          '<div class="page">',
          f'<div class="hf top"><span>{e(fill_without_pages(design["header"], values))}</span><span>{e(stage)}</span></div>',
@@ -164,6 +203,24 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
             md += ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
             md += ["| " + " | ".join((row[i] if i < len(row) else "").replace("|", "\\|") for i in range(width)) + " |" for row in table["rows"]]
             md.append("")
+        for number, picture in enumerate(images_by_q.get(qid, []), start=1):
+            figure_no += 1
+            caption = f"Abbildung {group_no}.{question_no}-{number}" + (f" – {picture['alt']}" if picture["alt"] else "")
+            if picture["ext"] in HTML_IMAGES:
+                uri = f"data:{HTML_IMAGES[picture['ext']]};base64,{base64.b64encode(picture['data']).decode('ascii')}"
+                h.append(f'<figure class="shot"><img src="{uri}" alt="{e(picture["alt"] or caption)}">'
+                         f'<figcaption class="cap">{e(caption)}</figcaption></figure>')
+            else:
+                h.append(f'<p class="src">{e(caption)}: {e(picture["ext"].upper())}-Grafik, nur im Word-Handbuchstand sichtbar.</p>')
+            md.append(f"_{caption}_ ({picture['name']})")
+            md.append("")
+            if picture["ext"] in WORD_IMAGES:
+                rid, ext = f"rIdImg{figure_no}", "jpeg" if picture["ext"] == "jpg" else picture["ext"]
+                word_media.append((rid, f"bild{figure_no}.{ext}", picture["data"]))
+                w += [wt.image(design, rid, figure_no, wt.image_size(picture["data"], ext), picture["alt"] or caption),
+                      wt.paragraph("Caption", caption)]
+            else:
+                w.append(wt.paragraph("Quellenzeile", f"{caption}: {picture['ext'].upper()}-Bild, in Word nicht einbettbar – siehe HTML-Handbuchstand."))
         if show_sources and refs_for_question:
             h.append(f'<p class="src">Quellen: {e(", ".join(sorted(refs_for_question)))}</p>')
             w.append(wt.paragraph("Quellenzeile", f'Quellen: {", ".join(sorted(refs_for_question))}'))
@@ -182,8 +239,8 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
     h.append(f'</div><div class="hf"><span>{e(fill_without_pages(design["footer"], values))}</span>'
              f'<span>Designvorlage: {e(design["name"])}</span></div></div></body></html>')
     stats = {"claims": len(included), "questionsWithContent": answered, "questions": len(chapter["questions"]),
-             "tables": sum(len(v) for v in tables_by_q.values()), "design": design["name"]}
-    docx = wt.build_document(design, "".join(w), values, title)
+             "tables": sum(len(v) for v in tables_by_q.values()), "images": figure_no, "design": design["name"]}
+    docx = wt.build_document(design, "".join(w), values, title, word_media)
     return {"html": "\n".join(h), "docx": docx, "markdown": "\n".join(md) + "\n", "stats": stats, "title": title}
 
 

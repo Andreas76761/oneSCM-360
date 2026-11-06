@@ -581,7 +581,8 @@ def create_app(config: dict | None = None) -> Flask:
         records = imports.records(chapter_id)
         design = designs.get(design_id) if design_id else designs.default_for("handbuch")
         return build_manual(chapter, stage, kdata["claims"], kdata["evidence"],
-                            [t for r in records for t in r.get("tables", [])], snapshot, rules.list(), records, design)
+                            [t for r in records for t in r.get("tables", [])], snapshot, rules.list(), records, design,
+                            media_root=data.media)
 
     @app.get("/api/manual/<chapter_id>/preview")
     def manual_preview(chapter_id):
@@ -659,6 +660,10 @@ def create_app(config: dict | None = None) -> Flask:
                              as_attachment=target.suffix.lower() in (".emf", ".wmf", ".tif", ".tiff", ".svg"), download_name=name)
         response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"
         return response
+
+    @app.patch("/api/media/<import_id>/<name>")
+    def media_update(import_id, name):
+        return jsonify(imports.update_media(import_id, name, body()))
 
     # -- internal chat bot (router → policy → tool) ---------------------------------------------------
     def chat_session():

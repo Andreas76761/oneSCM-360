@@ -428,12 +428,39 @@
       el("tbody", {}, record.questions.map((q) => el("tr", {}, el("td", { class: "mono", text: q.questionId }), el("td", { text: q.title }), el("td", {}, badge(q.criticality)), el("td", {}, badge(q.answerStatus)), el("td", { text: (q.ruleFindings || []).join(", ") || "—" }), el("td", { text: q.normalizedText ? q.normalizedText.slice(0, 220) + (q.normalizedText.length > 220 ? " …" : "") : "—" })))))));
     if (record.media && record.media.length) {
       const viewable = /\.(png|jpe?g|gif|bmp|webp)$/i;
-      parts.push(el("h2", { text: `Medien (${record.media.length})` }), el("div", { class: "media-grid", id: "imp-media" }, record.media.map((m) => {
-        const url = `/api/media/${encodeURIComponent(record.importId)}/${encodeURIComponent(m.name)}`;
-        return el("a", { href: url, target: "_blank", rel: "noopener" },
-          viewable.test(m.name) ? el("img", { src: url, alt: m.name, loading: "lazy" }) : el("div", { class: "file", text: m.name.split(".").pop().toUpperCase() }),
-          el("span", { text: `${m.name} · ${fmtSize(m.size)}` }));
-      })));
+      const questionOptions = [["", "— keiner Frage zugeordnet —"], ...record.questions.map((q) => [q.questionId, `${q.questionId} · ${q.title}`])];
+      parts.push(el("h2", { text: `Medien (${record.media.length})` }),
+        el("p", { class: "muted", text: "Bilder stehen im Handbuchstand unter der Frage, unter der sie im Dokument stehen. Zuordnung, Beschreibung (wird zur Bildunterschrift) und Aufnahme ins Handbuch lassen sich hier ändern." }),
+        el("div", { class: "media-grid", id: "imp-media" }, record.media.map((m) => {
+          const url = `/api/media/${encodeURIComponent(record.importId)}/${encodeURIComponent(m.name)}`;
+          const question = el("select", { "aria-label": `Frage für ${m.name}` });
+          fillSelect(question, questionOptions, { value: m.questionId || "" });
+          const include = el("input", { type: "checkbox", "aria-label": `${m.name} im Handbuch` });
+          include.checked = !!m.inManual;
+          const alt = el("input", { type: "text", maxlength: 300, value: m.alt || "", placeholder: "Bildbeschreibung", "aria-label": `Beschreibung für ${m.name}` });
+          const save = async (changes, message) => {
+            try {
+              const item = await api(url, { method: "PATCH", body: changes });
+              Object.assign(m, item);
+              question.value = item.questionId || "";
+              include.checked = !!item.inManual;
+              toast(message);
+            } catch (e) {
+              question.value = m.questionId || "";
+              include.checked = !!m.inManual;
+              toast(e.message, true);
+            }
+          };
+          question.addEventListener("change", () => save({ questionId: question.value || null, inManual: !!question.value && (m.inManual || !m.questionId) },
+            question.value ? `Bild ${question.value} zugeordnet.` : "Zuordnung entfernt – Bild nicht im Handbuch."));
+          include.addEventListener("change", () => save({ inManual: include.checked }, include.checked ? "Bild kommt ins Handbuch." : "Bild aus dem Handbuch genommen."));
+          alt.addEventListener("change", () => save({ alt: alt.value }, "Bildbeschreibung gespeichert."));
+          return el("div", { class: "media-card", dataset: { media: m.name } },
+            el("a", { href: url, target: "_blank", rel: "noopener" },
+              viewable.test(m.name) ? el("img", { src: url, alt: m.alt || m.name, loading: "lazy" }) : el("div", { class: "file", text: m.name.split(".").pop().toUpperCase() }),
+              el("span", { text: `${m.name} · ${fmtSize(m.size)}` })),
+            question, alt, el("label", { class: "inline" }, include, " im Handbuch"));
+        })));
     }
     parts.push(el("h2", { text: "Regelbefunde" }));
     if (record.findings.length) parts.push(el("div", { class: "table-wrap" }, el("table", { id: "imp-findings" },
