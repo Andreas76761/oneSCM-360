@@ -21,6 +21,7 @@
     <button data-tab="tables">Tabellen</button>
     <button data-tab="coverage">Coverage</button>
     <button data-tab="sync">Synchronisation</button>
+    <button data-tab="chat">Interner Chat</button>
     <button data-tab="docs">Dokumentation</button>
   </nav>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
@@ -174,6 +175,48 @@
           <li>CSV-Dateien manuell in die SharePoint-Listen „oneSCM Knowledge Blocks“, „Claims“, „Evidence“ und „Coverage“ übernehmen.</li>
         </ol>
         <p class="muted">Cloudstatus im manuellen Betriebsmodus: <strong>NOT_VERIFIABLE_WITHOUT_GRAPH</strong>.</p>
+      </div>
+    </section>
+
+    <!-- Interner Chat -->
+    <section id="tab-chat" class="panel" hidden aria-labelledby="h-chat">
+      <div class="panel-head"><h1 id="h-chat">Interner Chat</h1><span class="muted">Der Router schlägt genau eine Funktion aus der Tool Registry vor – die Security Policy entscheidet, ob sie ausgeführt wird. Kein Internet, kein externes LLM.</span></div>
+      <details class="card" id="chat-registry-box"><summary>Tool Registry v1 (10 Funktionen)</summary>
+        <div class="table-wrap"><table id="chat-registry"><thead><tr><th>Tool</th><th>Zweck</th><th>Quelle</th><th>Operation</th><th>Netz</th><th>Schreibend</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+      </details>
+      <div class="chat-layout">
+        <div class="card chat-main">
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+          <div id="chat-examples" class="chips"></div>
+          <form id="chat-form" class="chat-form" novalidate>
+            <textarea id="chat-input" rows="2" maxlength="2000" placeholder="Frage stellen, z. B. „Warum ist CH01 blockiert?“ – Enter sendet, Umschalt+Enter für neue Zeile" aria-label="Frage"></textarea>
+            <button type="submit" id="chat-send" class="primary">Senden</button>
+          </form>
+        </div>
+        <aside class="chat-side">
+          <div class="card" id="chat-security">
+            <h2>Sicherheit</h2>
+            <dl class="kv" id="chat-policy"></dl>
+          </div>
+          <div class="card">
+            <h2>Router</h2>
+            <label>Modus<select id="chat-mode"><option value="rules">Regeln (offline, nachvollziehbar)</option><option value="model">Lokales Modell (z. B. FunctionGemma über Ollama)</option></select></label>
+            <p class="muted" id="chat-router-info"></p>
+            <div class="actions"><button type="button" id="chat-eval" class="secondary">Routing-Testsuite ausführen</button></div>
+            <div id="chat-eval-result"></div>
+          </div>
+          <div class="card">
+            <h2>Audit-Protokoll</h2>
+            <p class="muted">Pro Werkzeugaufruf: Zeit, Benutzer, Tool, Operation, Ergebnis. Ohne Frage- und Dokumentinhalte.</p>
+            <div class="actions"><button type="button" id="chat-audit-refresh" class="small">Aktualisieren</button></div>
+            <ul id="chat-audit" class="audit-list"></ul>
+          </div>
+          <div class="card">
+            <h2>Trainingsdaten</h2>
+            <p class="muted">Vorlagen über alle Kapitel, Rollen und Fahrzeugtypen plus bestätigtes Feedback – nur Tools der Registry, im Format des FunctionGemma-Notebooks. Die Fragen der Testsuite sind ausgeschlossen.</p>
+            <div class="actions"><a class="button-link" id="chat-train-notebook" href="/api/chat/training-data?format=notebook">JSONL (Notebook-Format)</a><a class="button-link" href="/api/chat/training-data?format=messages">JSONL (Chat-Format)</a></div>
+          </div>
+        </aside>
       </div>
     </section>
 

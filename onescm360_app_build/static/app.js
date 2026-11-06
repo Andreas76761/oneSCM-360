@@ -546,7 +546,7 @@
       field("Predicate", "predicate", el("input", { value: claim.predicate || "" })),
       el("label", { class: "wide" }, "Object (normalisierte Begriffe)", el("input", { "data-field": "object", value: claim.object || "" })),
       field("Rolle", "role", select([["", "—"], ...state.meta.roles.map((r) => [r.id, r.name]), ...(claim.role && !state.meta.roles.some((r) => r.id === claim.role) ? [[claim.role, claim.role]] : [])], claim.role || "")),
-      field("Division", "division", select([["", "—"], "PC", "VAN", "BOTH"], claim.division || "")),
+      field("Division", "division", select([["", "—"], "PC", "VAN", "CV", "BOTH"], claim.division || "")),
       field("Markt", "market", el("input", { value: claim.market || "" })),
       field("PI", "pi", el("input", { type: "number", min: 0, max: 99, value: claim.pi ?? "" })),
       field("Reifegrad", "maturity", select([["", "—"], "PRODUCTION", "ACCEPTED", "IN_TEST", "IMPLEMENTED", "PLANNED"], claim.maturity || "")),
@@ -762,6 +762,202 @@
     } catch (e) {
       $("sync-result").replaceChildren(el("div", { class: "alert error", text: e.message }));
     } finally { button.disabled = false; }
+  });
+
+  // ---------- Interner Chat ----------
+  let chatInfo = null;
+  let chatSession = "";
+  try { chatSession = sessionStorage.getItem("onescm360-session") || ""; } catch { /* ignore */ }
+  if (!chatSession) {
+    chatSession = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)).replace(/[^A-Za-z0-9-]/g, "");
+    try { sessionStorage.setItem("onescm360-session", chatSession); } catch { /* ignore */ }
+  }
+  const CHAT_EXAMPLES = ["Was gilt bei Service Contract Cancellation für PC?", "Berechne die Coverage für CH01", "Validiere Kapitel 1",
+    "Zeige unbelegte kritische Claims", "Wofür steht PI?", "Was steht in Jira zu ONESCM-123?", "Exportiere CH01 als Review-Paket",
+    "Suche im Internet nach dem Aktienkurs"];
+
+  async function chatApi(path, body) {
+    const response = await fetch(path, { method: "POST", headers: { "X-oneSCM360": "1", "X-oneSCM360-Session": chatSession, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error((data && data.error) || `Serverfehler (${response.status}).`);
+    return data;
+  }
+
+  loaders.chat = async () => {
+    if (!chatInfo) {
+      chatInfo = await api("/api/chat/info");
+      const p = chatInfo.policy;
+      const yesNo = (v) => (v ? "ja" : "nein");
+      $("chat-policy").replaceChildren(
+        el("dt", { text: "Modus" }), el("dd", {}, badge(p.securityMode, "ok")),
+        el("dt", { text: "Default" }), el("dd", {}, badge(p.defaultPolicy, "bad")),
+        el("dt", { text: "Internet / externes LLM" }), el("dd", { text: `${yesNo(p.externalNetwork)} / ${yesNo(p.externalLlm)}` }),
+        el("dt", { text: "Externe Suche / Telemetrie" }), el("dd", { text: `${yesNo(p.externalSearch)} / ${yesNo(p.telemetryExternal)}` }),
+        el("dt", { text: "Netzwerksperre" }), el("dd", { id: "chat-network-guard", text: p.networkGuard ? "aktiv (nur localhost)" : "inaktiv" }),
+        el("dt", { text: "Benutzer" }), el("dd", { text: `${p.user} – ${p.authentication}` }),
+        el("dt", { text: "Quellen" }), el("dd", { text: p.allowedSources.join(", ") }),
+        el("dt", { text: "Local First" }), el("dd", {}, el("ol", { class: "local-first" }, [...p.localFirstOrder.map((step) => {
+          const [tool, status] = step.split(":");
+          return el("li", {}, el("code", { text: tool }), status ? ` (${status.replace(",", ", ")})` : "");
+        }), el("li", { text: "Ende: „Keine freigegebene Quelle gefunden.“ – kein Internet" })])));
+      $("chat-registry").tBodies[0].replaceChildren(...chatInfo.tools.map((t) => el("tr", { dataset: { tool: t.name } },
+        el("td", { class: "mono", text: t.name }), el("td", { text: t.purpose }), el("td", { text: t.source }),
+        el("td", {}, badge(t.operation, t.writes ? "warn" : "ok")), el("td", { text: t.network }),
+        el("td", { text: t.writes ? "Ja (mit Bestätigung)" : "Nein" }),
+        el("td", {}, t.connector ? badge("aktiv", "ok") : badge("Connector fehlt", "warn")))));
+      $("chat-examples").replaceChildren(...CHAT_EXAMPLES.map((q) => el("button", { type: "button", text: q, onclick: () => sendChat(q) })));
+      updateRouterInfo();
+    }
+    if (!$("chat-log").children.length) $("chat-log").append(el("div", { class: "chat-empty", text: "Stellen Sie eine Frage zum internen Wissensbestand – oder wählen Sie ein Beispiel." }));
+    loadAudit();
+  };
+  function updateRouterInfo() {
+    if (!chatInfo) return;
+    $("chat-router-info").textContent = $("chat-mode").value === "model"
+      ? `Modell „${chatInfo.router.model}“ unter ${chatInfo.router.url} (nur localhost). Erhält nur die Funktionsdeklarationen der Registry. Ist es nicht erreichbar, antwortet der Regel-Router.`
+      : "Regelbasierte Zuordnung – ohne KI-Modell, offline und reproduzierbar.";
+  }
+  $("chat-mode").addEventListener("change", updateRouterInfo);
+
+  async function loadAudit() {
+    try {
+      const entries = await api("/api/chat/audit");
+      $("chat-audit").replaceChildren(...(entries.length ? entries.slice(0, 30).map((e) => el("li", {},
+        el("span", { class: "muted", text: new Date(e.timestamp).toLocaleTimeString("de-DE") }), badge(e.result), el("span", { class: "mono", text: e.tool }),
+        el("span", { class: "muted", text: `${e.operation || "—"}${e.executed ? " · ausgeführt" : ""}` }))) : [el("li", { class: "muted", text: "Noch keine Einträge." })]));
+    } catch { /* ignore */ }
+  }
+  $("chat-audit-refresh").addEventListener("click", loadAudit);
+
+  const callText = (call) => `${call.tool}(${JSON.stringify(call.arguments)})`;
+
+  async function goTo(link) {
+    if (!link) return;
+    if (link.tab === "claims") {
+      $("claim-chapter").value = link.chapterId || "";
+      showTab("claims");
+      await loaders.claims();
+      if (link.claimId) openClaim(link.claimId);
+      return;
+    }
+    if (link.tab === "coverage" && link.chapterId) $("cov-chapter").value = link.chapterId;
+    showTab(link.tab);
+  }
+
+  function resultItem(item) {
+    if (item.type === "metric") {
+      const fill = el("div", { class: "bar-fill" });
+      fill.style.width = `${Math.min(100, item.value)}%`;
+      return el("li", {}, el("div", { class: "metric" }, el("span", { text: item.label }), el("div", { class: "bar" }, fill), el("strong", { text: pct(item.value) })));
+    }
+    const link = item.type === "claim" ? { tab: "claims", chapterId: item.chapterId, claimId: item.id }
+      : item.type === "evidence" && item.claimId ? { tab: "claims", chapterId: item.chapterId, claimId: item.claimId }
+      : item.type === "example" ? null : null;
+    const node = el("li", { class: link || item.type === "example" ? "clickable" : "", title: link ? "Im Register öffnen" : null,
+      onclick: link ? () => goTo(link) : item.type === "example" ? () => sendChat(item.label) : null },
+      item.id ? el("span", { class: "mono", text: item.id }) : null,
+      item.chapterId ? el("span", { class: "mono", text: item.questionId || item.chapterId }) : null,
+      el("span", { class: "label", text: item.label }),
+      item.role ? el("span", { class: "badge", text: labelFor.role(item.role) }) : null,
+      item.division ? el("span", { class: "badge", text: item.division }) : null,
+      item.criticality ? badge(item.criticality) : null,
+      item.status ? badge(item.status, { Released: "ok", Reviewed: "warn", Draft: "warn", BLOCKED: "bad", WARNING: "warn" }[item.status]) : null,
+      item.evidence !== undefined ? el("span", { class: "muted", text: `Evidence ${Number(item.evidence).toFixed(2).replace(".", ",")}` }) : null);
+    return node;
+  }
+
+  function feedbackBar(answer) {
+    const box = el("div", { class: "feedback" }, "Passt die Funktion?");
+    const done = (text) => box.replaceChildren(el("span", { text }));
+    const send = async (tool) => {
+      try {
+        await api("/api/chat/feedback", { method: "POST", body: { message: answer.message, tool, arguments: tool === answer.call.tool ? answer.call.arguments : {}, correct: true } });
+        done(tool === answer.call.tool ? "✓ Als Trainingsbeispiel gespeichert." : `✓ Korrektur „${tool}“ als Trainingsbeispiel gespeichert.`);
+      } catch (e) { toast(e.message, true); }
+    };
+    const select = el("select", { "aria-label": "Richtige Funktion" });
+    fillSelect(select, chatInfo.tools.map((t) => t.name).filter((n) => n !== answer.call.tool), { empty: "andere Funktion wählen …" });
+    select.addEventListener("change", () => { if (select.value) send(select.value); });
+    if (chatInfo.tools.some((t) => t.name === answer.call.tool)) box.append(el("button", { type: "button", class: "small", text: "✓ Ja", onclick: () => send(answer.call.tool) }));
+    box.append(select);
+    return box;
+  }
+
+  function stepList(steps) {
+    if (!steps || !steps.length) return null;
+    return el("ol", { class: "steps" }, steps.map((step, i) => el("li", { class: step.found === false ? "skipped" : "" },
+      el("span", { class: "muted", text: `${i + 1}.` }), el("span", { class: "call", text: callText(step) }), badge(step.policy.result),
+      step.found === false ? el("span", { class: "muted", text: "kein Treffer → nächste Quelle" }) : null,
+      step.policy.result === "DENIED" ? el("span", { class: "row-error", text: step.policy.reason }) : null)));
+  }
+
+  function renderAnswer(answer) {
+    const parts = [
+      el("div", {}, el("span", { class: "call", text: answer.call.tool === "none" ? "keine Funktion" : callText(answer.call) }),
+        el("span", { class: "call-meta", text: answer.router === "model" ? "Router: lokales Modell" : answer.router === "confirmed" ? "bestätigt" : "Router: Regeln" })),
+      ...answer.notes.map((n) => el("div", { class: "note", text: n })),
+      stepList(answer.steps && answer.steps.length > 1 || answer.denied ? answer.steps : null),
+      el("h3", { text: answer.title }),
+      el("p", { text: answer.text }),
+    ];
+    if (answer.items && answer.items.length) parts.push(el("ul", { class: "result-list" }, answer.items.map(resultItem)));
+    if (answer.pendingConfirmation) {
+      const button = el("button", { type: "button", class: "primary", text: "Export jetzt ausführen" });
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          const result = await chatApi("/api/chat/execute", { tool: answer.call.tool, arguments: answer.call.arguments, confirm: true });
+          button.closest(".msg").after(renderAnswer({ ...result, message: answer.message }));
+          button.replaceWith(el("span", { class: "muted", text: "✓ Bestätigt und ausgeführt." }));
+          window.dispatchEvent(new Event("onescm-changed"));
+        } catch (e) { toast(e.message, true); button.disabled = false; }
+        loadAudit();
+      });
+      parts.push(el("div", { class: "actions" }, button, el("span", { class: "muted", text: "Schreibt nur in den lokalen OneDrive-Ordner." })));
+    }
+    if (answer.link) parts.push(el("div", { class: "actions" }, el("button", { type: "button", class: "small secondary", text: "Im Register öffnen", onclick: () => goTo(answer.link) })));
+    if (answer.message && !answer.denied) parts.push(feedbackBar(answer));
+    return el("div", { class: `msg bot${answer.denied ? " denied" : ""}`, dataset: { tool: answer.call.tool } }, parts);
+  }
+
+  async function sendChat(text) {
+    const message = (text ?? $("chat-input").value).trim();
+    if (!message) return;
+    await loaders.chat();
+    const log = $("chat-log");
+    log.querySelector(".chat-empty")?.remove();
+    log.append(el("div", { class: "msg user", text: message }));
+    const pending = el("div", { class: "msg bot pending", text: "Router wählt eine Funktion, Policy prüft …" });
+    log.append(pending);
+    log.scrollTop = log.scrollHeight;
+    $("chat-input").value = "";
+    $("chat-send").disabled = true;
+    try {
+      const answer = await chatApi("/api/chat", { message, mode: $("chat-mode").value });
+      pending.replaceWith(renderAnswer(answer));
+    } catch (e) {
+      pending.replaceWith(el("div", { class: "msg bot" }, el("div", { class: "note", text: e.message })));
+    } finally {
+      $("chat-send").disabled = false;
+      log.scrollTop = log.scrollHeight;
+      $("chat-input").focus();
+      loadAudit();
+    }
+  }
+  $("chat-form").addEventListener("submit", (e) => { e.preventDefault(); sendChat(); });
+  $("chat-input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+  $("chat-eval").addEventListener("click", async () => {
+    const button = $("chat-eval");
+    button.disabled = true;
+    $("chat-eval-result").replaceChildren(el("p", { class: "muted", text: "Testsuite läuft …" }));
+    try {
+      const r = await api("/api/chat/evaluate", { method: "POST", body: { mode: $("chat-mode").value } });
+      const failed = r.results.filter((x) => !x.ok);
+      $("chat-eval-result").replaceChildren(
+        el("div", { class: `alert ${failed.length ? "warn" : "ok"}`, id: "chat-eval-score", text: `Success: ${r.passed} / ${r.total}` }),
+        failed.length ? el("ul", { class: "list" }, failed.map((f) => el("li", {}, `„${f.message}“: erwartet `, el("code", { text: f.expected.tool }), ", erhalten ", el("code", { text: callText(f.actual) })))) : "");
+    } catch (e) { $("chat-eval-result").replaceChildren(el("div", { class: "alert error", text: e.message })); }
+    finally { button.disabled = false; loadAudit(); }
   });
 
   // ---------- Dokumentation ----------

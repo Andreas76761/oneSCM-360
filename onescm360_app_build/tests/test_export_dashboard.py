@@ -80,6 +80,21 @@ class ExportTests(AppCase, unittest.TestCase):
         # exported imports can be archived without force
         self.assertEqual(self.post(f"/api/imports/{rec['importId']}/archive", {}).status_code, 200)
 
+    def test_exports_in_the_same_second_do_not_overwrite(self):
+        from unittest import mock
+        from datetime import datetime, timezone
+        import services.export_service as es
+        self.upload(CH01_HTML, "ch01.html")
+        fixed = datetime(2026, 11, 6, 12, 0, 0, tzinfo=timezone.utc)
+        with mock.patch.object(es, "datetime") as fake:
+            fake.now.return_value = fixed
+            fake.fromtimestamp.side_effect = datetime.fromtimestamp
+            first = self.post("/api/sync/export", {"chapterId": "CH01"}).get_json()
+            second = self.post("/api/sync/export", {"chapterId": "CH01"}).get_json()
+        self.assertNotEqual(first["manifest"], second["manifest"])
+        self.assertTrue(second["manifest"].endswith("-2_manifest.json"))
+        self.assertEqual(len(list(self.onedrive.rglob("*_Claims.csv"))), 2)
+
     def test_csv_formula_injection_neutralised(self):
         text = to_csv(["A", "B"], [{"A": "=HYPERLINK(\"x\")", "B": "-5"}]).decode("utf-8-sig")
         self.assertIn("'=HYPERLINK", text)

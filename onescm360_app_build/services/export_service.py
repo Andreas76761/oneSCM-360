@@ -162,13 +162,23 @@ class ExportService:
         return sorted(rows, key=lambda r: r["modifiedAt"], reverse=True)
 
     # -- export --------------------------------------------------------------------
-    def export_chapter(self, chapter: dict, imports: list[dict], knowledge: dict, coverage: dict, raw_dir: Path) -> dict:
+    def export_chapter(self, chapter: dict, imports: list[dict], knowledge: dict, coverage: dict, raw_dir: Path,
+                       parts: str = "package") -> dict:
+        """parts: "package" (raw files, JSON, CSV, manifest, ZIP), "json" or "csv" (plus manifest)."""
+        if parts not in ("package", "json", "csv"):
+            raise ValueError("Exportformat muss package, json oder csv sein.")
+        want_json, want_csv, want_package = parts in ("package", "json"), parts in ("package", "csv"), parts == "package"
         with LOCK:
             root = self._ready_root()
             self.ensure_structure()
             cid = chapter["chapterId"]
             stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
             prefix = f"{cid}_{stamp}"
+            counter = 1
+            # Two exports within the same second must never overwrite each other.
+            while (root / "06_Exports" / f"{prefix}_manifest.json").exists():
+                counter += 1
+                prefix = f"{cid}_{stamp}-{counter}"
             written: list[Path] = []
 
             def write(rel: str, content: bytes):
@@ -180,7 +190,7 @@ class ExportService:
                 written.append(target)
 
             # Raw source files
-            for record in imports:
+            for record in (imports if want_package else []):
                 raw = raw_dir / record.get("rawFile", "")
                 if not record.get("rawFile") or not raw.is_file():
                     continue
@@ -198,10 +208,10 @@ class ExportService:
                 "conflicts": knowledge["conflicts"], "coverage": coverage, "tables": tables,
                 "cloudStatus": CLOUD_STATUS,
             }
-            json_bytes = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
-            write(f"06_Exports/JSON/{prefix}_export.json", json_bytes)
-            write(f"06_Exports/API/{prefix}_confirmed.json", json.dumps(
-                [c for c in knowledge["claims"] if c["validationStatus"] == "CONFIRMED"], ensure_ascii=False, indent=2).encode("utf-8"))
+            if want_json:
+                write(f"06_Exports/JSON/{prefix}_export.json", json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"))
+                write(f"06_Exports/API/{prefix}_confirmed.json", json.dumps(
+                    [c for c in knowledge["claims"] if c["validationStatus"] == "CONFIRMED"], ensure_ascii=False, indent=2).encode("utf-8"))
 
             def rows(items):
                 return [{_pascal(k): v for k, v in item.items()} for item in items]
@@ -211,13 +221,16 @@ class ExportService:
                        "PICoverage": coverage["piCoverage"], "Confidence": coverage["confidence"],
                        "Readiness": coverage["readiness"], "Konflikte": coverage["conflicts"], "Gate": coverage["gate"],
                        "GateReason": coverage["gateReason"]}
-            write(f"06_Exports/CSV/{prefix}_KnowledgeBlocks.csv", to_csv(KB_FIELDS, rows(knowledge["knowledgeBlocks"])))
-            write(f"06_Exports/CSV/{prefix}_Claims.csv", to_csv(CLAIM_FIELDS, rows(knowledge["claims"])))
-            write(f"06_Exports/CSV/{prefix}_Evidence.csv", to_csv(EVIDENCE_FIELDS, rows(payload["evidence"])))
-            write(f"06_Exports/CSV/{prefix}_Coverage.csv", to_csv(COVERAGE_FIELDS, [cov_row]))
+            if want_csv:
+                write(f"06_Exports/CSV/{prefix}_KnowledgeBlocks.csv", to_csv(KB_FIELDS, rows(knowledge["knowledgeBlocks"])))
+                write(f"06_Exports/CSV/{prefix}_Claims.csv", to_csv(CLAIM_FIELDS, rows(knowledge["claims"])))
+                write(f"06_Exports/CSV/{prefix}_Evidence.csv", to_csv(EVIDENCE_FIELDS, rows(payload["evidence"])))
+                write(f"06_Exports/CSV/{prefix}_Coverage.csv", to_csv(COVERAGE_FIELDS, [cov_row]))
             for table in tables:
-                write(f"06_Exports/CSV/{prefix}_{table['tableId']}.csv", table_csv(table))
-                write(f"06_Exports/JSON/{prefix}_{table['tableId']}.json", json.dumps(table, ensure_ascii=False, indent=2).encode("utf-8"))
+                if want_csv:
+                    write(f"06_Exports/CSV/{prefix}_{table['tableId']}.csv", table_csv(table))
+                if want_json:
+                    write(f"06_Exports/JSON/{prefix}_{table['tableId']}.json", json.dumps(table, ensure_ascii=False, indent=2).encode("utf-8"))
 
             manifest = {
                 "manifestVersion": 1, "chapterId": cid, "createdAt": now_iso(), "cloudStatus": CLOUD_STATUS,
@@ -227,6 +240,9 @@ class ExportService:
             }
             manifest_rel = f"06_Exports/{prefix}_manifest.json"
             write(manifest_rel, json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"))
+            if not want_package:
+                return {"chapterId": cid, "root": str(root), "manifest": manifest_rel, "package": "",
+                        "files": [p.relative_to(root).as_posix() for p in written], "cloudStatus": CLOUD_STATUS}
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
                 for path in written:

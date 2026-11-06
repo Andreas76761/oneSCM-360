@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "name": "oneSCM360 Security Policy v1",
+  "security_mode": "INTERNAL_RESTRICTED",
+  "external_network": false,
+  "external_llm": false,
+  "external_search": false,
+  "telemetry_external": false,
+  "allowed_sources": [
+    "onescm360",
+    "jira_internal",
+    "confluence_internal",
+    "rovo_internal"
+  ],
+  "internal_networks": [],
+  "audit_logging": true,
+  "audit_include_prompt": false,
+  "default_policy": "DENY",
+  "local_first_order": [
+    "search_knowledge:Released",
+    "search_knowledge:Draft,Reviewed",
+    "search_manual",
+    "search_jira",
+    "search_confluence",
+    "query_rovo"
+  ],
+  "profiles": {
+    "*": {
+      "description": "Pilot: lokaler Einzelplatzbenutzer",
+      "tools": [
+        "*"
+      ],
+      "chapters": [
+        "*"
+      ],
+      "operations": [
+        "READ",
+        "WRITE_LOCAL"
+      ]
+    }
+  }
+}
