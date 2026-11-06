@@ -22,6 +22,19 @@ from werkzeug.serving import make_server  # noqa: E402
 from app import create_app  # noqa: E402
 
 
+def _png_1x1() -> bytes:
+    import struct
+    import zlib
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    header = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(b"\x00\x0b\x6e\x8a\xff")) + chunk(b"IEND", b"")
+
+
+PNG = _png_1x1()
+
+
 class SlowImport:
     """WSGI middleware that delays /api/import so the loading state is observable."""
 
@@ -125,7 +138,7 @@ def main():
                 {"name": "CH03_Market-Operations_Finance_EN.html", "mimeType": "text/html",
                  "buffer": html_doc(p("03-F01 Market Operations creates the invoice for the dealer and checks the payment."))},
                 {"name": "Antworten_Kapitel_2_Market-Setting_EN.docx", "mimeType": "application/octet-stream",
-                 "buffer": make_docx(["02-F02 The market configuration is maintained per country by the team."])},
+                 "buffer": make_docx(["02-F02 The market configuration is maintained per country by the team."], media={"image1.png": PNG})},
             ])
             expect(page.locator("#imp-queue tbody tr", has_text="BEREIT")).to_have_count(3)
             expect(page.locator("#imp-submit")).to_have_text("3 Dateien importieren")
@@ -156,6 +169,9 @@ def main():
             expect(page.locator("#imp-queue tbody tr", has_text="IMPORTIERT")).to_have_count(4)
             expect(page.locator("#imp-result-scope")).to_have_text(re.compile("Dealer|MO|HQ|Alle Rollen"))
             shot("02b-multi-import")
+            expect(page.locator("#imp-media img")).to_have_count(1)
+            page.locator("#imp-media img").scroll_into_view_if_needed()  # thumbnails load lazily
+            page.wait_for_function("() => { const i = document.querySelector('#imp-media img'); return i && i.complete && i.naturalWidth === 1; }")
             queue_row("ch01.html").get_by_role("button", name="Ergebnis").click()
             expect(page.locator("#imp-summary")).to_contain_text("BLOCKED")
             shot("02-import")
@@ -276,6 +292,23 @@ def main():
             expect(page.locator("#sync-export-ok")).to_contain_text("Paket: 06_Exports/Packages/CH01_")
             assert any((onedrive / "06_Exports" / "Packages").glob("CH01_*_upload.zip"))
             shot("06-sync")
+
+            # --- manual versions (Handbuchstand) and rule-based cleanup
+            page.locator("#man-chapter").select_option("CH01")
+            page.locator("#man-stage").select_option("Released")
+            page.locator("#man-preview").click()
+            expect(page.locator("#man-error")).to_contain_text("nur bei Gate READY")
+            page.locator("#man-stage").select_option("Draft")
+            page.locator("#man-preview").click()
+            expect(page.locator("#man-frame")).to_be_visible()
+            expect(page.frame_locator("#man-frame").locator("h1")).to_contain_text("oneSCM360 Handbuch – CH01")
+            expect(page.frame_locator("#man-frame").locator("body")).to_contain_text("Der Dealer darf Aufträge stornieren.")
+            page.locator("#man-generate").click()
+            expect(page.locator("#man-ok")).to_contain_text("Handbuchstand Draft für CH01")
+            assert list((onedrive / "05_Manual_Generated" / "Draft").glob("CH01_*_Handbuch_Draft.html"))
+            expect(page.locator("#clean-rules li")).to_have_count(4)
+            expect(page.locator("#clean-empty")).to_be_visible()  # everything is recent
+            expect(page.locator("#clean-run")).to_be_disabled()
 
             # --- dashboard refresh after export
             page.locator('#tabs button[data-tab="dashboard"]').click()

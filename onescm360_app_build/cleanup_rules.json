@@ -1,0 +1,9 @@
+{
+  "description": "Regelbasierte Datenbereinigung für data/ (P1). Jede Ausführung zeigt zuerst eine Vorschau und braucht eine Bestätigung. Claims und Evidence bleiben beim Archivieren erhalten.",
+  "rules": [
+    {"id": "quarantine-invalid", "description": "Beschädigte Import-JSONs (INVALID_JSON) nach data/archive/_invalid verschieben", "action": "quarantine"},
+    {"id": "delete-failed", "description": "Fehlgeschlagene Importläufe nach 14 Tagen löschen", "status": "FAILED", "older_than_days": 14, "action": "delete"},
+    {"id": "archive-exported", "description": "Exportierte Importe nach 30 Tagen archivieren (Import-JSON und Rohdatei)", "status": "COMPLETED", "exported": true, "older_than_days": 30, "action": "archive"},
+    {"id": "purge-archive", "description": "Archivierte Importe nach 365 Tagen endgültig löschen", "older_than_days": 365, "action": "purge"}
+  ]
+}
