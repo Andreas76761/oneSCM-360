@@ -212,3 +212,6 @@ tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font
 #ds-boxes input[data-path$=".text"] { min-width: 220px; }
 #ds-boxes .icon-pick select { max-width: 170px; }
 .gallery img.flag { width: 40px; height: 30px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
+
+/* Handbuchstand / Gesamthandbuch: the three buttons get their own row instead of a narrow grid cell */
+#tab-sync .form-grid > .actions { grid-column: 1 / -1; }

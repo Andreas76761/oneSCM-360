@@ -848,6 +848,7 @@
     const status = await api("/api/sync/status");
     renderSyncStatus(status);
     await loadCleanup();
+    await loadBookOverview();
   };
   function renderSyncStatus(s) {
     $("sync-path").value = s.path || "";
@@ -928,6 +929,64 @@
       window.dispatchEvent(new Event("onescm-changed"));
     } catch (e) {
       $("man-result").replaceChildren(el("div", { class: "alert error", id: "man-error", text: e.message }));
+    } finally { button.disabled = false; }
+  });
+
+  // ---------- Gesamthandbuch ----------
+  const bookQuery = () => `stage=${encodeURIComponent($("book-stage").value)}&design=${encodeURIComponent($("book-design").value)}`;
+  const bookError = (text) => $("book-result").replaceChildren(el("div", { class: "alert error", id: "book-error", text }));
+  async function loadBookOverview() {
+    try {
+      const r = await api(`/api/book/overview?${bookQuery()}`);
+      $("book-overview").tBodies[0].replaceChildren(...r.overview.map((o) => el("tr", { dataset: { chapter: o.chapterId } },
+        el("td", { class: "mono", text: o.chapterId }), el("td", { text: o.title }), el("td", {}, badge(o.gate)),
+        el("td", { text: pct(o.readiness) }),
+        el("td", { class: o.included ? "" : "muted", text: o.included ? "enthalten" : `nicht enthalten – ${o.reason}` }))));
+      if (r.error) bookError(r.error); else $("book-result").replaceChildren();
+    } catch (e) { bookError(e.message); }
+  }
+  $("book-stage").addEventListener("change", loadBookOverview);
+  $("book-design").addEventListener("change", loadBookOverview);
+  $("book-preview").addEventListener("click", async () => {
+    const url = `/api/book/preview?${bookQuery()}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      $("book-frame").hidden = true;
+      bookError(data.error || `Fehler (${response.status}).`);
+      return;
+    }
+    $("book-result").replaceChildren();
+    $("book-frame").src = url;
+    $("book-frame").hidden = false;
+  });
+  $("book-docx").addEventListener("click", async () => {
+    const stage = $("book-stage").value;
+    const response = await fetch(`/api/book/docx?${bookQuery()}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      bookError(data.error || `Fehler (${response.status}).`);
+      return;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = el("a", { href: url, download: `Gesamthandbuch_${stage}.docx` });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast("Gesamthandbuch (Word) heruntergeladen.");
+  });
+  $("book-generate").addEventListener("click", async () => {
+    const button = $("book-generate");
+    button.disabled = true;
+    try {
+      const r = await api("/api/book", { method: "POST", body: { stage: $("book-stage").value, design: $("book-design").value } });
+      $("book-result").replaceChildren(el("div", { class: "alert ok", id: "book-ok" },
+        `Gesamthandbuch ${r.stage} (Design „${r.stats.design}“): ${r.stats.chapters.length} Kapitel (${r.stats.chapters.join(", ")}), ${r.stats.claims} Aussagen, ${r.stats.tables} Tabelle(n), ${r.stats.images} Bild(er). Cloudstatus: ${r.cloudStatus}.`),
+        el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
+      window.dispatchEvent(new Event("onescm-changed"));
+    } catch (e) {
+      bookError(e.message);
     } finally { button.disabled = false; }
   });
 
@@ -1261,6 +1320,7 @@
   async function refreshDesignOptions() {
     const templates = await api("/api/design/templates");
     fillSelect($("man-design"), templates.map((t) => [t.id, `${t.name} (${(design.schema || { documentTypes: {} }).documentTypes[t.documentType] || t.documentType})`]));
+    fillSelect($("book-design"), templates.map((t) => [t.id, `${t.name} (${(design.schema || { documentTypes: {} }).documentTypes[t.documentType] || t.documentType})`]));
   }
 
   // ---------- Interner Chat ----------

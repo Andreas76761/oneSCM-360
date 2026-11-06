@@ -452,6 +452,21 @@ def main():
             page.locator("#man-docx").click()
             expect(page.locator("#man-error")).to_contain_text("Gate READY")
             page.locator("#man-stage").select_option("Draft")
+            # complete manual
+            expect(page.locator("#book-overview tbody tr")).to_have_count(16)
+            expect(page.locator('#book-overview tr[data-chapter="CH01"]')).to_contain_text("enthalten")
+            expect(page.locator('#book-overview tr[data-chapter="CH16"]')).to_contain_text("noch kein abgeschlossener Import")
+            page.locator("#book-preview").click()
+            expect(page.frame_locator("#book-frame").locator("h1.chapter-break").first).to_contain_text("Kapitel 01")
+            with page.expect_download() as book_docx:
+                page.locator("#book-docx").click()
+            assert book_docx.value.suggested_filename == "Gesamthandbuch_Draft.docx"
+            page.locator("#book-generate").click()
+            expect(page.locator("#book-ok")).to_contain_text("Gesamthandbuch Draft")
+            page.locator("#book-stage").select_option("Released")
+            expect(page.locator("#book-error")).to_contain_text("Kein Kapitel erreicht die Stufe Released")
+            expect(page.locator('#book-overview tr[data-chapter="CH01"]')).to_contain_text("Gate READY")
+            page.locator("#book-stage").select_option("Draft")
 
             # --- internal chat bot: router → policy → tool
             page.locator('#tabs button[data-tab="chat"]').click()

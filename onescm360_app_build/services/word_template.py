@@ -211,14 +211,17 @@ def box(t: dict, box_id: str, text: str, title: str | None = None) -> str:
     return _p(_style_id(b["wordStyle"]), "", run(head, bold=True, color=color) + run(text))
 
 
-def table(header: list[str], rows: list[list[str]], t: dict | None = None) -> str:
+def table(header: list[str], rows: list[list[str]], t: dict | None = None, widths: list[int] | None = None) -> str:
     """Table in the style "oneSCM Tabelle". With the design template the header row also gets direct
     formatting, because not every program (e.g. LibreOffice) applies the table style's header colours."""
     width = max([len(header)] + [len(r) for r in rows]) or 1
-    pct = 5000 // width
+    if not widths or len(widths) != width:
+        widths = [100 / width] * width
+    total = sum(widths)
+    pcts = [int(5000 * w / total) for w in widths]  # fiftieths of a percent
     out = ['<w:tbl><w:tblPr><w:tblStyle w:val="oneSCMTabelle"/><w:tblW w:w="5000" w:type="pct"/>'
            '<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>'
-           "<w:tblGrid>" + f'<w:gridCol w:w="{9000 // width}"/>' * width + "</w:tblGrid>"]
+           "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{int(9000 * p / 5000)}"/>' for p in pcts) + "</w:tblGrid>"]
     for i, row in enumerate([header] + rows):
         head = "<w:trPr><w:tblHeader/></w:trPr>" if i == 0 else ""
         cell_pr, run_pr = "", ""
@@ -234,7 +237,7 @@ def table(header: list[str], rows: list[list[str]], t: dict | None = None) -> st
         for c in range(width):
             text = row[c] if c < len(row) else ""
             content = (f'<w:r>{run_pr}<w:t xml:space="preserve">{escape(text)}</w:t></w:r>' if run_pr else run(text)) if text else ""
-            cells.append(f'<w:tc><w:tcPr><w:tcW w:w="{pct}" w:type="pct"/>{cell_pr}</w:tcPr><w:p>{content}</w:p></w:tc>')
+            cells.append(f'<w:tc><w:tcPr><w:tcW w:w="{pcts[c]}" w:type="pct"/>{cell_pr}</w:tcPr><w:p>{content}</w:p></w:tc>')
         out.append(f"<w:tr>{head}" + "".join(cells) + "</w:tr>")
     out.append("</w:tbl>")
     return "".join(out)

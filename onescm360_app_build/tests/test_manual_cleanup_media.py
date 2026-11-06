@@ -246,5 +246,54 @@ class ManualImageTests(AppCase, unittest.TestCase):
         self.assertIsNone(image_size(b"kaputt", "png"))
 
 
+class BookTests(AppCase, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.upload(CH01_HTML, "ch01.html")
+        self.upload(html_doc(p("02-F01 Der Dealer legt Verträge im Portal an.")), "ch02.html", chapter="CH02")
+
+    def test_overview_lists_every_chapter(self):
+        r = self.client.get("/api/book/overview?stage=Draft").get_json()
+        self.assertEqual(len(r["overview"]), 16)
+        rows = {o["chapterId"]: o for o in r["overview"]}
+        self.assertTrue(rows["CH01"]["included"] and rows["CH02"]["included"])
+        self.assertEqual((rows["CH03"]["included"], rows["CH03"]["reason"]), (False, "noch kein abgeschlossener Import"))
+        self.assertEqual(r["stats"]["chapters"], ["CH01", "CH02"])
+        released = self.client.get("/api/book/overview?stage=Released").get_json()
+        self.assertIsNone(released["stats"])
+        self.assertIn("Kein Kapitel erreicht die Stufe Released", released["error"])
+        self.assertIn("Released ist nur bei Gate READY", {o["chapterId"]: o for o in released["overview"]}["CH01"]["reason"])
+        self.assertEqual(self.client.get("/api/book/overview?stage=Final").status_code, 400)
+
+    def test_preview_and_word_contain_all_chapters(self):
+        page = self.client.get("/api/book/preview?stage=Draft&design=training").get_data(as_text=True)
+        self.assertIn('<h1 class="chapter-break">1 Kapitel 01 – Grundlagen und Überblick</h1>', page)
+        self.assertIn('<h1 class="chapter-break">2 Kapitel 02', page)
+        self.assertIn("<h2>1.1 ", page)
+        self.assertIn("<h3>1.1.1 ", page)
+        self.assertIn("Der Dealer legt Verträge im Portal an.", page)
+        self.assertIn("Kapitelübersicht", page)
+        self.assertIn("nein – kein Import", page)
+        self.assertIn("Glossar", page)
+        r = self.client.get("/api/book/docx?stage=Draft")
+        self.assertIn('filename="Gesamthandbuch_Draft.docx"', r.headers["Content-Disposition"])
+        with zipfile.ZipFile(io.BytesIO(r.data)) as z:
+            doc = z.read("word/document.xml").decode("utf-8")
+        self.assertIn("1 Kapitel 01 – Grundlagen und Überblick", doc)
+        self.assertIn('<w:pStyle w:val="Heading3"/>', doc)
+        self.assertIn(" TOC ", doc)
+        self.assertEqual(self.client.get("/api/book/docx?stage=Released").status_code, 409)
+
+    def test_generate_writes_three_files(self):
+        r = self.post("/api/book", {"stage": "Draft"})
+        self.assertEqual(r.status_code, 201, r.get_json())
+        files = r.get_json()["files"]
+        self.assertEqual([f.rsplit(".", 1)[1] for f in files], ["html", "docx", "md"])
+        self.assertTrue(all(f.startswith("05_Manual_Generated/Draft/Gesamthandbuch_") for f in files))
+        markdown = (self.onedrive / files[2]).read_text(encoding="utf-8")
+        self.assertIn("# 2 Kapitel 02", markdown)
+        self.assertIn("| CH03 |", markdown)
+
+
 if __name__ == "__main__":
     unittest.main()

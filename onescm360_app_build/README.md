@@ -390,6 +390,15 @@ Der Word-Handbuchstand nutzt die Formatvorlagen der gewählten Designvorlage:
 - die Layoutboxen „Hinweis Info“ und „Hinweis Offen“, Tabellen im Format „oneSCM Tabelle“, Beschriftungen und Quellenzeilen
 - Seitenformat, Ränder, Spalten sowie Kopf- und Fußzeile mit Seitenzahlen
 
+### Gesamthandbuch
+
+Im Register **Synchronisation** fasst „Gesamthandbuch“ alle Kapitel in einem Dokument zusammen, als HTML, Word und Markdown. Abgelegt wird unter `05_Manual_Generated/<Stufe>/Gesamthandbuch_…`.
+
+- **Enthaltene Kapitel:** jedes Kapitel mit mindestens einem abgeschlossenen Import, das die gewählte Stufe erreicht (gleiche Gate-Regel wie beim Handbuchstand).
+- **Kapitelübersicht:** Die Tabelle zeigt alle 16 Kapitel mit Gate, Readiness und dem Grund, warum ein Kapitel fehlt. Sie steht in der App und am Anfang des Dokuments. Erreicht kein Kapitel die Stufe, zeigt die App trotzdem die Übersicht mit den Gründen.
+- **Gliederung:** Kapitel als Überschrift 1 („3 Kapitel 03 – …“), Fragegruppen als Überschrift 2, Fragen als Überschrift 3, jedes Kapitel auf einer neuen Seite. Das Inhaltsverzeichnis zeigt Kapitel und Fragegruppen, am Ende steht ein gemeinsames Glossar.
+- **Nummerierung:** Tabellen und Bilder werden je Kapitel nummeriert, z. B. „Abbildung 3.2.1-1“.
+
 ## Bilder aus DOCX
 
 Aus DOCX-Dateien extrahierte Bilder liegen unter `data/media/CHxx/<Import-ID>/`. Das Import-Ergebnis zeigt sie als Vorschaubilder. EMF, WMF, TIFF und SVG werden nur zum Herunterladen angeboten, SVG wegen möglicher Skripte nie direkt angezeigt.
