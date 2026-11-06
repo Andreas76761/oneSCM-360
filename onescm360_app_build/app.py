@@ -18,6 +18,8 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from services import claim_service, conflict_service, coverage_service
 from services.chapter_service import ChapterError, ChapterService
 from services.chat_service import ChatError, ChatService
+from services.cleanup_service import CleanupError, CleanupService
+from services.manual_service import ManualError, build_manual, safe_stamp, stage_allowed
 from services.policy_service import PolicyError, PolicyService, install_network_guard
 from services.classification_service import ClassificationError, ClassificationService
 from services.export_service import ExportService, table_csv
@@ -67,8 +69,9 @@ def create_app(config: dict | None = None) -> Flask:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Content-Security-Policy"] = ("default-src 'self'; img-src 'self' data:; style-src 'self'; "
-                                                       "script-src 'self'; connect-src 'self'; frame-ancestors 'none'")
+        if "Content-Security-Policy" not in response.headers:  # manual previews set a stricter policy themselves
+            response.headers["Content-Security-Policy"] = ("default-src 'self'; img-src 'self' data:; style-src 'self'; "
+                                                           "script-src 'self'; connect-src 'self'; frame-ancestors 'none'")
         if request.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
         return response
@@ -86,6 +89,8 @@ def create_app(config: dict | None = None) -> Flask:
     @app.errorhandler(KnowledgeError)
     @app.errorhandler(ChatError)
     @app.errorhandler(PolicyError)
+    @app.errorhandler(ManualError)
+    @app.errorhandler(CleanupError)
     def domain_error(exc):
         return jsonify(error=str(exc)), exc.status
 
@@ -390,6 +395,83 @@ def create_app(config: dict | None = None) -> Flask:
     @app.post("/api/sync/export")
     def sync_export():
         return jsonify(export_chapter(body().get("chapterId", ""))), 201
+
+    # -- manual versions (Handbuchstände) ----------------------------------------------------------------
+    def manual_for(chapter_id: str, stage: str) -> dict:
+        chapter = chapters.get(chapter_id)
+        snapshot = compute_coverage(chapter_id)
+        ok, reason = stage_allowed(stage, snapshot["gate"])
+        if not ok:
+            raise ManualError(reason, 400 if stage not in ("Draft", "Reviewed", "Released") else 409)
+        kdata = knowledge.load()
+        records = imports.records(chapter_id)
+        return build_manual(chapter, stage, kdata["claims"], kdata["evidence"],
+                            [t for r in records for t in r.get("tables", [])], snapshot, rules.list(), records)
+
+    @app.get("/api/manual/<chapter_id>/preview")
+    def manual_preview(chapter_id):
+        manual = manual_for(chapter_id, request.args.get("stage", "Draft"))
+        response = app.response_class(manual["html"], mimetype="text/html")
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+    @app.post("/api/manual/<chapter_id>")
+    def manual_generate(chapter_id):
+        stage = str(body().get("stage", "Draft"))
+        manual = manual_for(chapter_id, stage)
+        status = exporter.status()
+        if status["localStatus"] != "READY_FOR_CLIENT":
+            raise ManualError(f"{status['localStatus']}: {status['reason']}")
+        root = Path(status["path"])
+        folder = root / "05_Manual_Generated" / stage
+        folder.mkdir(parents=True, exist_ok=True)
+        base = f"{chapter_id}_{safe_stamp()}_Handbuch_{stage}"
+        counter = 1
+        while (folder / f"{base}.html").exists():
+            counter += 1
+            base = f"{chapter_id}_{safe_stamp()}-{counter}_Handbuch_{stage}"
+        files = []
+        for suffix, content in (("html", manual["html"]), ("md", manual["markdown"])):
+            target = folder / f"{base}.{suffix}"
+            target.write_text(content, encoding="utf-8")
+            files.append(target.relative_to(root).as_posix())
+        return jsonify(chapterId=chapter_id, stage=stage, files=files, stats=manual["stats"],
+                       cloudStatus=status["cloudStatus"]), 201
+
+    # -- rule-based cleanup ----------------------------------------------------------------------------
+    cleanup = CleanupService(Path(config.get("CLEANUP_RULES_PATH") or ROOT / "cleanup_rules.json"), data, imports)
+
+    @app.get("/api/cleanup/preview")
+    def cleanup_preview():
+        return jsonify(rules=cleanup.rules(), items=cleanup.preview())
+
+    @app.post("/api/cleanup")
+    def cleanup_execute():
+        payload = body()
+        if payload.get("confirm") is not True:
+            return jsonify(error="Bereinigung nur mit ausdrücklicher Bestätigung."), 400
+        result = cleanup.execute(payload.get("targets"))
+        for chapter_info in chapters.list():
+            compute_coverage(chapter_info["chapterId"])
+        return jsonify(result)
+
+    # -- extracted media -------------------------------------------------------------------------------
+    MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".bmp": "image/bmp",
+                   ".webp": "image/webp", ".svg": "image/svg+xml", ".tif": "image/tiff", ".tiff": "image/tiff",
+                   ".emf": "image/emf", ".wmf": "image/wmf"}
+
+    @app.get("/api/media/<import_id>/<name>")
+    def media_file(import_id, name):
+        record = imports.get(import_id)
+        folder = data.media / record["chapterId"] / import_id
+        target = (folder / name).resolve()
+        if target.parent != folder.resolve() or not target.is_file() or name not in {m["name"] for m in record.get("media", [])}:
+            return jsonify(error="Medium nicht gefunden."), 404
+        response = send_file(target, mimetype=MEDIA_TYPES.get(target.suffix.lower(), "application/octet-stream"),
+                             as_attachment=target.suffix.lower() in (".emf", ".wmf", ".tif", ".tiff", ".svg"), download_name=name)
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'"
+        return response
 
     # -- internal chat bot (router → policy → tool) ---------------------------------------------------
     def chat_session():

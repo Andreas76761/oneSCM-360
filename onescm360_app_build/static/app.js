@@ -426,6 +426,15 @@
     parts.push(el("h2", { text: "Fragen" }), el("div", { class: "table-wrap" }, el("table", { id: "imp-questions" },
       el("thead", {}, el("tr", {}, ["Frage", "Titel", "Kritikalität", "Status", "Regelbefunde", "Antwort (normalisiert)"].map((h) => el("th", { text: h })))),
       el("tbody", {}, record.questions.map((q) => el("tr", {}, el("td", { class: "mono", text: q.questionId }), el("td", { text: q.title }), el("td", {}, badge(q.criticality)), el("td", {}, badge(q.answerStatus)), el("td", { text: (q.ruleFindings || []).join(", ") || "—" }), el("td", { text: q.normalizedText ? q.normalizedText.slice(0, 220) + (q.normalizedText.length > 220 ? " …" : "") : "—" })))))));
+    if (record.media && record.media.length) {
+      const viewable = /\.(png|jpe?g|gif|bmp|webp)$/i;
+      parts.push(el("h2", { text: `Medien (${record.media.length})` }), el("div", { class: "media-grid", id: "imp-media" }, record.media.map((m) => {
+        const url = `/api/media/${encodeURIComponent(record.importId)}/${encodeURIComponent(m.name)}`;
+        return el("a", { href: url, target: "_blank", rel: "noopener" },
+          viewable.test(m.name) ? el("img", { src: url, alt: m.name, loading: "lazy" }) : el("div", { class: "file", text: m.name.split(".").pop().toUpperCase() }),
+          el("span", { text: `${m.name} · ${fmtSize(m.size)}` }));
+      })));
+    }
     parts.push(el("h2", { text: "Regelbefunde" }));
     if (record.findings.length) parts.push(el("div", { class: "table-wrap" }, el("table", { id: "imp-findings" },
       el("thead", {}, el("tr", {}, ["Regel", "Kategorie", "Befund", "Anzahl", "Fragen"].map((h) => el("th", { text: h })))),
@@ -725,6 +734,7 @@
   loaders.sync = async () => {
     const status = await api("/api/sync/status");
     renderSyncStatus(status);
+    await loadCleanup();
   };
   function renderSyncStatus(s) {
     $("sync-path").value = s.path || "";
@@ -762,6 +772,66 @@
     } catch (e) {
       $("sync-result").replaceChildren(el("div", { class: "alert error", text: e.message }));
     } finally { button.disabled = false; }
+  });
+
+  // ---------- Handbuchstand ----------
+  $("man-preview").addEventListener("click", async () => {
+    const url = `/api/manual/${$("man-chapter").value}/preview?stage=${encodeURIComponent($("man-stage").value)}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      $("man-frame").hidden = true;
+      $("man-result").replaceChildren(el("div", { class: "alert error", id: "man-error", text: data.error || `Fehler (${response.status}).` }));
+      return;
+    }
+    $("man-result").replaceChildren();
+    $("man-frame").src = url;
+    $("man-frame").hidden = false;
+  });
+  $("man-generate").addEventListener("click", async () => {
+    const button = $("man-generate");
+    button.disabled = true;
+    try {
+      const r = await api(`/api/manual/${$("man-chapter").value}`, { method: "POST", body: { stage: $("man-stage").value } });
+      $("man-result").replaceChildren(el("div", { class: "alert ok", id: "man-ok" },
+        `Handbuchstand ${r.stage} für ${r.chapterId}: ${r.stats.claims} Aussagen in ${r.stats.questionsWithContent} von ${r.stats.questions} Fragen, ${r.stats.tables} Tabelle(n). Cloudstatus: ${r.cloudStatus}.`),
+        el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
+      window.dispatchEvent(new Event("onescm-changed"));
+    } catch (e) {
+      $("man-result").replaceChildren(el("div", { class: "alert error", id: "man-error", text: e.message }));
+    } finally { button.disabled = false; }
+  });
+
+  // ---------- Datenbereinigung ----------
+  let cleanupItems = [];
+  async function loadCleanup() {
+    const r = await api("/api/cleanup/preview");
+    $("clean-rules").replaceChildren(...r.rules.map((rule) => el("li", {}, el("code", { text: rule.id }), " – ", rule.description)));
+    cleanupItems = r.items;
+    if (!cleanupItems.length) {
+      $("clean-result").replaceChildren(el("p", { class: "muted", id: "clean-empty", text: "Nach den Regeln ist derzeit nichts zu bereinigen." }));
+      $("clean-run").disabled = true;
+      return;
+    }
+    $("clean-result").replaceChildren(el("div", { class: "table-wrap" }, el("table", { id: "clean-table" },
+      el("thead", {}, el("tr", {}, ["", "Aktion", "Eintrag", "Datei", "Regel", "Grund"].map((h) => el("th", { text: h })))),
+      el("tbody", {}, cleanupItems.map((item) => el("tr", { dataset: { target: item.target } },
+        el("td", {}, Object.assign(el("input", { type: "checkbox", "aria-label": `${item.target} bereinigen` }), { checked: true })),
+        el("td", {}, badge(item.action.toUpperCase(), item.action === "archive" ? "warn" : "bad")), el("td", { class: "mono", text: item.target }),
+        el("td", { text: item.label }), el("td", { class: "mono", text: item.rule }), el("td", { text: item.reason })))))));
+    $("clean-run").disabled = false;
+  }
+  $("clean-preview").addEventListener("click", () => loadCleanup().catch((e) => toast(e.message, true)));
+  $("clean-run").addEventListener("click", async () => {
+    const targets = [...document.querySelectorAll("#clean-table tbody tr")].filter((tr) => tr.querySelector("input").checked).map((tr) => tr.dataset.target);
+    if (!targets.length) return toast("Keine Einträge ausgewählt.", true);
+    if (!confirm(`${targets.length} Einträge bereinigen? Gelöschte Einträge lassen sich nicht wiederherstellen.`)) return;
+    try {
+      const r = await api("/api/cleanup", { method: "POST", body: { targets, confirm: true } });
+      toast(`${r.done.length} bereinigt${r.skipped.length ? `, ${r.skipped.length} übersprungen` : ""}.`);
+      window.dispatchEvent(new Event("onescm-changed"));
+      await loadCleanup();
+    } catch (e) { toast(e.message, true); }
   });
 
   // ---------- Interner Chat ----------
@@ -895,7 +965,7 @@
     const parts = [
       el("div", {}, el("span", { class: "call", text: answer.call.tool === "none" ? "keine Funktion" : callText(answer.call) }),
         el("span", { class: "call-meta", text: answer.router === "model" ? "Router: lokales Modell" : answer.router === "confirmed" ? "bestätigt" : "Router: Regeln" })),
-      ...answer.notes.map((n) => el("div", { class: "note", text: n })),
+      ...answer.notes.map((n) => el("div", { class: "chat-note", text: n })),
       stepList(answer.steps && answer.steps.length > 1 || answer.denied ? answer.steps : null),
       el("h3", { text: answer.title }),
       el("p", { text: answer.text }),
@@ -936,7 +1006,7 @@
       const answer = await chatApi("/api/chat", { message, mode: $("chat-mode").value });
       pending.replaceWith(renderAnswer(answer));
     } catch (e) {
-      pending.replaceWith(el("div", { class: "msg bot" }, el("div", { class: "note", text: e.message })));
+      pending.replaceWith(el("div", { class: "msg bot" }, el("div", { class: "chat-note", text: e.message })));
     } finally {
       $("chat-send").disabled = false;
       log.scrollTop = log.scrollHeight;
@@ -1009,7 +1079,7 @@
   async function init() {
     state.meta = await api("/api/meta");
     $("app-version").textContent = `v${state.meta.version}`;
-    for (const id of ["cov-chapter", "sync-chapter"]) fillSelect($(id), chapterOptions());
+    for (const id of ["cov-chapter", "sync-chapter", "man-chapter"]) fillSelect($(id), chapterOptions());
     fillSelect($("imp-chapter"), fieldOptions.chapterId());
     fillSelect($("imp-role"), fieldOptions.role());
     fillSelect($("imp-domain"), fieldOptions.domain());

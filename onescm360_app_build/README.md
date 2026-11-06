@@ -52,7 +52,7 @@ powershell.exe -ExecutionPolicy Bypass -File '.\start_onescm360.ps1' -OneDriveRo
 | Evidence | Evidence-Stufe und -Status pflegen, Faktor sehen, löschen. |
 | Tabellen | Separat extrahierte Tabellen ansehen, Quellfrage zuordnen, als JSON oder CSV herunterladen. |
 | Coverage | Readiness, sechs Dimensionen, Gate, Hard Blocker, Konflikte (auflösen mit Begründung), Rollenabdeckung. |
-| Synchronisation | Verbindung zum lokalen OneDrive-Ordner, Ordnerstruktur anlegen, Kapitel exportieren, Hinweise zum manuellen SharePoint-Transfer. |
+| Synchronisation | Verbindung zum lokalen OneDrive-Ordner, Ordnerstruktur anlegen, Kapitel exportieren, Handbuchstand erzeugen (Draft/Reviewed/Released), regelbasierte Datenbereinigung, Hinweise zum manuellen SharePoint-Transfer. |
 | Interner Chat | Fragen in natürlicher Sprache. Der Router wählt genau ein Tool aus der Tool Registry, die Security Policy prüft (default DENY), dann wird es auf den lokalen Daten ausgeführt. Mit Audit-Protokoll, Routing-Testsuite und Trainingsdaten-Export (siehe unten). |
 | Dokumentation | Diese Datei. |
 
@@ -291,6 +291,29 @@ Lokale Statuswerte:
 
 Ob Dateien in der Cloud angekommen sind, kann die App nicht erkennen. Das gilt auch für Konfliktkopien, DLP-Prüfungen und den SharePoint-Upload. Kontrollieren Sie das im OneDrive-Client.
 
+## Handbuchstände
+
+Im Register **Synchronisation** entsteht je Kapitel ein Handbuchstand. Die Stufe hängt am Gate:
+
+| Stufe | Voraussetzung | Enthaltene Aussagen |
+|---|---|---|
+| Draft | immer | alle nicht abgelehnten Claims, ungeprüfte gekennzeichnet |
+| Reviewed | Gate nicht BLOCKED | geprüfte und freigegebene Claims |
+| Released | Gate READY | nur freigegebene Claims (`CONFIRMED`) |
+
+Aufbau des Handbuchs:
+
+- Fragen in der Reihenfolge des Kapitelschemas, gegliedert nach Fragegruppe.
+- Je Aussage Rolle, Division, PI und Reifegrad sowie die Quelle, z. B. der Jira-Key.
+- Die zugeordneten Tabellen. Tabellen ohne geprüfte Quellfrage fehlen.
+- Ein Glossar aus dem Regelwerk.
+
+Die Vorschau erscheint in der App. Beim Erzeugen entstehen HTML (öffnet in Word und im Browser) und Markdown unter `05_Manual_Generated/<Stufe>/` im OneDrive-Ordner. Bestehende Stände werden nie überschrieben.
+
+## Bilder aus DOCX
+
+Aus DOCX-Dateien extrahierte Bilder liegen unter `data/media/CHxx/<Import-ID>/`. Das Import-Ergebnis zeigt sie als Vorschaubilder. EMF, WMF, TIFF und SVG werden nur zum Herunterladen angeboten, SVG wegen möglicher Skripte nie direkt angezeigt.
+
 ## Daten und Bereinigung
 
 Ablage unter `data\`:
@@ -310,6 +333,21 @@ Ablage unter `data\`:
 Imports sind idempotent: Dieselbe Datei mit gleichem Kapitel, gleicher Sprache und gleichem Quelltyp liefert das vorhandene Ergebnis. Mit „Gleiche Datei erneut verarbeiten“ wird der Import unter derselben Import-ID neu aufgebaut.
 
 Exportierte Importe lassen sich im Dashboard archivieren. Löschen entfernt einen Import samt den daraus erzeugten Claims und Evidence.
+
+**Regelbasierte Bereinigung** im Register Synchronisation, Regeln in `cleanup_rules.json`:
+
+| Regel | Wirkung |
+|---|---|
+| `quarantine-invalid` | Beschädigte Import-JSONs nach `data/archive/_invalid` verschieben. |
+| `delete-failed` | Fehlgeschlagene Importläufe nach 14 Tagen löschen. |
+| `archive-exported` | Exportierte Importe nach 30 Tagen archivieren (Import-JSON und Rohdatei). Claims und Evidence bleiben erhalten. |
+| `purge-archive` | Archivierte Importe nach 365 Tagen endgültig löschen. |
+
+Ablauf:
+
+1. Die Vorschau listet, was die Regeln betreffen.
+2. Ausgeführt werden nur die ausgewählten Einträge, nach einer Rückfrage.
+3. Einträge, die nicht (mehr) in der Vorschau stehen, werden übersprungen.
 
 ## Sicherheit
 
@@ -346,6 +384,7 @@ onescm360_app_build/
 ├── tool_registry.json      Tool Registry v1 (Schemas + Sicherheits-Metadaten)
 ├── security_policy.json    Security Policy v1 (INTERNAL_RESTRICTED, default DENY, Profile)
 ├── chat_eval.json          Routing-Testsuite
+├── cleanup_rules.json      Regeln der Datenbereinigung
 ├── chapters/CH01…CH16.json Kapitelkonfiguration (Fragen, Kritikalität, Rollen)
 ├── schemas/                import.schema.json, claim.schema.json
 ├── services/               import, docx/html parser, rules, claims, knowledge, conflicts, coverage, export
