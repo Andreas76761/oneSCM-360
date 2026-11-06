@@ -160,3 +160,10 @@ tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font
 .media-grid a { display: flex; flex-direction: column; gap: 4px; text-decoration: none; color: var(--ink); font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #fff; }
 .media-grid img { width: 100%; height: 110px; object-fit: contain; background: #f6f8fa; border-radius: 4px; }
 .media-grid .file { height: 110px; display: flex; align-items: center; justify-content: center; background: #f6f8fa; color: var(--muted); border-radius: 4px; }
+
+.chap-origin { display: flex; align-items: flex-end; padding-bottom: 6px; }
+#chap-questions input, #chap-questions select { min-width: 110px; }
+#chap-questions td:nth-child(3) input { min-width: 260px; }
+.file-button { position: relative; overflow: hidden; cursor: pointer; }
+.file-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+#chap-roles label.check { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; background: #fff; }

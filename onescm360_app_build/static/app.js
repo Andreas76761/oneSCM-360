@@ -504,6 +504,92 @@
     } catch (e) { toast(e.message, true); }
   });
 
+  // ---------- Kapitel (Fragenkataloge) ----------
+  let chapterDraft = null;
+  loaders.chapters = async () => {
+    const id = $("chap-select").value || "CH01";
+    delete state.chapterCache[id];
+    chapterDraft = await chapter(id);
+    renderChapterForm(chapterDraft);
+  };
+  function renderChapterForm(cfg, message) {
+    $("chap-origin").replaceChildren(cfg.customized ? badge("ANGEPASST", "warn") : badge("STANDARD", "ok"));
+    $("chap-title").value = cfg.title;
+    $("chap-status").value = cfg.schemaStatus;
+    $("chap-focus").value = cfg.focus || "";
+    $("chap-evaluations").value = (cfg.mandatoryEvaluations || []).join(", ");
+    $("chap-roles").replaceChildren(...state.meta.roles.map((r) => el("label", { class: "check" },
+      Object.assign(el("input", { type: "checkbox", value: r.id, "aria-label": r.name }), { checked: (cfg.roles || []).includes(r.id) }), r.name)));
+    $("chap-questions").tBodies[0].replaceChildren(...cfg.questions.map((q) => {
+      const crit = el("select", { "data-key": "criticality", "aria-label": `Kritikalität ${q.questionId}` });
+      fillSelect(crit, ["CRITICAL", "HIGH", "MEDIUM", "LOW"], { value: q.criticality });
+      return el("tr", { dataset: { questionId: q.questionId } }, el("td", { class: "mono", text: q.questionId }),
+        el("td", {}, el("input", { "data-key": "group", value: q.group || "", "aria-label": `Gruppe ${q.questionId}` })),
+        el("td", {}, el("input", { "data-key": "title", value: q.title, "aria-label": `Titel ${q.questionId}` })),
+        el("td", {}, el("input", { "data-key": "titleEn", value: q.titleEn || "", "aria-label": `Titel EN ${q.questionId}` })),
+        el("td", {}, crit));
+    }));
+    $("chap-reset").disabled = !cfg.customized;
+    $("chap-csv-download").href = `/api/chapters/${cfg.chapterId}/questions.csv`;
+    $("chap-message").replaceChildren(...(message ? [message] : []));
+  }
+  function readChapterForm() {
+    return {
+      title: $("chap-title").value, schemaStatus: $("chap-status").value, focus: $("chap-focus").value,
+      mandatoryEvaluations: $("chap-evaluations").value.split(",").map((x) => x.trim()).filter(Boolean),
+      roles: [...$("chap-roles").querySelectorAll("input:checked")].map((i) => i.value),
+      questions: [...$("chap-questions").tBodies[0].rows].map((tr) => ({
+        questionId: tr.dataset.questionId,
+        ...Object.fromEntries([...tr.querySelectorAll("[data-key]")].map((i) => [i.dataset.key, i.value])),
+      })),
+    };
+  }
+  async function refreshChapterOptions() {
+    state.meta = await api("/api/meta");
+    state.chapterCache = {};
+    for (const id of ["cov-chapter", "sync-chapter", "man-chapter", "chap-select"]) fillSelect($(id), chapterOptions());
+    fillSelect($("imp-chapter"), fieldOptions.chapterId());
+    for (const id of ["claim-chapter", "ev-chapter", "tbl-chapter"]) fillSelect($(id), chapterOptions(), { empty: "Alle Kapitel" });
+  }
+  $("chap-select").addEventListener("change", () => loaders.chapters().catch((e) => toast(e.message, true)));
+  $("chap-cancel").addEventListener("click", () => loaders.chapters().then(() => toast("Änderungen verworfen.")));
+  $("chap-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const saved = await api(`/api/chapters/${$("chap-select").value}`, { method: "PUT", body: readChapterForm() });
+      await refreshChapterOptions();
+      chapterDraft = saved;
+      renderChapterForm(saved, el("div", { class: "alert ok", id: "chap-saved", text: `${saved.chapterId} gespeichert. Coverage wurde neu berechnet.` }));
+      toast("Kapitel gespeichert.");
+    } catch (e) {
+      $("chap-message").replaceChildren(el("div", { class: "alert error", id: "chap-error", text: e.message }));
+    }
+  });
+  $("chap-reset").addEventListener("click", async () => {
+    if (!confirm(`Eigene Änderungen an ${$("chap-select").value} verwerfen und den ausgelieferten Standard verwenden?`)) return;
+    try {
+      const restored = await api(`/api/chapters/${$("chap-select").value}/override`, { method: "DELETE" });
+      await refreshChapterOptions();
+      renderChapterForm(restored, el("div", { class: "alert ok", text: "Standard wiederhergestellt." }));
+    } catch (e) { toast(e.message, true); }
+  });
+  $("chap-csv").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const response = await fetch(`/api/chapters/${$("chap-select").value}/questions.csv`, { method: "POST", headers: { "X-oneSCM360": "1" }, body: form });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error((data && data.error) || `Fehler (${response.status}).`);
+      renderChapterForm({ ...chapterDraft, ...readChapterForm(), questions: data.questions, chapterId: chapterDraft.chapterId, customized: chapterDraft.customized },
+        el("div", { class: "alert warn", id: "chap-csv-loaded", text: `${file.name} übernommen – bitte prüfen und speichern. Noch nichts gespeichert.` }));
+    } catch (e) {
+      $("chap-message").replaceChildren(el("div", { class: "alert error", id: "chap-error", text: e.message }));
+    }
+  });
+
   // ---------- Claims ----------
   loaders.claims = async () => {
     const chapterId = $("claim-chapter").value;
@@ -1079,7 +1165,7 @@
   async function init() {
     state.meta = await api("/api/meta");
     $("app-version").textContent = `v${state.meta.version}`;
-    for (const id of ["cov-chapter", "sync-chapter", "man-chapter"]) fillSelect($(id), chapterOptions());
+    for (const id of ["cov-chapter", "sync-chapter", "man-chapter", "chap-select"]) fillSelect($(id), chapterOptions());
     fillSelect($("imp-chapter"), fieldOptions.chapterId());
     fillSelect($("imp-role"), fieldOptions.role());
     fillSelect($("imp-domain"), fieldOptions.domain());

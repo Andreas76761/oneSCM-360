@@ -39,7 +39,11 @@ def _gate(readiness, evidence, critical_questions_ok, critical_claims_ok, blocke
 def calculate(chapter: dict, claims: list[dict], evidence: list[dict], conflicts: list[dict],
               integrity_problems: list[str], question_status: dict[str, str]) -> dict:
     chapter_id = chapter["chapterId"]
-    claims = [c for c in claims if c["chapterId"] == chapter_id and c["validationStatus"] != "REJECTED"]
+    # The chapter schema sets the minimum criticality: raising a question to CRITICAL applies to its existing claims.
+    rank = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    question_crit = {q["questionId"]: q["criticality"] for q in chapter["questions"]}
+    claims = [{**c, "criticality": max(c["criticality"], question_crit.get(c["questionId"], "LOW"), key=rank.index)}
+              for c in claims if c["chapterId"] == chapter_id and c["validationStatus"] != "REJECTED"]
     by_claim: dict[str, list] = {}
     for ev in evidence:
         by_claim.setdefault(ev["claimId"], []).append(ev)
