@@ -350,12 +350,14 @@
   $("claim-status").addEventListener("change", () => loaders.claims());
 
   async function openClaim(claimId) {
+    const token = (state.openToken = (state.openToken || 0) + 1);
     state.selectedClaim = claimId;
     renderClaims();
     const claim = state.claims.find((c) => c.claimId === claimId);
     if (!claim) return;
     const cfg = await chapter(claim.chapterId);
     const evidence = await api(`/api/evidence?claimId=${encodeURIComponent(claimId)}`);
+    if (token !== state.openToken) return; // a newer claim was opened meanwhile; never render stale data
     const field = (label, name, input) => { input.name = name; input.dataset.field = name; return el("label", {}, label, input); };
     const select = (options, value) => { const s = el("select"); fillSelect(s, options, { value }); return s; };
     const check = (name, label, value) => el("label", { class: "check" }, Object.assign(el("input", { type: "checkbox", "data-field": name }), { checked: !!value }), label);
@@ -410,6 +412,7 @@
         openClaim(claim.claimId);
       } catch (err) { toast(err.message, true); }
     });
+    $("claim-editor").dataset.claimId = claim.claimId;
     $("claim-editor").replaceChildren(el("h2", { text: `Claim ${claim.claimId}` }), el("p", { class: "muted", text: `Knowledge Block ${claim.knowledgeId} · Quelle ${claim.sourceImportId}` }), form, el("h2", { text: "Evidence" }), evList, evForm);
     $("claim-editor").hidden = false;
   }
