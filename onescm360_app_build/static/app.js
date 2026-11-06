@@ -862,7 +862,7 @@
 
   // ---------- Handbuchstand ----------
   $("man-preview").addEventListener("click", async () => {
-    const url = `/api/manual/${$("man-chapter").value}/preview?stage=${encodeURIComponent($("man-stage").value)}`;
+    const url = `/api/manual/${$("man-chapter").value}/preview?stage=${encodeURIComponent($("man-stage").value)}&design=${encodeURIComponent($("man-design").value)}`;
     const response = await fetch(url);
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
@@ -878,9 +878,9 @@
     const button = $("man-generate");
     button.disabled = true;
     try {
-      const r = await api(`/api/manual/${$("man-chapter").value}`, { method: "POST", body: { stage: $("man-stage").value } });
+      const r = await api(`/api/manual/${$("man-chapter").value}`, { method: "POST", body: { stage: $("man-stage").value, design: $("man-design").value } });
       $("man-result").replaceChildren(el("div", { class: "alert ok", id: "man-ok" },
-        `Handbuchstand ${r.stage} für ${r.chapterId}: ${r.stats.claims} Aussagen in ${r.stats.questionsWithContent} von ${r.stats.questions} Fragen, ${r.stats.tables} Tabelle(n). Cloudstatus: ${r.cloudStatus}.`),
+        `Handbuchstand ${r.stage} für ${r.chapterId} (Design „${r.stats.design}“): ${r.stats.claims} Aussagen in ${r.stats.questionsWithContent} von ${r.stats.questions} Fragen, ${r.stats.tables} Tabelle(n). Cloudstatus: ${r.cloudStatus}.`),
         el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
       window.dispatchEvent(new Event("onescm-changed"));
     } catch (e) {
@@ -919,6 +919,306 @@
       await loadCleanup();
     } catch (e) { toast(e.message, true); }
   });
+
+  // ---------- Designstudio ----------
+  const design = { schema: null, templates: [], current: null, draft: null, timer: null };
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function iconNode(name, size = 22) {
+    const icon = design.schema && design.schema.icons.find((i) => i.name === name);
+    const svgEl = document.createElementNS(SVG_NS, "svg");
+    svgEl.setAttribute("viewBox", "0 0 24 24");
+    svgEl.setAttribute("width", size);
+    svgEl.setAttribute("height", size);
+    for (const [k, v] of Object.entries({ fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round" })) svgEl.setAttribute(k, v);
+    const allowed = ["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"];
+    for (const [tag, attrs] of icon ? icon.elements : []) {
+      if (!allowed.includes(tag)) continue;
+      const node = document.createElementNS(SVG_NS, tag);
+      for (const [k, v] of Object.entries(attrs)) if (!/^on|href/i.test(k)) node.setAttribute(k, v);
+      svgEl.append(node);
+    }
+    if (icon && icon.set !== "onescm") svgEl.setAttribute("stroke-width", "2");
+    return svgEl;
+  }
+
+  loaders.design = async () => {
+    if (!design.schema) design.schema = await api("/api/design/schema");
+    design.templates = await api("/api/design/templates");
+    const id = design.current && design.templates.some((t) => t.id === design.current) ? design.current : design.templates[0].id;
+    selectTemplate(id);
+    fillIconColors();
+    renderGallery();
+  };
+
+  function renderTemplateList() {
+    $("ds-templates").replaceChildren(...design.templates.map((t) => el("li", {}, el("button", {
+      type: "button", class: t.id === design.current ? "active" : "", dataset: { template: t.id },
+      onclick: () => { if (!design.dirty || confirm("Ungespeicherte Änderungen verwerfen?")) selectTemplate(t.id); },
+    }, el("strong", { text: t.name }), el("small", { text: `${design.schema.documentTypes[t.documentType]}${t.shipped ? " · ausgeliefert" : " · eigene Vorlage"}` })))));
+  }
+
+  function selectTemplate(id) {
+    design.current = id;
+    design.draft = JSON.parse(JSON.stringify(design.templates.find((t) => t.id === id)));
+    design.dirty = false;
+    renderTemplateList();
+    renderDesignForm();
+    $("ds-reset").disabled = !design.draft.shipped;
+    for (const [elId, path] of [["ds-export", "export.json"], ["ds-dl-pattern", "pattern.html"], ["ds-dl-dotx", "word.dotx"], ["ds-dl-docx", "word.docx"], ["ds-dl-css", "variables.css"]]) $(elId).href = `/api/design/templates/${id}/${path}`;
+    $("ds-message").replaceChildren();
+    schedulePreview(0);
+  }
+
+  // generic bound inputs: data-path="typography.h1.size"
+  function bound(tag, path, attrs = {}) {
+    const node = el(tag, { ...attrs, "data-path": path });
+    const value = path.split(".").reduce((o, k) => (o == null ? o : o[k]), design.draft);
+    if (attrs.type === "checkbox") node.checked = !!value; else node.value = value ?? "";
+    return node;
+  }
+  function selectBound(path, options, label) {
+    const node = el("select", { "data-path": path, "aria-label": label });
+    fillSelect(node, options, { value: String(path.split(".").reduce((o, k) => o[k], design.draft)) });
+    return node;
+  }
+  const colorOptions = () => Object.entries(design.schema.colors).map(([k, label]) => [k, `${label} (${design.draft.colors[k]})`]);
+  const shortColorOptions = () => Object.entries(design.schema.colors).map(([k, label]) => [k, label.split(" (")[0]]);
+
+  function renderDesignForm() {
+    const d = design.draft, sc = design.schema;
+    const field = (label, node, wide) => el("label", { class: wide ? "wide" : "" }, label, node);
+    $("ds-general").replaceChildren(
+      field("Name", bound("input", "name", { maxlength: 80, id: "ds-name" })),
+      field("Dokumenttyp", selectBound("documentType", Object.entries(sc.documentTypes), "Dokumenttyp")),
+      field("Dokumenttitel (Deckblatt)", bound("input", "documentTitle", { maxlength: 80 })),
+      field("Beschreibung", bound("input", "description", { maxlength: 300 }), true));
+    $("ds-page").replaceChildren(
+      field("Format", selectBound("page.format", ["A4", "Letter"], "Format")),
+      field("Ausrichtung", selectBound("page.orientation", [["portrait", "Hochformat"], ["landscape", "Querformat"]], "Ausrichtung")),
+      field("Spalten", bound("input", "page.columns", { type: "number", min: 1, max: 3, step: 1 })),
+      ...[["marginLeft", "Rand links (cm)"], ["marginRight", "Rand rechts (cm)"], ["marginTop", "Rand oben (cm)"], ["marginBottom", "Rand unten (cm)"]]
+        .map(([k, l]) => field(l, bound("input", `page.${k}`, { type: "number", min: 0.5, max: 5, step: 0.1 }))),
+      field("Kopfzeile", bound("input", "header", { maxlength: 140, id: "ds-header" }), true),
+      field("Fußzeile", bound("input", "footer", { maxlength: 140 }), true));
+    $("ds-placeholders").textContent = sc.placeholders.join(" ");
+    $("ds-fonts").replaceChildren(
+      field("Schrift Überschriften", selectBound("fonts.heading", sc.fonts, "Schrift Überschriften")),
+      field("Schrift Fließtext", selectBound("fonts.body", sc.fonts, "Schrift Fließtext")));
+    $("ds-typo").tBodies[0].replaceChildren(...Object.entries(sc.elements).map(([key, label]) => el("tr", { dataset: { element: key } },
+      el("td", { text: label }),
+      el("td", {}, selectBound(`typography.${key}.font`, [["heading", "Überschr."], ["body", "Text"]], `${label} Schrift`)),
+      el("td", {}, bound("input", `typography.${key}.size`, { type: "number", min: 6, max: 72, step: 0.5, "aria-label": `${label} Größe` })),
+      el("td", {}, selectBound(`typography.${key}.weight`, [["400", "Regular"], ["600", "Semibold"], ["700", "Bold"]], `${label} Schnitt`)),
+      el("td", {}, bound("input", `typography.${key}.italic`, { type: "checkbox", "aria-label": `${label} kursiv` })),
+      el("td", {}, bound("input", `typography.${key}.uppercase`, { type: "checkbox", "aria-label": `${label} Versalien` })),
+      el("td", {}, bound("input", `typography.${key}.lineHeight`, { type: "number", min: 0.8, max: 3, step: 0.05, "aria-label": `${label} Zeilenabstand` })),
+      el("td", {}, bound("input", `typography.${key}.before`, { type: "number", min: 0, max: 72, step: 1, "aria-label": `${label} vor` })),
+      el("td", {}, bound("input", `typography.${key}.after`, { type: "number", min: 0, max: 72, step: 1, "aria-label": `${label} nach` })),
+      el("td", {}, selectBound(`typography.${key}.color`, shortColorOptions(), `${label} Farbe`)))));
+    $("ds-colors").replaceChildren(...Object.entries(sc.colors).map(([key, label]) => {
+      const picker = el("input", { type: "color", value: d.colors[key], "aria-label": `${label} Farbwähler` });
+      const hex = bound("input", `colors.${key}`, { class: "hex", maxlength: 7, "aria-label": label });
+      picker.addEventListener("input", () => { hex.value = picker.value.toUpperCase(); hex.dispatchEvent(new Event("input", { bubbles: true })); });
+      hex.addEventListener("input", () => { if (/^#[0-9A-Fa-f]{6}$/.test(hex.value)) picker.value = hex.value; });
+      return el("label", {}, picker, hex, el("span", { text: label }));
+    }));
+    $("ds-elements").replaceChildren(
+      el("label", { class: "check" }, bound("input", "elements.h1Rule", { type: "checkbox" }), "Linie unter Überschrift 1"),
+      el("label", { class: "check" }, bound("input", "elements.tableZebra", { type: "checkbox" }), "Zebra-Zeilen in Tabellen"),
+      el("label", { class: "check" }, bound("input", "elements.showSourceLines", { type: "checkbox" }), "Quellenzeilen anzeigen"),
+      field("Tabellenkopf-Farbe", selectBound("elements.tableHeadBg", colorOptions(), "Tabellenkopf-Farbe")),
+      field("Zellinnenrand oben/unten (pt)", bound("input", "elements.cellPaddingV", { type: "number", min: 0, max: 20, step: 0.5 })),
+      field("Zellinnenrand links/rechts (pt)", bound("input", "elements.cellPaddingH", { type: "number", min: 0, max: 20, step: 0.5 })),
+      field("Rahmen Hinweisbox (px)", bound("input", "elements.boxBorder", { type: "number", min: 0, max: 12, step: 1 })),
+      field("Rundung Badges (px)", bound("input", "elements.badgeRadius", { type: "number", min: 0, max: 20, step: 1 })),
+      field("Seitenverhältnis Screenshot", selectBound("elements.placeholderRatio", sc.ratios, "Seitenverhältnis Screenshot")),
+      field("Seitenverhältnis Bild", selectBound("elements.imageRatio", sc.ratios, "Seitenverhältnis Bild")),
+      field("Box-Stil", selectBound("elements.boxStyle", Object.entries(sc.boxStyles), "Box-Stil")),
+      field("Eckenradius Box (px)", bound("input", "elements.boxRadius", { type: "number", min: 0, max: 20, step: 1 })),
+      field("Innenabstand Box (px)", bound("input", "elements.boxPadding", { type: "number", min: 4, max: 24, step: 1 })),
+      field("Icon-Stil", selectBound("elements.iconStyle", Object.entries(sc.iconStyles), "Icon-Stil")),
+      field("Strichstärke Icons", bound("input", "elements.iconStroke", { type: "number", min: 1, max: 2.5, step: 0.1 })),
+      field("Tabellenkopf-Stil", selectBound("elements.tableHeadStyle", Object.entries(sc.tableHeadStyles), "Tabellenkopf-Stil")),
+      field("Badge-Form", selectBound("elements.badgeShape", Object.entries(sc.badgeShapes), "Badge-Form")));
+    $("ds-boxes").tBodies[0].replaceChildren(...d.boxes.map((b, index) => {
+      const p = (k) => `boxes.${index}.${k}`;
+      const options = [...b.alternatives.map((n) => [n, `★ ${(sc.icons.find((i) => i.name === n) || {}).label || n}`]),
+        ...sc.icons.filter((i) => !b.alternatives.includes(i.name)).map((i) => [i.name, `${i.label} (${i.name})`])];
+      const iconSelect = selectBound(p("icon"), options, `Icon ${b.name}`);
+      const preview = el("span", { class: "icon-pick" }, iconNode(b.icon), iconSelect);
+      iconSelect.addEventListener("change", () => preview.firstChild.replaceWith(iconNode(iconSelect.value)));
+      const colorPair = (key, label) => {
+        const hex = bound("input", p(key), { class: "hex", maxlength: 7, "aria-label": `${b.name} ${label}` });
+        const picker = el("input", { type: "color", value: b[key], "aria-label": `${b.name} ${label} Farbwähler` });
+        picker.addEventListener("input", () => { hex.value = picker.value.toUpperCase(); hex.dispatchEvent(new Event("input", { bubbles: true })); });
+        hex.addEventListener("input", () => { if (/^#[0-9A-Fa-f]{6}$/.test(hex.value)) picker.value = hex.value; });
+        return el("span", { class: "colorpair" }, picker, hex);
+      };
+      return el("tr", { dataset: { box: b.id } },
+        el("td", { class: "boxname", title: `${b.purpose} · ${b.use}` }, b.name, el("span", { text: b.purpose })),
+        el("td", {}, preview), el("td", {}, colorPair("color", "Rahmen")), el("td", {}, colorPair("background", "Fläche")),
+        el("td", {}, bound("input", p("title"), { maxlength: 60, "aria-label": `${b.name} Titel` })),
+        el("td", {}, bound("input", p("text"), { maxlength: 300, "aria-label": `${b.name} Beispieltext` })),
+        el("td", {}, bound("input", p("wordStyle"), { maxlength: 40, "aria-label": `${b.name} Word-Formatvorlage` })),
+        el("td", {}, bound("input", p("symbol"), { maxlength: 2, "aria-label": `${b.name} Word-Symbol` })));
+    }));
+    $("ds-icons").replaceChildren(
+      field("Icon-Farbe", selectBound("iconColor", colorOptions(), "Icon-Farbe")),
+      field("Icon-Größe (pt)", bound("input", "iconSize", { type: "number", min: 8, max: 32, step: 1 })),
+      ...Object.entries(sc.iconRoles).map(([role, label]) => {
+        const select = selectBound(`icons.${role}`, sc.icons.map((i) => [i.name, `${i.label} (${i.name})`]), `Icon ${label}`);
+        const preview = el("span", { class: "icon-pick" }, iconNode(d.icons[role]), select);
+        select.addEventListener("change", () => preview.firstChild.replaceWith(iconNode(select.value)));
+        return el("label", {}, label, preview);
+      }));
+  }
+
+  const SCHEMES = {
+    "Corporate Navy": { fonts: { heading: "Segoe UI", body: "Calibri" }, colors: { navy: "#0B2A4A", petrol: "#00708A", text: "#1F2933", line: "#D5DCE3" } },
+    "Klar Grau": { fonts: { heading: "Aptos", body: "Aptos" }, colors: { navy: "#1F2933", petrol: "#4B5563", text: "#111827", line: "#E5E7EB" } },
+    "Hoher Kontrast": { fonts: { heading: "Arial", body: "Arial" }, colors: { navy: "#000000", petrol: "#0050B5", text: "#000000", line: "#9CA3AF" } },
+  };
+  function applyChange(mutator, message) {
+    mutator(design.draft);
+    design.dirty = true;
+    renderDesignForm();
+    schedulePreview(0);
+    toast(message);
+  }
+  $("ds-schemes").replaceChildren(...Object.entries(SCHEMES).map(([name, scheme]) => el("button", { type: "button", class: "small secondary", text: name,
+    onclick: () => applyChange((d) => { Object.assign(d.fonts, scheme.fonts); Object.assign(d.colors, scheme.colors); }, `Farbschema „${name}“ übernommen – noch nicht gespeichert.`) })));
+  $("ds-scale-apply").addEventListener("click", () => {
+    const base = Number($("ds-scale-base").value), r = Number($("ds-scale-ratio").value);
+    const round = (x) => Math.round(x * 2) / 2;
+    applyChange((d) => {
+      const ty = d.typography;
+      ty.body.size = base;
+      ty.h3.size = round(base * r); ty.h2.size = round(base * r * r); ty.h1.size = round(base * r ** 3);
+      ty.title.size = round(base * 2.5); ty.subtitle.size = round(base * 1.45);
+      ty.tableHead.size = ty.tableBody.size = round(base * 0.91); ty.box.size = round(base * 0.95);
+      ty.caption.size = round(base * 0.82); ty.source.size = ty.badge.size = round(base * 0.78);
+    }, "Größenskala übernommen – noch nicht gespeichert.");
+  });
+  function setPath(obj, path, value) {
+    const keys = path.split(".");
+    const last = keys.pop();
+    const target = keys.reduce((o, k) => o[/^\d+$/.test(k) ? Number(k) : k], obj);
+    target[last] = value;
+  }
+  function onDesignInput(event) {
+    const node = event.target.closest("[data-path]");
+    if (!node || !design.draft) return;
+    let value = node.type === "checkbox" ? node.checked : node.value;
+    if (node.type === "number" || /\.weight$/.test(node.dataset.path)) value = value === "" ? "" : Number(value);
+    setPath(design.draft, node.dataset.path, value);
+    design.dirty = true;
+    schedulePreview();
+  }
+  $("ds-form").addEventListener("input", onDesignInput);
+  $("ds-form").addEventListener("change", onDesignInput);  // selects and checkboxes
+  function schedulePreview(delay = 500) {
+    clearTimeout(design.timer);
+    design.timer = setTimeout(refreshPreview, delay);
+  }
+  async function refreshPreview() {
+    try {
+      const { url } = await api("/api/design/preview", { method: "POST", body: design.draft });
+      $("ds-frame").src = url;
+      $("ds-preview-state").textContent = design.dirty ? "Vorschau mit ungespeicherten Änderungen" : "gespeicherter Stand";
+      document.getElementById("ds-error")?.remove();  // keep success messages such as "gespeichert"
+    } catch (e) {
+      $("ds-preview-state").textContent = "Vorschau nicht aktualisiert";
+      $("ds-message").replaceChildren(el("div", { class: "alert error", id: "ds-error", text: e.message }));
+    }
+  }
+  $("ds-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const saved = await api(`/api/design/templates/${design.current}`, { method: "PUT", body: design.draft });
+      design.templates = design.templates.map((t) => (t.id === saved.id ? saved : t));
+      selectTemplate(saved.id);
+      $("ds-message").replaceChildren(el("div", { class: "alert ok", id: "ds-saved", text: `„${saved.name}“ gespeichert.` }));
+      await refreshDesignOptions();
+    } catch (e) { $("ds-message").replaceChildren(el("div", { class: "alert error", id: "ds-error", text: e.message })); }
+  });
+  $("ds-cancel").addEventListener("click", () => { selectTemplate(design.current); toast("Änderungen verworfen."); });
+  $("ds-new").addEventListener("click", async () => {
+    const name = prompt("Name der neuen Designvorlage:", `${design.draft.name} (Kopie)`);
+    if (!name) return;
+    try {
+      const created = await api("/api/design/templates", { method: "POST", body: { baseId: design.current, name } });
+      design.templates = await api("/api/design/templates");
+      selectTemplate(created.id);
+      await refreshDesignOptions();
+      toast(`„${created.name}“ angelegt.`);
+    } catch (e) { toast(e.message, true); }
+  });
+  $("ds-delete").addEventListener("click", async () => {
+    if (!confirm(`Designvorlage „${design.draft.name}“ löschen?`)) return;
+    try {
+      await api(`/api/design/templates/${design.current}`, { method: "DELETE" });
+      design.current = null;
+      await loaders.design();
+      await refreshDesignOptions();
+      toast("Designvorlage gelöscht.");
+    } catch (e) { toast(e.message, true); }
+  });
+  $("ds-reset").addEventListener("click", async () => {
+    if (!confirm(`„${design.draft.name}“ auf die ausgelieferten Werte zurücksetzen?`)) return;
+    try {
+      const restored = await api(`/api/design/templates/${design.current}/reset`, { method: "POST", body: {} });
+      design.templates = design.templates.map((t) => (t.id === restored.id ? restored : t));
+      selectTemplate(restored.id);
+      toast("Ausgelieferte Werte wiederhergestellt.");
+    } catch (e) { toast(e.message, true); }
+  });
+  $("ds-import").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    const form = new FormData();
+    form.append("file", file);
+    const response = await fetch("/api/design/templates/import", { method: "POST", headers: { "X-oneSCM360": "1" }, body: form });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) return toast((data && data.error) || "Import fehlgeschlagen.", true);
+    design.templates = await api("/api/design/templates");
+    selectTemplate(data.id);
+    await refreshDesignOptions();
+    toast(`„${data.name}“ importiert.`);
+  });
+
+  function renderGallery() {
+    const color = $("ds-icon-color").value || "#00708A";
+    const set = $("ds-icon-set").value;
+    const groups = {};
+    for (const icon of design.schema.icons) if (!set || icon.set === set) (groups[icon.category] = groups[icon.category] || []).push(icon);
+    $("ds-gallery").replaceChildren(...Object.entries(groups).map(([category, list]) => el("div", { class: "gallery-group" },
+      el("h3", { text: category }),
+      el("div", { class: "gallery" }, list.map((icon) => {
+        const node = iconNode(icon.name, 30);
+        node.style.color = color;
+        return el("a", { href: `/api/design/icons/${icon.name}.svg?color=${encodeURIComponent(color)}`, title: `${icon.label} als SVG herunterladen`, dataset: { icon: icon.name } },
+          node, el("span", { text: icon.label }), el("code", { text: icon.name }));
+      })))));
+    if (!set || set === "flags") {
+      $("ds-gallery").append(el("div", { class: "gallery-group" }, el("h3", { text: "Flaggen (flag-icons)" }),
+        el("div", { class: "gallery" }, design.schema.flags.map((f) => el("a", { href: `/api/design/flags/${f.code}.svg?download=1`, title: `Flagge ${f.label} als SVG herunterladen`, dataset: { flag: f.code } },
+          el("img", { class: "flag", src: `/api/design/flags/${f.code}.svg`, alt: `Flagge ${f.label}` }), el("span", { text: f.label }), el("code", { text: f.code }))))));
+    }
+    $("ds-icons-zip").href = `/api/design/icons.zip?color=${encodeURIComponent(color)}`;
+  }
+  function fillIconColors() {
+    const t = design.templates.find((x) => x.id === design.current) || design.templates[0];
+    const previous = $("ds-icon-color").value;
+    fillSelect($("ds-icon-color"), ["petrol", "navy", "info", "ok", "warn", "crit", "off", "pc", "van"].map((k) => [t.colors[k], `${design.schema.colors[k]} ${t.colors[k]}`]), { value: previous || t.colors.petrol });
+  }
+  $("ds-icon-color").addEventListener("change", renderGallery);
+  $("ds-icon-set").addEventListener("change", renderGallery);
+
+  async function refreshDesignOptions() {
+    const templates = await api("/api/design/templates");
+    fillSelect($("man-design"), templates.map((t) => [t.id, `${t.name} (${(design.schema || { documentTypes: {} }).documentTypes[t.documentType] || t.documentType})`]));
+  }
 
   // ---------- Interner Chat ----------
   let chatInfo = null;
@@ -1168,6 +1468,8 @@
     for (const id of ["cov-chapter", "sync-chapter", "man-chapter", "chap-select"]) fillSelect($(id), chapterOptions());
     fillSelect($("imp-chapter"), fieldOptions.chapterId());
     fillSelect($("imp-role"), fieldOptions.role());
+    design.schema = await api("/api/design/schema");
+    await refreshDesignOptions();
     fillSelect($("imp-domain"), fieldOptions.domain());
     for (const id of ["claim-chapter", "ev-chapter", "tbl-chapter"]) fillSelect($(id), chapterOptions(), { empty: "Alle Kapitel" });
     fillSelect($("imp-language"), state.meta.languages, { value: "DE" });

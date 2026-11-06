@@ -5,6 +5,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 from helpers import CH01_HTML, ROOT, AppCase, html_doc, make_docx, p
+from services.design_service import validate
 from services.manual_service import build_manual, stage_allowed
 
 
@@ -27,7 +28,10 @@ class ManualTests(AppCase, unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("default-src 'none'", r.headers["Content-Security-Policy"])
         page = r.get_data(as_text=True)
-        self.assertIn("oneSCM360 Handbuch – CH01 Grundlagen und Überblick", page)
+        self.assertIn("<title>oneSCM Benutzerhandbuch – CH01 Grundlagen und Überblick</title>", page)
+        self.assertIn("Kapitel 01 – Grundlagen und Überblick", page)
+        self.assertIn('<span class="badge b-open">Offen</span>', page)  # unreviewed statement badge
+        self.assertIn('<span class="badge b-both">beide</span>', page)  # PC and VAN
         self.assertIn("Der Dealer darf Aufträge stornieren.", page)
         self.assertIn("ungeprüft", page)
         self.assertIn("TBL-CH01-002", page)  # table assigned to 01-F04
@@ -49,14 +53,15 @@ class ManualTests(AppCase, unittest.TestCase):
                   {"claimId": "C3", "chapterId": "CH01", "questionId": "01-F02", "canonicalStatement": "Abgelehnt.", "validationStatus": "REJECTED"}]
         evidence = [{"claimId": "C1", "sourceType": "JIRA", "jiraKey": "ONESCM-7", "evidenceStrength": "DIRECT_VALIDATED", "evidenceStatus": "VALIDATED"}]
         coverage = {"gate": "READY", "readiness": 95.0}
-        manual = build_manual(chapter, "Released", claims, evidence, [], coverage, [], [])
+        design = validate(json.loads((ROOT / "design_templates.json").read_text(encoding="utf-8"))["templates"][0])
+        manual = build_manual(chapter, "Released", claims, evidence, [], coverage, [], [], design)
         self.assertIn("Freigegebene Aussage.", manual["html"])
         self.assertIn("ONESCM-7", manual["html"])
         self.assertNotIn("Geprüfte Aussage.", manual["html"])
         self.assertNotIn("Abgelehnt.", manual["html"])
         self.assertNotIn("Kein freigegebener Handbuchstand", manual["html"])
         self.assertEqual(manual["stats"]["claims"], 1)
-        reviewed = build_manual(chapter, "Reviewed", claims, evidence, [], coverage, [], [])
+        reviewed = build_manual(chapter, "Reviewed", claims, evidence, [], coverage, [], [], design)
         self.assertIn("Geprüfte Aussage.", reviewed["html"])
         self.assertIn("- Geprüfte Aussage. _(geprüft)_", reviewed["markdown"])
 

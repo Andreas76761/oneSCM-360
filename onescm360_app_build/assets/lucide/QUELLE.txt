@@ -1,0 +1,2 @@
+Lucide Icons (lucide-static 0.460.0), https://lucide.dev, ISC-Lizenz – siehe LICENSE.txt.
+Ausgewählt für oneSCM360: 40 Dokumentsymbole und 6 Rollen-Icons, unverändert übernommen.

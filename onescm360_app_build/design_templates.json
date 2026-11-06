@@ -1,0 +1,1753 @@
+{
+  "version": 2,
+  "templates": [
+    {
+      "id": "handbuch",
+      "name": "oneSCM Benutzerhandbuch",
+      "documentType": "handbuch",
+      "description": "Design-Pattern aus dem Benutzerhandbuch Kapitel 01 (Struktur abgeleitet, Typografie und Farben als Vorschlag).",
+      "documentTitle": "oneSCM Benutzerhandbuch",
+      "page": {
+        "format": "A4",
+        "orientation": "portrait",
+        "marginLeft": 2.5,
+        "marginRight": 2.5,
+        "marginTop": 2,
+        "marginBottom": 2,
+        "columns": 1
+      },
+      "header": "oneSCM Benutzerhandbuch · Kapitel {chapter}",
+      "footer": "Version {version} | Stand {date} | Seite {page} von {pages}",
+      "fonts": {
+        "heading": "Segoe UI",
+        "body": "Calibri"
+      },
+      "colors": {
+        "navy": "#0B2A4A",
+        "petrol": "#00708A",
+        "text": "#1F2933",
+        "muted": "#5F6B76",
+        "line": "#D5DCE3",
+        "soft": "#F3F6F9",
+        "onPrimary": "#FFFFFF",
+        "placeholder": "#9AA8B6",
+        "info": "#1F6FEB",
+        "infoBg": "#EAF2FE",
+        "ok": "#1E7F4F",
+        "okBg": "#E7F5EE",
+        "warn": "#B26A00",
+        "warnBg": "#FFF4E0",
+        "crit": "#B42318",
+        "critBg": "#FDECEA",
+        "off": "#6B7280",
+        "offBg": "#F1F2F4",
+        "pc": "#2F5DA8",
+        "van": "#7A4FB5"
+      },
+      "typography": {
+        "title": {
+          "font": "heading",
+          "size": 28,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.1,
+          "before": 0,
+          "after": 6,
+          "color": "navy"
+        },
+        "subtitle": {
+          "font": "heading",
+          "size": 16,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 4,
+          "color": "petrol"
+        },
+        "subtitleEn": {
+          "font": "heading",
+          "size": 12,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 18,
+          "color": "muted"
+        },
+        "h1": {
+          "font": "heading",
+          "size": 20,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.15,
+          "before": 24,
+          "after": 10,
+          "color": "navy"
+        },
+        "h2": {
+          "font": "heading",
+          "size": 14,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 18,
+          "after": 6,
+          "color": "petrol"
+        },
+        "h3": {
+          "font": "heading",
+          "size": 12,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 12,
+          "after": 4,
+          "color": "navy"
+        },
+        "body": {
+          "font": "body",
+          "size": 11,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.35,
+          "before": 0,
+          "after": 8,
+          "color": "text"
+        },
+        "tableHead": {
+          "font": "body",
+          "size": 10,
+          "weight": 700,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 0,
+          "color": "onPrimary"
+        },
+        "tableBody": {
+          "font": "body",
+          "size": 10,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.25,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        },
+        "box": {
+          "font": "body",
+          "size": 10.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.3,
+          "before": 8,
+          "after": 8,
+          "color": "text"
+        },
+        "caption": {
+          "font": "body",
+          "size": 9,
+          "weight": 400,
+          "italic": true,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 4,
+          "after": 12,
+          "color": "muted"
+        },
+        "source": {
+          "font": "body",
+          "size": 8.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 10,
+          "color": "muted"
+        },
+        "badge": {
+          "font": "body",
+          "size": 8.5,
+          "weight": 700,
+          "italic": false,
+          "uppercase": true,
+          "lineHeight": 1,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        }
+      },
+      "elements": {
+        "h1Rule": true,
+        "tableZebra": true,
+        "tableHeadBg": "navy",
+        "boxBorder": 4,
+        "badgeRadius": 10,
+        "cellPaddingV": 4,
+        "cellPaddingH": 6,
+        "placeholderRatio": "16:9",
+        "imageRatio": "4:3",
+        "showSourceLines": true,
+        "boxStyle": "bar",
+        "boxRadius": 4,
+        "boxPadding": 10,
+        "iconStyle": "outline",
+        "iconStroke": 1.8,
+        "tableHeadStyle": "dark",
+        "badgeShape": "pill"
+      },
+      "boxes": [
+        {
+          "id": "info",
+          "name": "Info",
+          "purpose": "Allgemeiner Hinweis, Quellenbasis",
+          "use": "Kontext, Einordnung, Lesehilfe",
+          "icon": "doc-info",
+          "alternatives": [
+            "doc-info",
+            "doc-book-open",
+            "doc-message-square"
+          ],
+          "color": "#1F6FEB",
+          "background": "#EAF2FE",
+          "title": "Hinweis zur Quellenbasis:",
+          "text": "Dieser Abschnitt basiert auf den Jira-Tickets des Projekts ONESCM.",
+          "wordStyle": "Hinweis Info",
+          "symbol": "ⓘ"
+        },
+        {
+          "id": "tip",
+          "name": "Tipp",
+          "purpose": "Arbeitserleichterung",
+          "use": "Shortcuts, Best Practice",
+          "icon": "doc-lightbulb",
+          "alternatives": [
+            "doc-lightbulb",
+            "doc-star",
+            "doc-target"
+          ],
+          "color": "#0E7C66",
+          "background": "#E3F4EF",
+          "title": "Tipp:",
+          "text": "Aktualisieren Sie das Inhaltsverzeichnis mit F9.",
+          "wordStyle": "Hinweis Tipp",
+          "symbol": "💡"
+        },
+        {
+          "id": "open",
+          "name": "Offen",
+          "purpose": "Nicht ausreichend belegte Inhalte",
+          "use": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "icon": "doc-clock",
+          "alternatives": [
+            "doc-clock",
+            "doc-hourglass",
+            "doc-flag"
+          ],
+          "color": "#B26A00",
+          "background": "#FFF4E0",
+          "title": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "text": "Diese Angabe muss vom Fachbereich bestätigt werden.",
+          "wordStyle": "Hinweis Offen",
+          "symbol": "⏳"
+        },
+        {
+          "id": "warn",
+          "name": "Achtung",
+          "purpose": "Risiko, Abgrenzung",
+          "use": "„Nicht Bestandteil von oneSCM“, Datenverlust",
+          "icon": "doc-triangle-alert",
+          "alternatives": [
+            "doc-triangle-alert",
+            "doc-octagon-alert"
+          ],
+          "color": "#C2410C",
+          "background": "#FFEDD5",
+          "title": "Achtung:",
+          "text": "Diese Funktion ist nicht Bestandteil von oneSCM.",
+          "wordStyle": "Hinweis Achtung",
+          "symbol": "⚠"
+        },
+        {
+          "id": "conflict",
+          "name": "Konflikt",
+          "purpose": "Widerspruch zwischen Quellen",
+          "use": "Quelle A ≠ Quelle B",
+          "icon": "doc-arrow-left-right",
+          "alternatives": [
+            "doc-arrow-left-right",
+            "doc-circle-x"
+          ],
+          "color": "#B42318",
+          "background": "#FDECEA",
+          "title": "Konflikt:",
+          "text": "Quelle A und Quelle B beschreiben den Ablauf unterschiedlich.",
+          "wordStyle": "Hinweis Konflikt",
+          "symbol": "⇅"
+        },
+        {
+          "id": "off",
+          "name": "Nicht aktiviert",
+          "purpose": "Funktion fertig, aber abgeschaltet",
+          "use": "Label not_enabled",
+          "icon": "doc-toggle-left",
+          "alternatives": [
+            "doc-toggle-left",
+            "doc-ban",
+            "doc-lock"
+          ],
+          "color": "#6B7280",
+          "background": "#F1F2F4",
+          "title": "Nicht aktiviert:",
+          "text": "Die Funktion ist entwickelt, aber noch nicht freigeschaltet.",
+          "wordStyle": "Hinweis Nicht aktiviert",
+          "symbol": "⏻"
+        },
+        {
+          "id": "ok",
+          "name": "Belegt",
+          "purpose": "Durch Quelle bestätigt",
+          "use": "Geprüfte Aussage",
+          "icon": "doc-shield-check",
+          "alternatives": [
+            "doc-shield-check",
+            "doc-circle-check"
+          ],
+          "color": "#15803D",
+          "background": "#E7F6EC",
+          "title": "Belegt:",
+          "text": "Die Aussage ist durch ein abgeschlossenes Ticket bestätigt.",
+          "wordStyle": "Hinweis Belegt",
+          "symbol": "✔"
+        },
+        {
+          "id": "pre",
+          "name": "Voraussetzung",
+          "purpose": "Was vorab erfüllt sein muss",
+          "use": "Rolle, Berechtigung, Daten",
+          "icon": "doc-key-round",
+          "alternatives": [
+            "doc-key-round",
+            "doc-list-checks",
+            "doc-lock"
+          ],
+          "color": "#2F5DA8",
+          "background": "#E6EDF8",
+          "title": "Voraussetzungen:",
+          "text": "Sie besitzen die Rolle Dealer und eine Spartenberechtigung.",
+          "wordStyle": "Box Voraussetzung",
+          "symbol": "🔑"
+        },
+        {
+          "id": "res",
+          "name": "Ergebnis",
+          "purpose": "Erwarteter Zustand",
+          "use": "Nach Handlungsschritten",
+          "icon": "doc-square-check-big",
+          "alternatives": [
+            "doc-square-check-big",
+            "doc-target",
+            "doc-flag"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Ergebnis:",
+          "text": "Der Vertrag hat den Status ACTIVE.",
+          "wordStyle": "Box Ergebnis",
+          "symbol": "✅"
+        },
+        {
+          "id": "src",
+          "name": "Quelle",
+          "purpose": "Nachweis",
+          "use": "Jira-/Confluence-Referenz",
+          "icon": "doc-link",
+          "alternatives": [
+            "doc-link",
+            "doc-file-text"
+          ],
+          "color": "#5F6B76",
+          "background": "#F3F6F9",
+          "title": "Quelle:",
+          "text": "ONESCM-XXXX · Titel · Status",
+          "wordStyle": "Box Quelle",
+          "symbol": "🔗"
+        },
+        {
+          "id": "int",
+          "name": "Intern",
+          "purpose": "Nicht zur Veröffentlichung",
+          "use": "Redaktionelle Vermerke",
+          "icon": "doc-eye-off",
+          "alternatives": [
+            "doc-eye-off",
+            "doc-lock"
+          ],
+          "color": "#9D174D",
+          "background": "#FCE7F3",
+          "title": "INTERN:",
+          "text": "Vor Veröffentlichung entfernen.",
+          "wordStyle": "Box Intern",
+          "symbol": "🔒"
+        },
+        {
+          "id": "next",
+          "name": "Weiter mit",
+          "purpose": "Übergang zum nächsten Abschnitt",
+          "use": "Kapitelende",
+          "icon": "doc-arrow-right",
+          "alternatives": [
+            "doc-arrow-right",
+            "doc-workflow"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Weiter mit:",
+          "text": "Kapitel XX – Titel",
+          "wordStyle": "Box Verweis",
+          "symbol": "➜"
+        }
+      ],
+      "icons": {
+        "info": "info",
+        "tip": "lightbulb",
+        "open": "pending",
+        "warn": "warning",
+        "conflict": "report",
+        "verified": "verified",
+        "off": "toggle_off",
+        "screenshot": "screenshot",
+        "image": "image",
+        "role": "badge",
+        "system": "hub",
+        "document": "description",
+        "process": "process"
+      },
+      "iconColor": "petrol",
+      "iconSize": 14
+    },
+    {
+      "id": "releaseletter",
+      "name": "oneSCM Release Letter",
+      "documentType": "releaseletter",
+      "description": "Kompakte Mitteilung zu einem Release: kleinere Überschriften, engere Abstände, ohne Linie unter H1.",
+      "documentTitle": "oneSCM Release Letter",
+      "page": {
+        "format": "A4",
+        "orientation": "portrait",
+        "marginLeft": 2.5,
+        "marginRight": 2.5,
+        "marginTop": 2,
+        "marginBottom": 2,
+        "columns": 1
+      },
+      "header": "oneSCM Release Letter · {release}",
+      "footer": "Release {release} | Stand {date} | Seite {page} von {pages}",
+      "fonts": {
+        "heading": "Segoe UI",
+        "body": "Calibri"
+      },
+      "colors": {
+        "navy": "#0B2A4A",
+        "petrol": "#00708A",
+        "text": "#1F2933",
+        "muted": "#5F6B76",
+        "line": "#D5DCE3",
+        "soft": "#F3F6F9",
+        "onPrimary": "#FFFFFF",
+        "placeholder": "#9AA8B6",
+        "info": "#1F6FEB",
+        "infoBg": "#EAF2FE",
+        "ok": "#1E7F4F",
+        "okBg": "#E7F5EE",
+        "warn": "#B26A00",
+        "warnBg": "#FFF4E0",
+        "crit": "#B42318",
+        "critBg": "#FDECEA",
+        "off": "#6B7280",
+        "offBg": "#F1F2F4",
+        "pc": "#2F5DA8",
+        "van": "#7A4FB5"
+      },
+      "typography": {
+        "title": {
+          "font": "heading",
+          "size": 24,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.1,
+          "before": 0,
+          "after": 6,
+          "color": "navy"
+        },
+        "subtitle": {
+          "font": "heading",
+          "size": 16,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 4,
+          "color": "petrol"
+        },
+        "subtitleEn": {
+          "font": "heading",
+          "size": 12,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 18,
+          "color": "muted"
+        },
+        "h1": {
+          "font": "heading",
+          "size": 16,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.15,
+          "before": 16,
+          "after": 6,
+          "color": "navy"
+        },
+        "h2": {
+          "font": "heading",
+          "size": 13,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 12,
+          "after": 6,
+          "color": "petrol"
+        },
+        "h3": {
+          "font": "heading",
+          "size": 12,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 12,
+          "after": 4,
+          "color": "navy"
+        },
+        "body": {
+          "font": "body",
+          "size": 10.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.3,
+          "before": 0,
+          "after": 6,
+          "color": "text"
+        },
+        "tableHead": {
+          "font": "body",
+          "size": 10,
+          "weight": 700,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 0,
+          "color": "onPrimary"
+        },
+        "tableBody": {
+          "font": "body",
+          "size": 10,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.25,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        },
+        "box": {
+          "font": "body",
+          "size": 10,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.3,
+          "before": 8,
+          "after": 8,
+          "color": "text"
+        },
+        "caption": {
+          "font": "body",
+          "size": 9,
+          "weight": 400,
+          "italic": true,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 4,
+          "after": 12,
+          "color": "muted"
+        },
+        "source": {
+          "font": "body",
+          "size": 8.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 10,
+          "color": "muted"
+        },
+        "badge": {
+          "font": "body",
+          "size": 8.5,
+          "weight": 700,
+          "italic": false,
+          "uppercase": true,
+          "lineHeight": 1,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        }
+      },
+      "elements": {
+        "h1Rule": false,
+        "tableZebra": true,
+        "tableHeadBg": "navy",
+        "boxBorder": 3,
+        "badgeRadius": 10,
+        "cellPaddingV": 4,
+        "cellPaddingH": 6,
+        "placeholderRatio": "4:3",
+        "imageRatio": "4:3",
+        "showSourceLines": true,
+        "boxStyle": "frame",
+        "boxRadius": 4,
+        "boxPadding": 10,
+        "iconStyle": "outline",
+        "iconStroke": 1.8,
+        "tableHeadStyle": "dark",
+        "badgeShape": "square"
+      },
+      "boxes": [
+        {
+          "id": "info",
+          "name": "Info",
+          "purpose": "Allgemeiner Hinweis, Quellenbasis",
+          "use": "Kontext, Einordnung, Lesehilfe",
+          "icon": "doc-info",
+          "alternatives": [
+            "doc-info",
+            "doc-book-open",
+            "doc-message-square"
+          ],
+          "color": "#1F6FEB",
+          "background": "#EAF2FE",
+          "title": "Hinweis zur Quellenbasis:",
+          "text": "Dieser Abschnitt basiert auf den Jira-Tickets des Projekts ONESCM.",
+          "wordStyle": "Hinweis Info",
+          "symbol": "ⓘ"
+        },
+        {
+          "id": "tip",
+          "name": "Tipp",
+          "purpose": "Arbeitserleichterung",
+          "use": "Shortcuts, Best Practice",
+          "icon": "doc-lightbulb",
+          "alternatives": [
+            "doc-lightbulb",
+            "doc-star",
+            "doc-target"
+          ],
+          "color": "#0E7C66",
+          "background": "#E3F4EF",
+          "title": "Tipp:",
+          "text": "Aktualisieren Sie das Inhaltsverzeichnis mit F9.",
+          "wordStyle": "Hinweis Tipp",
+          "symbol": "💡"
+        },
+        {
+          "id": "open",
+          "name": "Offen",
+          "purpose": "Nicht ausreichend belegte Inhalte",
+          "use": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "icon": "doc-clock",
+          "alternatives": [
+            "doc-clock",
+            "doc-hourglass",
+            "doc-flag"
+          ],
+          "color": "#B26A00",
+          "background": "#FFF4E0",
+          "title": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "text": "Diese Angabe muss vom Fachbereich bestätigt werden.",
+          "wordStyle": "Hinweis Offen",
+          "symbol": "⏳"
+        },
+        {
+          "id": "warn",
+          "name": "Achtung",
+          "purpose": "Risiko, Abgrenzung",
+          "use": "„Nicht Bestandteil von oneSCM“, Datenverlust",
+          "icon": "doc-triangle-alert",
+          "alternatives": [
+            "doc-triangle-alert",
+            "doc-octagon-alert"
+          ],
+          "color": "#C2410C",
+          "background": "#FFEDD5",
+          "title": "Achtung:",
+          "text": "Diese Funktion ist nicht Bestandteil von oneSCM.",
+          "wordStyle": "Hinweis Achtung",
+          "symbol": "⚠"
+        },
+        {
+          "id": "conflict",
+          "name": "Konflikt",
+          "purpose": "Widerspruch zwischen Quellen",
+          "use": "Quelle A ≠ Quelle B",
+          "icon": "doc-arrow-left-right",
+          "alternatives": [
+            "doc-arrow-left-right",
+            "doc-circle-x"
+          ],
+          "color": "#B42318",
+          "background": "#FDECEA",
+          "title": "Konflikt:",
+          "text": "Quelle A und Quelle B beschreiben den Ablauf unterschiedlich.",
+          "wordStyle": "Hinweis Konflikt",
+          "symbol": "⇅"
+        },
+        {
+          "id": "off",
+          "name": "Nicht aktiviert",
+          "purpose": "Funktion fertig, aber abgeschaltet",
+          "use": "Label not_enabled",
+          "icon": "doc-toggle-left",
+          "alternatives": [
+            "doc-toggle-left",
+            "doc-ban",
+            "doc-lock"
+          ],
+          "color": "#6B7280",
+          "background": "#F1F2F4",
+          "title": "Nicht aktiviert:",
+          "text": "Die Funktion ist entwickelt, aber noch nicht freigeschaltet.",
+          "wordStyle": "Hinweis Nicht aktiviert",
+          "symbol": "⏻"
+        },
+        {
+          "id": "ok",
+          "name": "Belegt",
+          "purpose": "Durch Quelle bestätigt",
+          "use": "Geprüfte Aussage",
+          "icon": "doc-shield-check",
+          "alternatives": [
+            "doc-shield-check",
+            "doc-circle-check"
+          ],
+          "color": "#15803D",
+          "background": "#E7F6EC",
+          "title": "Belegt:",
+          "text": "Die Aussage ist durch ein abgeschlossenes Ticket bestätigt.",
+          "wordStyle": "Hinweis Belegt",
+          "symbol": "✔"
+        },
+        {
+          "id": "pre",
+          "name": "Voraussetzung",
+          "purpose": "Was vorab erfüllt sein muss",
+          "use": "Rolle, Berechtigung, Daten",
+          "icon": "doc-key-round",
+          "alternatives": [
+            "doc-key-round",
+            "doc-list-checks",
+            "doc-lock"
+          ],
+          "color": "#2F5DA8",
+          "background": "#E6EDF8",
+          "title": "Voraussetzungen:",
+          "text": "Sie besitzen die Rolle Dealer und eine Spartenberechtigung.",
+          "wordStyle": "Box Voraussetzung",
+          "symbol": "🔑"
+        },
+        {
+          "id": "res",
+          "name": "Ergebnis",
+          "purpose": "Erwarteter Zustand",
+          "use": "Nach Handlungsschritten",
+          "icon": "doc-square-check-big",
+          "alternatives": [
+            "doc-square-check-big",
+            "doc-target",
+            "doc-flag"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Ergebnis:",
+          "text": "Der Vertrag hat den Status ACTIVE.",
+          "wordStyle": "Box Ergebnis",
+          "symbol": "✅"
+        },
+        {
+          "id": "src",
+          "name": "Quelle",
+          "purpose": "Nachweis",
+          "use": "Jira-/Confluence-Referenz",
+          "icon": "doc-link",
+          "alternatives": [
+            "doc-link",
+            "doc-file-text"
+          ],
+          "color": "#5F6B76",
+          "background": "#F3F6F9",
+          "title": "Quelle:",
+          "text": "ONESCM-XXXX · Titel · Status",
+          "wordStyle": "Box Quelle",
+          "symbol": "🔗"
+        },
+        {
+          "id": "int",
+          "name": "Intern",
+          "purpose": "Nicht zur Veröffentlichung",
+          "use": "Redaktionelle Vermerke",
+          "icon": "doc-eye-off",
+          "alternatives": [
+            "doc-eye-off",
+            "doc-lock"
+          ],
+          "color": "#9D174D",
+          "background": "#FCE7F3",
+          "title": "INTERN:",
+          "text": "Vor Veröffentlichung entfernen.",
+          "wordStyle": "Box Intern",
+          "symbol": "🔒"
+        },
+        {
+          "id": "next",
+          "name": "Weiter mit",
+          "purpose": "Übergang zum nächsten Abschnitt",
+          "use": "Kapitelende",
+          "icon": "doc-arrow-right",
+          "alternatives": [
+            "doc-arrow-right",
+            "doc-workflow"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Weiter mit:",
+          "text": "Kapitel XX – Titel",
+          "wordStyle": "Box Verweis",
+          "symbol": "➜"
+        }
+      ],
+      "icons": {
+        "info": "info",
+        "tip": "lightbulb",
+        "open": "pending",
+        "warn": "warning",
+        "conflict": "report",
+        "verified": "verified",
+        "off": "toggle_off",
+        "screenshot": "screenshot",
+        "image": "image",
+        "role": "badge",
+        "system": "hub",
+        "document": "description",
+        "process": "process"
+      },
+      "iconColor": "petrol",
+      "iconSize": 14
+    },
+    {
+      "id": "quickreference",
+      "name": "oneSCM Quick Reference",
+      "documentType": "quickreference",
+      "description": "Kurzreferenz im Querformat mit zwei Spalten, dichter Typografie und schmalen Rändern.",
+      "documentTitle": "oneSCM Quick Reference",
+      "page": {
+        "format": "A4",
+        "orientation": "landscape",
+        "marginLeft": 1.5,
+        "marginRight": 1.5,
+        "marginTop": 1.2,
+        "marginBottom": 1.2,
+        "columns": 2
+      },
+      "header": "oneSCM Quick Reference · {chapterTitle}",
+      "footer": "Stand {date} | Seite {page}",
+      "fonts": {
+        "heading": "Segoe UI",
+        "body": "Calibri"
+      },
+      "colors": {
+        "navy": "#0B2A4A",
+        "petrol": "#00708A",
+        "text": "#1F2933",
+        "muted": "#5F6B76",
+        "line": "#D5DCE3",
+        "soft": "#F3F6F9",
+        "onPrimary": "#FFFFFF",
+        "placeholder": "#9AA8B6",
+        "info": "#1F6FEB",
+        "infoBg": "#EAF2FE",
+        "ok": "#1E7F4F",
+        "okBg": "#E7F5EE",
+        "warn": "#B26A00",
+        "warnBg": "#FFF4E0",
+        "crit": "#B42318",
+        "critBg": "#FDECEA",
+        "off": "#6B7280",
+        "offBg": "#F1F2F4",
+        "pc": "#2F5DA8",
+        "van": "#7A4FB5"
+      },
+      "typography": {
+        "title": {
+          "font": "heading",
+          "size": 20,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.1,
+          "before": 0,
+          "after": 4,
+          "color": "navy"
+        },
+        "subtitle": {
+          "font": "heading",
+          "size": 13,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 4,
+          "color": "petrol"
+        },
+        "subtitleEn": {
+          "font": "heading",
+          "size": 10,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 10,
+          "color": "muted"
+        },
+        "h1": {
+          "font": "heading",
+          "size": 13,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.15,
+          "before": 10,
+          "after": 4,
+          "color": "navy"
+        },
+        "h2": {
+          "font": "heading",
+          "size": 11,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 8,
+          "after": 3,
+          "color": "petrol"
+        },
+        "h3": {
+          "font": "heading",
+          "size": 10,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 6,
+          "after": 2,
+          "color": "navy"
+        },
+        "body": {
+          "font": "body",
+          "size": 9.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 4,
+          "color": "text"
+        },
+        "tableHead": {
+          "font": "body",
+          "size": 8.5,
+          "weight": 700,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 0,
+          "color": "onPrimary"
+        },
+        "tableBody": {
+          "font": "body",
+          "size": 8.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.15,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        },
+        "box": {
+          "font": "body",
+          "size": 9,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.3,
+          "before": 4,
+          "after": 4,
+          "color": "text"
+        },
+        "caption": {
+          "font": "body",
+          "size": 8,
+          "weight": 400,
+          "italic": true,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 4,
+          "after": 12,
+          "color": "muted"
+        },
+        "source": {
+          "font": "body",
+          "size": 7.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 10,
+          "color": "muted"
+        },
+        "badge": {
+          "font": "body",
+          "size": 7.5,
+          "weight": 700,
+          "italic": false,
+          "uppercase": true,
+          "lineHeight": 1,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        }
+      },
+      "elements": {
+        "h1Rule": true,
+        "tableZebra": true,
+        "tableHeadBg": "navy",
+        "boxBorder": 3,
+        "badgeRadius": 10,
+        "cellPaddingV": 2,
+        "cellPaddingH": 4,
+        "placeholderRatio": "4:3",
+        "imageRatio": "4:3",
+        "showSourceLines": true,
+        "boxStyle": "bar",
+        "boxRadius": 3,
+        "boxPadding": 6,
+        "iconStyle": "outline",
+        "iconStroke": 1.6,
+        "tableHeadStyle": "light",
+        "badgeShape": "pill"
+      },
+      "boxes": [
+        {
+          "id": "info",
+          "name": "Info",
+          "purpose": "Allgemeiner Hinweis, Quellenbasis",
+          "use": "Kontext, Einordnung, Lesehilfe",
+          "icon": "doc-info",
+          "alternatives": [
+            "doc-info",
+            "doc-book-open",
+            "doc-message-square"
+          ],
+          "color": "#1F6FEB",
+          "background": "#EAF2FE",
+          "title": "Hinweis zur Quellenbasis:",
+          "text": "Dieser Abschnitt basiert auf den Jira-Tickets des Projekts ONESCM.",
+          "wordStyle": "Hinweis Info",
+          "symbol": "ⓘ"
+        },
+        {
+          "id": "tip",
+          "name": "Tipp",
+          "purpose": "Arbeitserleichterung",
+          "use": "Shortcuts, Best Practice",
+          "icon": "doc-lightbulb",
+          "alternatives": [
+            "doc-lightbulb",
+            "doc-star",
+            "doc-target"
+          ],
+          "color": "#0E7C66",
+          "background": "#E3F4EF",
+          "title": "Tipp:",
+          "text": "Aktualisieren Sie das Inhaltsverzeichnis mit F9.",
+          "wordStyle": "Hinweis Tipp",
+          "symbol": "💡"
+        },
+        {
+          "id": "open",
+          "name": "Offen",
+          "purpose": "Nicht ausreichend belegte Inhalte",
+          "use": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "icon": "doc-clock",
+          "alternatives": [
+            "doc-clock",
+            "doc-hourglass",
+            "doc-flag"
+          ],
+          "color": "#B26A00",
+          "background": "#FFF4E0",
+          "title": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "text": "Diese Angabe muss vom Fachbereich bestätigt werden.",
+          "wordStyle": "Hinweis Offen",
+          "symbol": "⏳"
+        },
+        {
+          "id": "warn",
+          "name": "Achtung",
+          "purpose": "Risiko, Abgrenzung",
+          "use": "„Nicht Bestandteil von oneSCM“, Datenverlust",
+          "icon": "doc-triangle-alert",
+          "alternatives": [
+            "doc-triangle-alert",
+            "doc-octagon-alert"
+          ],
+          "color": "#C2410C",
+          "background": "#FFEDD5",
+          "title": "Achtung:",
+          "text": "Diese Funktion ist nicht Bestandteil von oneSCM.",
+          "wordStyle": "Hinweis Achtung",
+          "symbol": "⚠"
+        },
+        {
+          "id": "conflict",
+          "name": "Konflikt",
+          "purpose": "Widerspruch zwischen Quellen",
+          "use": "Quelle A ≠ Quelle B",
+          "icon": "doc-arrow-left-right",
+          "alternatives": [
+            "doc-arrow-left-right",
+            "doc-circle-x"
+          ],
+          "color": "#B42318",
+          "background": "#FDECEA",
+          "title": "Konflikt:",
+          "text": "Quelle A und Quelle B beschreiben den Ablauf unterschiedlich.",
+          "wordStyle": "Hinweis Konflikt",
+          "symbol": "⇅"
+        },
+        {
+          "id": "off",
+          "name": "Nicht aktiviert",
+          "purpose": "Funktion fertig, aber abgeschaltet",
+          "use": "Label not_enabled",
+          "icon": "doc-toggle-left",
+          "alternatives": [
+            "doc-toggle-left",
+            "doc-ban",
+            "doc-lock"
+          ],
+          "color": "#6B7280",
+          "background": "#F1F2F4",
+          "title": "Nicht aktiviert:",
+          "text": "Die Funktion ist entwickelt, aber noch nicht freigeschaltet.",
+          "wordStyle": "Hinweis Nicht aktiviert",
+          "symbol": "⏻"
+        },
+        {
+          "id": "ok",
+          "name": "Belegt",
+          "purpose": "Durch Quelle bestätigt",
+          "use": "Geprüfte Aussage",
+          "icon": "doc-shield-check",
+          "alternatives": [
+            "doc-shield-check",
+            "doc-circle-check"
+          ],
+          "color": "#15803D",
+          "background": "#E7F6EC",
+          "title": "Belegt:",
+          "text": "Die Aussage ist durch ein abgeschlossenes Ticket bestätigt.",
+          "wordStyle": "Hinweis Belegt",
+          "symbol": "✔"
+        },
+        {
+          "id": "pre",
+          "name": "Voraussetzung",
+          "purpose": "Was vorab erfüllt sein muss",
+          "use": "Rolle, Berechtigung, Daten",
+          "icon": "doc-key-round",
+          "alternatives": [
+            "doc-key-round",
+            "doc-list-checks",
+            "doc-lock"
+          ],
+          "color": "#2F5DA8",
+          "background": "#E6EDF8",
+          "title": "Voraussetzungen:",
+          "text": "Sie besitzen die Rolle Dealer und eine Spartenberechtigung.",
+          "wordStyle": "Box Voraussetzung",
+          "symbol": "🔑"
+        },
+        {
+          "id": "res",
+          "name": "Ergebnis",
+          "purpose": "Erwarteter Zustand",
+          "use": "Nach Handlungsschritten",
+          "icon": "doc-square-check-big",
+          "alternatives": [
+            "doc-square-check-big",
+            "doc-target",
+            "doc-flag"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Ergebnis:",
+          "text": "Der Vertrag hat den Status ACTIVE.",
+          "wordStyle": "Box Ergebnis",
+          "symbol": "✅"
+        },
+        {
+          "id": "src",
+          "name": "Quelle",
+          "purpose": "Nachweis",
+          "use": "Jira-/Confluence-Referenz",
+          "icon": "doc-link",
+          "alternatives": [
+            "doc-link",
+            "doc-file-text"
+          ],
+          "color": "#5F6B76",
+          "background": "#F3F6F9",
+          "title": "Quelle:",
+          "text": "ONESCM-XXXX · Titel · Status",
+          "wordStyle": "Box Quelle",
+          "symbol": "🔗"
+        },
+        {
+          "id": "int",
+          "name": "Intern",
+          "purpose": "Nicht zur Veröffentlichung",
+          "use": "Redaktionelle Vermerke",
+          "icon": "doc-eye-off",
+          "alternatives": [
+            "doc-eye-off",
+            "doc-lock"
+          ],
+          "color": "#9D174D",
+          "background": "#FCE7F3",
+          "title": "INTERN:",
+          "text": "Vor Veröffentlichung entfernen.",
+          "wordStyle": "Box Intern",
+          "symbol": "🔒"
+        },
+        {
+          "id": "next",
+          "name": "Weiter mit",
+          "purpose": "Übergang zum nächsten Abschnitt",
+          "use": "Kapitelende",
+          "icon": "doc-arrow-right",
+          "alternatives": [
+            "doc-arrow-right",
+            "doc-workflow"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Weiter mit:",
+          "text": "Kapitel XX – Titel",
+          "wordStyle": "Box Verweis",
+          "symbol": "➜"
+        }
+      ],
+      "icons": {
+        "info": "info",
+        "tip": "lightbulb",
+        "open": "pending",
+        "warn": "warning",
+        "conflict": "report",
+        "verified": "verified",
+        "off": "toggle_off",
+        "screenshot": "screenshot",
+        "image": "image",
+        "role": "badge",
+        "system": "hub",
+        "document": "description",
+        "process": "process"
+      },
+      "iconColor": "petrol",
+      "iconSize": 12
+    },
+    {
+      "id": "training",
+      "name": "oneSCM Trainingsunterlage",
+      "documentType": "training",
+      "description": "Lernunterlage mit größerer Schrift, mehr Weißraum und deutlicheren Tipp- und Hinweisboxen.",
+      "documentTitle": "oneSCM Trainingsunterlage",
+      "page": {
+        "format": "A4",
+        "orientation": "portrait",
+        "marginLeft": 2.5,
+        "marginRight": 2.5,
+        "marginTop": 2.5,
+        "marginBottom": 2.5,
+        "columns": 1
+      },
+      "header": "oneSCM Training · Modul {chapter}",
+      "footer": "Trainingsunterlage | Stand {date} | Seite {page} von {pages}",
+      "fonts": {
+        "heading": "Segoe UI",
+        "body": "Calibri"
+      },
+      "colors": {
+        "navy": "#0B2A4A",
+        "petrol": "#00708A",
+        "text": "#1F2933",
+        "muted": "#5F6B76",
+        "line": "#D5DCE3",
+        "soft": "#F3F6F9",
+        "onPrimary": "#FFFFFF",
+        "placeholder": "#9AA8B6",
+        "info": "#1F6FEB",
+        "infoBg": "#EAF2FE",
+        "ok": "#1E7F4F",
+        "okBg": "#E7F5EE",
+        "warn": "#B26A00",
+        "warnBg": "#FFF4E0",
+        "crit": "#B42318",
+        "critBg": "#FDECEA",
+        "off": "#6B7280",
+        "offBg": "#F1F2F4",
+        "pc": "#2F5DA8",
+        "van": "#7A4FB5"
+      },
+      "typography": {
+        "title": {
+          "font": "heading",
+          "size": 30,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.1,
+          "before": 0,
+          "after": 6,
+          "color": "navy"
+        },
+        "subtitle": {
+          "font": "heading",
+          "size": 16,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 4,
+          "color": "petrol"
+        },
+        "subtitleEn": {
+          "font": "heading",
+          "size": 12,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 18,
+          "color": "muted"
+        },
+        "h1": {
+          "font": "heading",
+          "size": 22,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.15,
+          "before": 28,
+          "after": 12,
+          "color": "navy"
+        },
+        "h2": {
+          "font": "heading",
+          "size": 16,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 20,
+          "after": 8,
+          "color": "petrol"
+        },
+        "h3": {
+          "font": "heading",
+          "size": 13,
+          "weight": 600,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 12,
+          "after": 4,
+          "color": "navy"
+        },
+        "body": {
+          "font": "body",
+          "size": 12,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.45,
+          "before": 0,
+          "after": 10,
+          "color": "text"
+        },
+        "tableHead": {
+          "font": "body",
+          "size": 11,
+          "weight": 700,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 0,
+          "after": 0,
+          "color": "onPrimary"
+        },
+        "tableBody": {
+          "font": "body",
+          "size": 11,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.25,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        },
+        "box": {
+          "font": "body",
+          "size": 11.5,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.3,
+          "before": 10,
+          "after": 10,
+          "color": "text"
+        },
+        "caption": {
+          "font": "body",
+          "size": 10,
+          "weight": 400,
+          "italic": true,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 4,
+          "after": 12,
+          "color": "muted"
+        },
+        "source": {
+          "font": "body",
+          "size": 9,
+          "weight": 400,
+          "italic": false,
+          "uppercase": false,
+          "lineHeight": 1.2,
+          "before": 2,
+          "after": 10,
+          "color": "muted"
+        },
+        "badge": {
+          "font": "body",
+          "size": 9,
+          "weight": 700,
+          "italic": false,
+          "uppercase": true,
+          "lineHeight": 1,
+          "before": 0,
+          "after": 0,
+          "color": "text"
+        }
+      },
+      "elements": {
+        "h1Rule": true,
+        "tableZebra": true,
+        "tableHeadBg": "navy",
+        "boxBorder": 6,
+        "badgeRadius": 10,
+        "cellPaddingV": 5,
+        "cellPaddingH": 8,
+        "placeholderRatio": "16:9",
+        "imageRatio": "4:3",
+        "showSourceLines": true,
+        "boxStyle": "card",
+        "boxRadius": 6,
+        "boxPadding": 12,
+        "iconStyle": "duo",
+        "iconStroke": 1.8,
+        "tableHeadStyle": "dark",
+        "badgeShape": "pill"
+      },
+      "boxes": [
+        {
+          "id": "info",
+          "name": "Info",
+          "purpose": "Allgemeiner Hinweis, Quellenbasis",
+          "use": "Kontext, Einordnung, Lesehilfe",
+          "icon": "doc-info",
+          "alternatives": [
+            "doc-info",
+            "doc-book-open",
+            "doc-message-square"
+          ],
+          "color": "#1F6FEB",
+          "background": "#EAF2FE",
+          "title": "Hinweis zur Quellenbasis:",
+          "text": "Dieser Abschnitt basiert auf den Jira-Tickets des Projekts ONESCM.",
+          "wordStyle": "Hinweis Info",
+          "symbol": "ⓘ"
+        },
+        {
+          "id": "tip",
+          "name": "Tipp",
+          "purpose": "Arbeitserleichterung",
+          "use": "Shortcuts, Best Practice",
+          "icon": "doc-lightbulb",
+          "alternatives": [
+            "doc-lightbulb",
+            "doc-star",
+            "doc-target"
+          ],
+          "color": "#0E7C66",
+          "background": "#E3F4EF",
+          "title": "Tipp:",
+          "text": "Aktualisieren Sie das Inhaltsverzeichnis mit F9.",
+          "wordStyle": "Hinweis Tipp",
+          "symbol": "💡"
+        },
+        {
+          "id": "open",
+          "name": "Offen",
+          "purpose": "Nicht ausreichend belegte Inhalte",
+          "use": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "icon": "doc-clock",
+          "alternatives": [
+            "doc-clock",
+            "doc-hourglass",
+            "doc-flag"
+          ],
+          "color": "#B26A00",
+          "background": "#FFF4E0",
+          "title": "[OFFEN – VALIDIERUNG ERFORDERLICH]",
+          "text": "Diese Angabe muss vom Fachbereich bestätigt werden.",
+          "wordStyle": "Hinweis Offen",
+          "symbol": "⏳"
+        },
+        {
+          "id": "warn",
+          "name": "Achtung",
+          "purpose": "Risiko, Abgrenzung",
+          "use": "„Nicht Bestandteil von oneSCM“, Datenverlust",
+          "icon": "doc-triangle-alert",
+          "alternatives": [
+            "doc-triangle-alert",
+            "doc-octagon-alert"
+          ],
+          "color": "#C2410C",
+          "background": "#FFEDD5",
+          "title": "Achtung:",
+          "text": "Diese Funktion ist nicht Bestandteil von oneSCM.",
+          "wordStyle": "Hinweis Achtung",
+          "symbol": "⚠"
+        },
+        {
+          "id": "conflict",
+          "name": "Konflikt",
+          "purpose": "Widerspruch zwischen Quellen",
+          "use": "Quelle A ≠ Quelle B",
+          "icon": "doc-arrow-left-right",
+          "alternatives": [
+            "doc-arrow-left-right",
+            "doc-circle-x"
+          ],
+          "color": "#B42318",
+          "background": "#FDECEA",
+          "title": "Konflikt:",
+          "text": "Quelle A und Quelle B beschreiben den Ablauf unterschiedlich.",
+          "wordStyle": "Hinweis Konflikt",
+          "symbol": "⇅"
+        },
+        {
+          "id": "off",
+          "name": "Nicht aktiviert",
+          "purpose": "Funktion fertig, aber abgeschaltet",
+          "use": "Label not_enabled",
+          "icon": "doc-toggle-left",
+          "alternatives": [
+            "doc-toggle-left",
+            "doc-ban",
+            "doc-lock"
+          ],
+          "color": "#6B7280",
+          "background": "#F1F2F4",
+          "title": "Nicht aktiviert:",
+          "text": "Die Funktion ist entwickelt, aber noch nicht freigeschaltet.",
+          "wordStyle": "Hinweis Nicht aktiviert",
+          "symbol": "⏻"
+        },
+        {
+          "id": "ok",
+          "name": "Belegt",
+          "purpose": "Durch Quelle bestätigt",
+          "use": "Geprüfte Aussage",
+          "icon": "doc-shield-check",
+          "alternatives": [
+            "doc-shield-check",
+            "doc-circle-check"
+          ],
+          "color": "#15803D",
+          "background": "#E7F6EC",
+          "title": "Belegt:",
+          "text": "Die Aussage ist durch ein abgeschlossenes Ticket bestätigt.",
+          "wordStyle": "Hinweis Belegt",
+          "symbol": "✔"
+        },
+        {
+          "id": "pre",
+          "name": "Voraussetzung",
+          "purpose": "Was vorab erfüllt sein muss",
+          "use": "Rolle, Berechtigung, Daten",
+          "icon": "doc-key-round",
+          "alternatives": [
+            "doc-key-round",
+            "doc-list-checks",
+            "doc-lock"
+          ],
+          "color": "#2F5DA8",
+          "background": "#E6EDF8",
+          "title": "Voraussetzungen:",
+          "text": "Sie besitzen die Rolle Dealer und eine Spartenberechtigung.",
+          "wordStyle": "Box Voraussetzung",
+          "symbol": "🔑"
+        },
+        {
+          "id": "res",
+          "name": "Ergebnis",
+          "purpose": "Erwarteter Zustand",
+          "use": "Nach Handlungsschritten",
+          "icon": "doc-square-check-big",
+          "alternatives": [
+            "doc-square-check-big",
+            "doc-target",
+            "doc-flag"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Ergebnis:",
+          "text": "Der Vertrag hat den Status ACTIVE.",
+          "wordStyle": "Box Ergebnis",
+          "symbol": "✅"
+        },
+        {
+          "id": "src",
+          "name": "Quelle",
+          "purpose": "Nachweis",
+          "use": "Jira-/Confluence-Referenz",
+          "icon": "doc-link",
+          "alternatives": [
+            "doc-link",
+            "doc-file-text"
+          ],
+          "color": "#5F6B76",
+          "background": "#F3F6F9",
+          "title": "Quelle:",
+          "text": "ONESCM-XXXX · Titel · Status",
+          "wordStyle": "Box Quelle",
+          "symbol": "🔗"
+        },
+        {
+          "id": "int",
+          "name": "Intern",
+          "purpose": "Nicht zur Veröffentlichung",
+          "use": "Redaktionelle Vermerke",
+          "icon": "doc-eye-off",
+          "alternatives": [
+            "doc-eye-off",
+            "doc-lock"
+          ],
+          "color": "#9D174D",
+          "background": "#FCE7F3",
+          "title": "INTERN:",
+          "text": "Vor Veröffentlichung entfernen.",
+          "wordStyle": "Box Intern",
+          "symbol": "🔒"
+        },
+        {
+          "id": "next",
+          "name": "Weiter mit",
+          "purpose": "Übergang zum nächsten Abschnitt",
+          "use": "Kapitelende",
+          "icon": "doc-arrow-right",
+          "alternatives": [
+            "doc-arrow-right",
+            "doc-workflow"
+          ],
+          "color": "#00708A",
+          "background": "#E0F2F5",
+          "title": "Weiter mit:",
+          "text": "Kapitel XX – Titel",
+          "wordStyle": "Box Verweis",
+          "symbol": "➜"
+        }
+      ],
+      "icons": {
+        "info": "info",
+        "tip": "lightbulb",
+        "open": "pending",
+        "warn": "warning",
+        "conflict": "report",
+        "verified": "verified",
+        "off": "toggle_off",
+        "screenshot": "screenshot",
+        "image": "image",
+        "role": "badge",
+        "system": "hub",
+        "document": "description",
+        "process": "process"
+      },
+      "iconColor": "petrol",
+      "iconSize": 18
+    }
+  ]
+}
