@@ -9,6 +9,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -44,8 +45,12 @@ def create_app(config: dict | None = None) -> Flask:
     app.json.sort_keys = False
 
     data = DataDir(Path(config.get("DATA_DIR") or os.environ.get("ONESCM_DATA_DIR") or ROOT / "data"))
-    chapters = ChapterService(Path(config.get("CHAPTERS_DIR") or ROOT / "chapters"))
-    rules = RuleService(Path(config.get("RULES_PATH") or ROOT / "rules.json"), data.backups)
+    chapters = ChapterService(Path(config.get("CHAPTERS_DIR") or ROOT / "chapters"), data.root / "chapters", data.backups)
+    # The editable rule set lives in data/ so that updating the program (git pull) never touches user edits.
+    rules_path = Path(config.get("RULES_PATH") or data.root / "rules.json")
+    if not rules_path.exists() and not config.get("RULES_PATH"):
+        shutil.copy2(ROOT / "rules.json", rules_path)
+    rules = RuleService(rules_path, data.backups)
     knowledge = KnowledgeService(data.knowledge, ROOT / "schemas" / "claim.schema.json", chapters)
     classification = ClassificationService(Path(config.get("CLASSIFICATION_PATH") or ROOT / "classification.json"), chapters)
     imports = ImportService(data, chapters, rules, knowledge, ROOT / "schemas" / "import.schema.json", classification)
@@ -198,6 +203,33 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/api/chapters/<chapter_id>")
     def chapter(chapter_id):
         return jsonify(chapters.get(chapter_id))
+
+    @app.put("/api/chapters/<chapter_id>")
+    def chapter_save(chapter_id):
+        saved = chapters.save(chapter_id, body(), classification.roles())
+        compute_coverage(chapter_id)
+        return jsonify(saved)
+
+    @app.delete("/api/chapters/<chapter_id>/override")
+    def chapter_reset(chapter_id):
+        restored = chapters.reset(chapter_id)
+        compute_coverage(chapter_id)
+        return jsonify(restored)
+
+    @app.get("/api/chapters/<chapter_id>/questions.csv")
+    def chapter_csv(chapter_id):
+        return send_file(io.BytesIO(chapters.to_csv(chapter_id)), mimetype="text/csv; charset=utf-8", as_attachment=True,
+                         download_name=f"{chapter_id}_Fragenkatalog.csv")
+
+    @app.post("/api/chapters/<chapter_id>/questions.csv")
+    def chapter_csv_parse(chapter_id):
+        upload = request.files.get("file")
+        if not upload:
+            return jsonify(error="Bitte eine CSV-Datei auswählen."), 400
+        data_bytes = upload.read(1_000_001)
+        if len(data_bytes) > 1_000_000:
+            return jsonify(error="Die CSV-Datei ist zu groß."), 413
+        return jsonify(questions=chapters.parse_csv(chapter_id, data_bytes))
 
     # -- import ----------------------------------------------------------------------------
     @app.post("/api/import")

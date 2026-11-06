@@ -16,6 +16,7 @@
     <button data-tab="dashboard">Dashboard</button>
     <button data-tab="import">Import</button>
     <button data-tab="rules">Regelwerk</button>
+    <button data-tab="chapters">Kapitel</button>
     <button data-tab="claims">Claims</button>
     <button data-tab="evidence">Evidence</button>
     <button data-tab="tables">Tabellen</button>
@@ -104,6 +105,32 @@
         <div class="actions"><button id="rule-preview" class="secondary">Prüfen</button></div>
         <pre id="rule-preview-out" class="out"></pre>
       </div>
+    </section>
+
+    <!-- Kapitel (Fragenkataloge) -->
+    <section id="tab-chapters" class="panel" hidden aria-labelledby="h-chapters">
+      <div class="panel-head"><h1 id="h-chapters">Kapitel &amp; Fragenkataloge</h1><span class="muted">Je Kapitel genau 20 Fragen xx-F01 bis xx-F20. Änderungen liegen unter data\chapters und bleiben bei einem Programm-Update erhalten.</span></div>
+      <div class="filters"><label>Kapitel<select id="chap-select"></select></label><div id="chap-origin" class="chap-origin"></div></div>
+      <form id="chap-form" class="card" novalidate>
+        <div class="form-grid">
+          <label>Kapiteltitel<input id="chap-title" maxlength="150"></label>
+          <label>Schema-Status<select id="chap-status"><option value="DRAFT">DRAFT (Entwurf)</option><option value="REFERENCE">REFERENCE (fachlich vollständig)</option></select></label>
+          <label class="wide">Schwerpunkt<input id="chap-focus" maxlength="500"></label>
+          <label class="wide">Pflichtauswertungen (durch Komma getrennt)<input id="chap-evaluations"></label>
+        </div>
+        <h2>Rollen für die Rollenabdeckung</h2>
+        <div id="chap-roles" class="chips"></div>
+        <h2>Fragen</h2>
+        <div class="table-wrap"><table id="chap-questions"><thead><tr><th>Frage</th><th>Gruppe</th><th>Titel</th><th>Titel EN</th><th>Kritikalität</th></tr></thead><tbody></tbody></table></div>
+        <div id="chap-message"></div>
+        <div class="actions">
+          <button type="submit" class="primary" id="chap-save">Speichern</button>
+          <button type="button" id="chap-cancel">Abbrechen</button>
+          <button type="button" id="chap-reset" class="danger">Auf Standard zurücksetzen</button>
+          <a class="button-link" id="chap-csv-download" href="#">CSV herunterladen</a>
+          <label class="button-link file-button">CSV importieren<input type="file" id="chap-csv" accept=".csv,text/csv"></label>
+        </div>
+      </form>
     </section>
 
     <!-- Claims -->

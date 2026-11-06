@@ -1,6 +1,7 @@
 """Trusted knowledge layer: knowledge blocks, claims, evidence and conflicts."""
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -84,6 +85,32 @@ class KnowledgeService:
             if claim.get("evidenceStatus") == "NOT_RELEVANT" and best > 0:
                 continue
             claim["evidenceStatus"] = "EVIDENCED" if best > 0 else "NOT_EVIDENCED"
+        KnowledgeService._refresh_blocks(data)
+
+    @staticmethod
+    def _refresh_blocks(data: dict):
+        """Knowledge block status follows its claims; the version increases when its claims change."""
+        claims_by_kb: dict[str, list] = {}
+        for claim in data["claims"]:
+            claims_by_kb.setdefault(claim["knowledgeId"], []).append(claim)
+        for block in data["knowledgeBlocks"]:
+            claims = claims_by_kb.get(block["knowledgeId"], [])
+            active = [c for c in claims if c["validationStatus"] != "REJECTED"]
+            if claims and not active:
+                status = "REJECTED"
+            elif active and all(c["validationStatus"] == "CONFIRMED" for c in active):
+                status = "CONFIRMED"
+            elif active and all(c["validationStatus"] in ("REVIEWED", "CONFIRMED") for c in active):
+                status = "REVIEWED"
+            else:
+                status = "DRAFT"
+            fingerprint = hashlib.sha1(json.dumps(sorted((c["claimId"], c["canonicalStatement"], c["validationStatus"]) for c in claims),
+                                                  ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
+            if block.get("fingerprint") and block["fingerprint"] != fingerprint:
+                block["version"] = int(block.get("version", 1)) + 1
+                block["updatedAt"] = now_iso()
+            block["fingerprint"] = fingerprint
+            block["validationStatus"] = status
 
     # -- queries ---------------------------------------------------------------
     def claims(self, chapter_id=None, status=None, question_id=None) -> list[dict]:
@@ -216,6 +243,7 @@ class KnowledgeService:
             data["claims"] = [c for c in data["claims"] if c["claimId"] != claim_id]
             data["evidence"] = [e for e in data["evidence"] if e["claimId"] != claim_id]
             data["conflicts"] = [c for c in data["conflicts"] if claim_id not in c["claimIds"]]
+            self._refresh_blocks(data)
             self.save(data)
 
     # -- evidence CRUD -----------------------------------------------------------

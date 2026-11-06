@@ -48,6 +48,7 @@ powershell.exe -ExecutionPolicy Bypass -File '.\start_onescm360.ps1' -OneDriveRo
 | Dashboard | Importläufe mit Sprache, Rolle und Domäne, gruppierbar. KPIs (Importläufe, Quelldateien, Output-Dateien, JSON, CSV, Uploadpakete), Importtabelle, Outputtabelle, OneDrive-Pfadprüfung. Beschädigte Import-JSONs erscheinen als `INVALID_JSON` / `BLOCKED`. |
 | Import | Eine oder mehrere Dateien auswählen oder hineinziehen. Je Datei schlägt die App Kapitel, Sprache, Rolle und Domäne vor (siehe unten). Alle Werte sind in der Liste änderbar. Die Liste lässt sich nach Kapitel, Sprache, Rolle, Domäne oder Dateiname ordnen. Der Import läuft Datei für Datei mit Sanduhr und Gesamtfortschritt. Eine fehlerhafte Datei stoppt die übrigen nicht. Ergebnis je Datei: Import-ID, erkannte Fragen, Tabellen, Validierung, Regelbefunde, Coverage. |
 | Regelwerk | Namenskonvention, Systemübersicht, Synonyme, Erklärungen, Abkürzungen: anlegen, bearbeiten, speichern, abbrechen, löschen mit Rückfrage. Testfeld für Regeln. |
+| Kapitel | Fragenkataloge CH01–CH16 pflegen: Titel, Schema-Status (DRAFT/REFERENCE), Schwerpunkt, Pflichtauswertungen, Rollen der Rollenabdeckung sowie je Frage Gruppe, Titel DE/EN und Kritikalität. CSV-Vorlage herunterladen und Kataloge aus Excel per CSV übernehmen (Semikolon oder Komma, UTF-8 oder Windows-1252, Kritikalität auch als kritisch/hoch/mittel/niedrig). Änderungen liegen unter `data\chapters`, „Auf Standard zurücksetzen“ verwirft sie. |
 | Claims | Claims filtern, bearbeiten (Subject/Predicate/Object, Rolle, Division, PI, Reifegrad …), bestätigen, löschen, manuell anlegen, Evidence zuordnen. |
 | Evidence | Evidence-Stufe und -Status pflegen, Faktor sehen, löschen. |
 | Tabellen | Separat extrahierte Tabellen ansehen, Quellfrage zuordnen, als JSON oder CSV herunterladen. |
@@ -151,6 +152,16 @@ Was beim Import mit Rolle und Domäne passiert:
 ### Konflikte
 
 Erkannt werden `DIRECT_CONTRADICTION`, `ROLE_CONFLICT`, `DIVISION_CONFLICT`, `PI_CONFLICT`, `MATURITY_CONFLICT` und `SOURCE_SYSTEM_CONFLICT`. Unterschiedlicher Scope (Rolle, Division, Markt, PI) ist nicht automatisch ein Konflikt.
+
+### Kritikalität und Knowledge Blocks
+
+- **Kritikalität:** Ein Claim übernimmt beim Import die Kritikalität seiner Frage. Für Coverage und Gate zählt die höhere von beiden, die des Claims oder die der Frage im Kapitelschema. Wird eine Frage später auf CRITICAL hochgestuft, gilt das sofort für ihre bestehenden Claims.
+- **Status eines Knowledge Blocks:** folgt seinen Claims.
+  - `CONFIRMED`, wenn alle aktiven Claims freigegeben sind
+  - `REVIEWED`, wenn alle mindestens geprüft sind
+  - `REJECTED`, wenn alle abgelehnt sind
+  - sonst `DRAFT`
+- **Version:** steigt, sobald sich Claims des Blocks ändern (Aussage, Status, neu oder gelöscht). Beides geht in `KnowledgeBlocks.csv` für die SharePoint-Liste.
 
 ### Coverage
 
@@ -325,10 +336,14 @@ Ablage unter `data\`:
 | `media\CHxx\` | aus DOCX extrahierte Bilder |
 | `knowledge.json` | Knowledge Blocks, Claims, Evidence, Konflikte |
 | `coverage\` | Coverage-Snapshots |
-| `backups\` | Sicherungen von `rules.json` (die letzten 30) |
+| `rules.json` | das Regelwerk. Wird beim ersten Start aus der ausgelieferten `rules.json` angelegt. |
+| `chapters\` | eigene Fassungen der Kapitelschemas aus dem Register Kapitel |
+| `backups\` | Sicherungen von Regelwerk (die letzten 30) und Kapitelschemas |
 | `archive\` | archivierte Importe |
 
-`rules.json` wird atomar geschrieben, also über eine temporäre Datei und anschließendes Ersetzen.
+`data\rules.json` wird atomar geschrieben, also über eine temporäre Datei und anschließendes Ersetzen.
+
+**Programm-Update:** Regelwerk und Kapitelschemas, die Sie in der App ändern, liegen in `data\`. `git pull` aktualisiert nur das Programm und die ausgelieferten Vorlagen, Ihre Eingaben bleiben unberührt. Ein Kapitel ohne eigene Fassung nutzt immer die ausgelieferte Vorlage aus `chapters\`.
 
 Imports sind idempotent: Dieselbe Datei mit gleichem Kapitel, gleicher Sprache und gleichem Quelltyp liefert das vorhandene Ergebnis. Mit „Gleiche Datei erneut verarbeiten“ wird der Import unter derselben Import-ID neu aufgebaut.
 
@@ -379,13 +394,13 @@ onescm360_app_build/
 ├── app.py                  Flask-App und API
 ├── index.html              Oberfläche (Register)
 ├── static/                 app.js, style.css
-├── rules.json              editierbares Regelwerk
+├── rules.json              ausgelieferte Vorlage des Regelwerks (bearbeitet wird data\rules.json)
 ├── classification.json     Rollen und Domänen für den Mehrfachimport
 ├── tool_registry.json      Tool Registry v1 (Schemas + Sicherheits-Metadaten)
 ├── security_policy.json    Security Policy v1 (INTERNAL_RESTRICTED, default DENY, Profile)
 ├── chat_eval.json          Routing-Testsuite
 ├── cleanup_rules.json      Regeln der Datenbereinigung
-├── chapters/CH01…CH16.json Kapitelkonfiguration (Fragen, Kritikalität, Rollen)
+├── chapters/CH01…CH16.json ausgelieferte Kapitelschemas (eigene Fassungen: data\chapters)
 ├── schemas/                import.schema.json, claim.schema.json
 ├── services/               import, docx/html parser, rules, claims, knowledge, conflicts, coverage, export
 ├── data/                   Laufzeitdaten (nicht versioniert)
@@ -397,5 +412,5 @@ onescm360_app_build/
 
 ## Offene Punkte
 
-- CH02 bis CH16: Die fachlichen Fragenkataloge, Kritikalitäten und Rollen fehlen noch. Sie werden in `chapters\CHxx.json` gepflegt; die App braucht dafür keine Codeänderung.
+- CH02 bis CH16: Die fachlichen Fragenkataloge, Kritikalitäten und Rollen fehlen noch. Sie werden im Register Kapitel gepflegt oder per CSV übernommen.
 - Claim-Zerlegung und Subject/Predicate/Object-Erkennung sind regelbasiert und bewusst konservativ. Ergebnisse immer im Register Claims prüfen.
