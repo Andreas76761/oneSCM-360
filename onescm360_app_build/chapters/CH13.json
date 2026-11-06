@@ -1,0 +1,172 @@
+{
+  "chapterId": "CH13",
+  "number": "13",
+  "title": "Produkt, Preis und Markt",
+  "schemaStatus": "DRAFT",
+  "focus": "Produkte, Eligibility, Preise, Währungen, Steuern, Märkte",
+  "mandatoryEvaluations": [
+    "Produkt-Matrix",
+    "Preis-Matrix",
+    "Markt-Matrix",
+    "RACI-Matrix"
+  ],
+  "languages": [
+    "DE",
+    "EN",
+    "DE+EN"
+  ],
+  "roles": [
+    "Dealer",
+    "Market Operations"
+  ],
+  "requiredDimensions": [
+    "questions",
+    "evidence",
+    "roles",
+    "division",
+    "pi",
+    "confidence"
+  ],
+  "questions": [
+    {
+      "questionId": "13-F01",
+      "group": "Allgemein",
+      "title": "Frage 13-F01",
+      "titleEn": "Question 13-F01",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F02",
+      "group": "Allgemein",
+      "title": "Frage 13-F02",
+      "titleEn": "Question 13-F02",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F03",
+      "group": "Allgemein",
+      "title": "Frage 13-F03",
+      "titleEn": "Question 13-F03",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F04",
+      "group": "Allgemein",
+      "title": "Frage 13-F04",
+      "titleEn": "Question 13-F04",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F05",
+      "group": "Allgemein",
+      "title": "Frage 13-F05",
+      "titleEn": "Question 13-F05",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F06",
+      "group": "Allgemein",
+      "title": "Frage 13-F06",
+      "titleEn": "Question 13-F06",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F07",
+      "group": "Allgemein",
+      "title": "Frage 13-F07",
+      "titleEn": "Question 13-F07",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F08",
+      "group": "Allgemein",
+      "title": "Frage 13-F08",
+      "titleEn": "Question 13-F08",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F09",
+      "group": "Allgemein",
+      "title": "Frage 13-F09",
+      "titleEn": "Question 13-F09",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F10",
+      "group": "Allgemein",
+      "title": "Frage 13-F10",
+      "titleEn": "Question 13-F10",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F11",
+      "group": "Allgemein",
+      "title": "Frage 13-F11",
+      "titleEn": "Question 13-F11",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F12",
+      "group": "Allgemein",
+      "title": "Frage 13-F12",
+      "titleEn": "Question 13-F12",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F13",
+      "group": "Allgemein",
+      "title": "Frage 13-F13",
+      "titleEn": "Question 13-F13",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F14",
+      "group": "Allgemein",
+      "title": "Frage 13-F14",
+      "titleEn": "Question 13-F14",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F15",
+      "group": "Allgemein",
+      "title": "Frage 13-F15",
+      "titleEn": "Question 13-F15",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F16",
+      "group": "Allgemein",
+      "title": "Frage 13-F16",
+      "titleEn": "Question 13-F16",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F17",
+      "group": "Allgemein",
+      "title": "Frage 13-F17",
+      "titleEn": "Question 13-F17",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F18",
+      "group": "Allgemein",
+      "title": "Frage 13-F18",
+      "titleEn": "Question 13-F18",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F19",
+      "group": "Allgemein",
+      "title": "Frage 13-F19",
+      "titleEn": "Question 13-F19",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "13-F20",
+      "group": "Allgemein",
+      "title": "Frage 13-F20",
+      "titleEn": "Question 13-F20",
+      "criticality": "MEDIUM"
+    }
+  ]
+}
