@@ -219,6 +219,19 @@
         <div id="book-result"></div>
         <iframe id="book-frame" class="manual-frame" title="Vorschau Gesamthandbuch" sandbox="" hidden></iframe>
       </div>
+      <div class="card" id="release-card">
+        <h2>Release Letter</h2>
+        <p class="muted">Was hat sich seit einem früheren Handbuchstand geändert? Basis ist ein erzeugter Handbuchstand oder ein Gesamthandbuch: Die App merkt sich beim Erzeugen, welche Aussagen enthalten waren. Der Release Letter listet je Kapitel und Frage neue, geänderte und entfallene Aussagen sowie Statuswechsel.</p>
+        <div class="form-grid">
+          <label>Basis<select id="release-since"></select></label>
+          <label>Vergleich mit Stufe<select id="release-stage"><option value="">wie die Basis</option><option value="Draft">Draft</option><option value="Reviewed">Reviewed</option><option value="Released">Released</option></select></label>
+          <label>Designvorlage<select id="release-design"></select></label>
+          <label>Release (optional)<input id="release-name" type="text" maxlength="40" placeholder="z. B. PI17"></label>
+          <div class="actions"><button type="button" id="release-preview" class="secondary">Vorschau</button><button type="button" id="release-docx" class="secondary">Word herunterladen</button><button type="button" id="release-generate" class="primary">Release Letter erzeugen</button></div>
+        </div>
+        <div id="release-result"></div>
+        <iframe id="release-frame" class="manual-frame" title="Vorschau Release Letter" sandbox="" hidden></iframe>
+      </div>
       <div class="card">
         <h2>Datenbereinigung</h2>
         <p class="muted">Regeln aus <code>cleanup_rules.json</code>. Zuerst Vorschau, dann ausgewählte Einträge bereinigen. Claims und Evidence bleiben beim Archivieren erhalten.</p>

@@ -849,6 +849,7 @@
     renderSyncStatus(status);
     await loadCleanup();
     await loadBookOverview();
+    await loadReleaseSnapshots();
   };
   function renderSyncStatus(s) {
     $("sync-path").value = s.path || "";
@@ -927,6 +928,7 @@
         `Handbuchstand ${r.stage} für ${r.chapterId} (Design „${r.stats.design}“): ${r.stats.claims} Aussagen in ${r.stats.questionsWithContent} von ${r.stats.questions} Fragen, ${r.stats.tables} Tabelle(n). Cloudstatus: ${r.cloudStatus}.`),
         el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
       window.dispatchEvent(new Event("onescm-changed"));
+      loadReleaseSnapshots(true);
     } catch (e) {
       $("man-result").replaceChildren(el("div", { class: "alert error", id: "man-error", text: e.message }));
     } finally { button.disabled = false; }
@@ -985,8 +987,65 @@
         `Gesamthandbuch ${r.stage} (Design „${r.stats.design}“): ${r.stats.chapters.length} Kapitel (${r.stats.chapters.join(", ")}), ${r.stats.claims} Aussagen, ${r.stats.tables} Tabelle(n), ${r.stats.images} Bild(er). Cloudstatus: ${r.cloudStatus}.`),
         el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
       window.dispatchEvent(new Event("onescm-changed"));
+      loadReleaseSnapshots(true);
     } catch (e) {
       bookError(e.message);
+    } finally { button.disabled = false; }
+  });
+
+  // ---------- Release Letter ----------
+  const releaseQuery = () => `since=${encodeURIComponent($("release-since").value)}&stage=${encodeURIComponent($("release-stage").value)}&design=${encodeURIComponent($("release-design").value)}&release=${encodeURIComponent($("release-name").value)}`;
+  const releaseError = (text) => $("release-result").replaceChildren(el("div", { class: "alert error", id: "release-error", text }));
+  async function loadReleaseSnapshots(selectNewest = false) {
+    const list = await api("/api/release/snapshots");
+    const empty = !list.length;
+    fillSelect($("release-since"), empty ? [["", "— noch kein erzeugter Handbuchstand —"]]
+      : list.map((s) => [s.snapshotId, `${s.kind === "book" ? "Gesamthandbuch" : s.chapters[0]} ${s.stage} · ${fmtDate(s.createdAt)} · ${s.claims} Aussagen`]),
+      selectNewest && !empty ? { value: list[0].snapshotId } : {});
+    for (const id of ["release-preview", "release-docx", "release-generate"]) $(id).disabled = empty;
+    if (empty) $("release-result").replaceChildren(el("p", { class: "muted", id: "release-hint", text: "Erzeugen Sie zuerst einen Handbuchstand oder ein Gesamthandbuch – er dient später als Basis für den Vergleich." }));
+    else if ($("release-hint")) $("release-result").replaceChildren();
+  }
+  $("release-preview").addEventListener("click", async () => {
+    const url = `/api/release/preview?${releaseQuery()}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      $("release-frame").hidden = true;
+      releaseError(data.error || `Fehler (${response.status}).`);
+      return;
+    }
+    $("release-result").replaceChildren();
+    $("release-frame").src = url;
+    $("release-frame").hidden = false;
+  });
+  $("release-docx").addEventListener("click", async () => {
+    const response = await fetch(`/api/release/docx?${releaseQuery()}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      releaseError(data.error || `Fehler (${response.status}).`);
+      return;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = el("a", { href: url, download: "ReleaseLetter.docx" });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast("Release Letter (Word) heruntergeladen.");
+  });
+  $("release-generate").addEventListener("click", async () => {
+    const button = $("release-generate");
+    button.disabled = true;
+    try {
+      const r = await api("/api/release", { method: "POST", body: { since: $("release-since").value, stage: $("release-stage").value, design: $("release-design").value, release: $("release-name").value } });
+      const s = r.stats;
+      $("release-result").replaceChildren(el("div", { class: "alert ok", id: "release-ok" },
+        `Release Letter seit ${s.basis}: ${s.new} neu, ${s.changed} geändert, ${s.status} Statuswechsel, ${s.removed} entfallen. Cloudstatus: ${r.cloudStatus}.`),
+        el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
+      window.dispatchEvent(new Event("onescm-changed"));
+    } catch (e) {
+      releaseError(e.message);
     } finally { button.disabled = false; }
   });
 
@@ -1321,6 +1380,9 @@
     const templates = await api("/api/design/templates");
     fillSelect($("man-design"), templates.map((t) => [t.id, `${t.name} (${(design.schema || { documentTypes: {} }).documentTypes[t.documentType] || t.documentType})`]));
     fillSelect($("book-design"), templates.map((t) => [t.id, `${t.name} (${(design.schema || { documentTypes: {} }).documentTypes[t.documentType] || t.documentType})`]));
+    const releaseDefault = (templates.find((t) => t.documentType === "releaseletter") || templates[0] || {}).id;
+    fillSelect($("release-design"), templates.map((t) => [t.id, `${t.name} (${(design.schema || { documentTypes: {} }).documentTypes[t.documentType] || t.documentType})`]),
+      { value: $("release-design").value || releaseDefault });
   }
 
   // ---------- Interner Chat ----------

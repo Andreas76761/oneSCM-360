@@ -23,6 +23,7 @@ from services.chapter_service import ChapterError, ChapterService
 from services.chat_service import ChatError, ChatService
 from services.cleanup_service import CleanupError, CleanupService
 from services.manual_service import STAGES, ManualError, build_book, build_manual, safe_stamp, stage_allowed
+from services.release_service import SnapshotStore, build_release_letter, compare, snapshot_claims
 from services import design_service, icons as icon_set, word_template
 from services.design_service import DesignError, DesignService
 from services.policy_service import PolicyError, PolicyService, install_network_guard
@@ -600,19 +601,22 @@ def create_app(config: dict | None = None) -> Flask:
         response.headers["Content-Disposition"] = f'attachment; filename="{chapter_id}_Handbuch_{stage}.docx"'
         return response
 
-    def write_manual(prefix: str, stage: str, manual: dict) -> tuple[list[str], dict]:
-        """Store HTML, DOCX and Markdown under 05_Manual_Generated/<stage>/; existing files are never overwritten."""
+    snapshots = SnapshotStore(data.root / "manual_snapshots")
+
+    def write_manual(prefix: str, stage: str, manual: dict, label: str = "Handbuch") -> tuple[list[str], dict]:
+        """Store HTML, DOCX and Markdown under 05_Manual_Generated/<stage>/; existing files are never overwritten.
+        Manual versions also keep a snapshot of their statements, the basis for later release letters."""
         status = exporter.status()
         if status["localStatus"] != "READY_FOR_CLIENT":
             raise ManualError(f"{status['localStatus']}: {status['reason']}")
         root = Path(status["path"])
         folder = root / "05_Manual_Generated" / stage
         folder.mkdir(parents=True, exist_ok=True)
-        base = f"{prefix}_{safe_stamp()}_Handbuch_{stage}"
+        base = f"{prefix}_{safe_stamp()}_{label}_{stage}"
         counter = 1
         while (folder / f"{base}.html").exists():
             counter += 1
-            base = f"{prefix}_{safe_stamp()}-{counter}_Handbuch_{stage}"
+            base = f"{prefix}_{safe_stamp()}-{counter}_{label}_{stage}"
         files = []
         for suffix, content in (("html", manual["html"]), ("docx", manual["docx"]), ("md", manual["markdown"])):
             target = folder / f"{base}.{suffix}"
@@ -621,6 +625,9 @@ def create_app(config: dict | None = None) -> Flask:
             else:
                 target.write_text(content, encoding="utf-8")
             files.append(target.relative_to(root).as_posix())
+        if "claims" in manual:
+            snapshots.save(base, kind=manual["kind"], stage=stage, chapters=manual["chapters"], design=manual["stats"]["design"],
+                           files=files, claims=manual["claims"])
         return files, status
 
     @app.post("/api/manual/<chapter_id>")
@@ -680,6 +687,53 @@ def create_app(config: dict | None = None) -> Flask:
         files, status = write_manual("Gesamthandbuch", stage, book)
         return jsonify(stage=stage, files=files, stats=book["stats"], overview=book["overview"],
                        cloudStatus=status["cloudStatus"]), 201
+
+    # -- release letters: changes since a stored manual version ----------------------------------------
+    def release_for(since: str, stage: str = "", design_id: str = "", release: str = "") -> dict:
+        snapshot = snapshots.get(since)
+        stage = stage or snapshot["stage"]
+        if stage not in STAGES:
+            raise ManualError("Stufe muss Draft, Reviewed oder Released sein.", 400)
+        kdata = knowledge.load()
+        scope = list(snapshot["chapters"])
+        if snapshot["kind"] == "book":  # chapters that got content since then belong to the complete manual too
+            scope += [c["chapterId"] for c in chapters.list()
+                      if c["chapterId"] not in scope and any(r.get("status") == "COMPLETED" for r in imports.records(c["chapterId"]))]
+        configs = [chapters.get(c["chapterId"]) for c in chapters.list() if c["chapterId"] in scope]
+        current = [c for c in kdata["claims"] if c["chapterId"] in scope and c["validationStatus"] in STAGES[stage]]
+        changes = compare(snapshot["claims"], snapshot_claims(current), {c["claimId"]: c for c in kdata["claims"]})
+        design = designs.get(design_id) if design_id else designs.default_for("releaseletter")
+        return build_release_letter(snapshot, stage, changes, configs, design, release)
+
+    @app.get("/api/release/snapshots")
+    def release_snapshots():
+        return jsonify(snapshots.list())
+
+    @app.get("/api/release/preview")
+    def release_preview():
+        letter = release_for(request.args.get("since", ""), request.args.get("stage", ""), request.args.get("design", ""),
+                             request.args.get("release", ""))
+        response = app.response_class(letter["html"], mimetype="text/html")
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+    @app.get("/api/release/docx")
+    def release_docx():
+        letter = release_for(request.args.get("since", ""), request.args.get("stage", ""), request.args.get("design", ""),
+                             request.args.get("release", ""))
+        response = app.response_class(letter["docx"], mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        response.headers["Content-Disposition"] = 'attachment; filename="ReleaseLetter.docx"'
+        return response
+
+    @app.post("/api/release")
+    def release_generate():
+        payload = body()
+        letter = release_for(str(payload.get("since", "")), str(payload.get("stage", "")), str(payload.get("design", "")),
+                             str(payload.get("release", "")))
+        stage = str(payload.get("stage", "")) or snapshots.get(str(payload.get("since", "")))["stage"]
+        files, status = write_manual("ReleaseLetter", stage, letter, label="Aenderungen")
+        return jsonify(stage=stage, files=files, stats=letter["stats"], cloudStatus=status["cloudStatus"]), 201
 
     # -- rule-based cleanup ----------------------------------------------------------------------------
     cleanup = CleanupService(Path(config.get("CLEANUP_RULES_PATH") or ROOT / "cleanup_rules.json"), data, imports)

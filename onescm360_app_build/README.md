@@ -399,6 +399,25 @@ Im Register **Synchronisation** fasst „Gesamthandbuch“ alle Kapitel in einem
 - **Gliederung:** Kapitel als Überschrift 1 („3 Kapitel 03 – …“), Fragegruppen als Überschrift 2, Fragen als Überschrift 3, jedes Kapitel auf einer neuen Seite. Das Inhaltsverzeichnis zeigt Kapitel und Fragegruppen, am Ende steht ein gemeinsames Glossar.
 - **Nummerierung:** Tabellen und Bilder werden je Kapitel nummeriert, z. B. „Abbildung 3.2.1-1“.
 
+### Release Letter
+
+Ein Release Letter zeigt, was sich seit einem früheren Handbuchstand geändert hat. Er wird im Register **Synchronisation** erzeugt.
+
+- **Basis:** Jeder erzeugte Handbuchstand und jedes Gesamthandbuch speichert eine Momentaufnahme der enthaltenen Aussagen unter `data\manual_snapshots\`. Eine davon wählen Sie als Basis.
+- **Vergleich:** mit dem aktuellen Stand derselben Stufe, oder mit einer anderen Stufe, z. B. Basis Draft gegen Reviewed.
+- **Bereich:**
+  - Bei einem Kapitel als Basis wird nur dieses Kapitel verglichen.
+  - Bei einem Gesamthandbuch als Basis kommen Kapitel hinzu, die seitdem einen Import bekommen haben.
+- **Inhalt:**
+  - eine Übersicht je Kapitel
+  - je Kapitel und Frage:
+    - **NEU:** Aussage, die in der Basis noch nicht enthalten war
+    - **GEÄNDERT:** Wortlaut geändert, mit dem vorherigen Text
+    - **STATUS:** z. B. ungeprüft → geprüft
+    - **ENTFALLEN:** mit Grund, z. B. „Status jetzt abgelehnt“ oder „Aussage gelöscht (Import entfernt)“
+- **Release-Name:** optional, z. B. „PI17“. Er füllt den Platzhalter `{release}` in Kopf- und Fußzeile, ohne Angabe steht dort das Datum.
+- **Ausgabe:** HTML, Word und Markdown, standardmäßig mit der Designvorlage „oneSCM Release Letter“. Abgelegt wird unter `05_Manual_Generated/<Stufe>/ReleaseLetter_…_Aenderungen_<Stufe>`. Ein Release Letter ist selbst keine neue Basis.
+
 ## Bilder aus DOCX
 
 Aus DOCX-Dateien extrahierte Bilder liegen unter `data/media/CHxx/<Import-ID>/`. Das Import-Ergebnis zeigt sie als Vorschaubilder. EMF, WMF, TIFF und SVG werden nur zum Herunterladen angeboten, SVG wegen möglicher Skripte nie direkt angezeigt.
@@ -428,6 +447,7 @@ Ablage unter `data\`:
 | `chapters\` | eigene Fassungen der Kapitelschemas aus dem Register Kapitel |
 | `backups\` | Sicherungen von Regelwerk (die letzten 30) und Kapitelschemas |
 | `archive\` | archivierte Importe |
+| `manual_snapshots\` | Momentaufnahmen erzeugter Handbuchstände, Basis für Release Letter |
 
 `data\rules.json` wird atomar geschrieben, also über eine temporäre Datei und anschließendes Ersetzen.
 
