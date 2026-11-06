@@ -313,7 +313,9 @@ def main():
             # --- dashboard refresh after export
             page.locator('#tabs button[data-tab="dashboard"]').click()
             expect(page.locator('[data-kpi="packages"] .value')).to_have_text("1")
-            expect(page.locator("#dash-outputs tbody tr").first).to_contain_text("06_Exports")
+            # newest first – the manual version may share the second with the export, so check the whole list
+            expect(page.locator("#dash-outputs tbody")).to_contain_text("06_Exports/Packages/")
+            expect(page.locator("#dash-outputs tbody")).to_contain_text("05_Manual_Generated/Draft/")
             expect(page.locator("#dash-imports tbody tr")).to_have_count(5)  # 4 successful + 1 failed import
             failed_row = page.locator("#dash-imports tbody tr", has_text="CH01_ohne_fragen.html")
             expect(failed_row).to_contain_text("FAILED")
