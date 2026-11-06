@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "rules": [
+    {"id": "R-0001", "category": "naming", "source": "onescm", "target": "oneSCM", "note": "Kanonische Schreibweise"},
+    {"id": "R-0002", "category": "system", "source": "Jira", "target": "", "note": "Erlaubter Systemname"},
+    {"id": "R-0003", "category": "system", "source": "Confluence", "target": "", "note": "Erlaubter Systemname"},
+    {"id": "R-0004", "category": "synonym", "source": "Passenger Car", "target": "PC", "note": ""},
+    {"id": "R-0005", "category": "explanation", "source": "Eligibility", "target": "Zulässigkeitsprüfung", "note": ""},
+    {"id": "R-0006", "category": "abbreviation", "source": "PI", "target": "Program Increment", "note": ""}
+  ]
+}

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>oneSCM360 Knowledge Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">◆</span> oneSCM360 <strong>Knowledge Studio</strong></div>
+    <div class="topmeta"><span id="app-version"></span><span class="pill" id="top-onedrive" title="Lokaler OneDrive-Status">OneDrive: …</span></div>
+  </header>
+  <nav class="tabs" id="tabs" aria-label="Register">
+    <button data-tab="dashboard">Dashboard</button>
+    <button data-tab="import">Import</button>
+    <button data-tab="rules">Regelwerk</button>
+    <button data-tab="claims">Claims</button>
+    <button data-tab="evidence">Evidence</button>
+    <button data-tab="tables">Tabellen</button>
+    <button data-tab="coverage">Coverage</button>
+    <button data-tab="sync">Synchronisation</button>
+    <button data-tab="docs">Dokumentation</button>
+  </nav>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <main>
+    <!-- Dashboard -->
+    <section id="tab-dashboard" class="panel" aria-labelledby="h-dashboard">
+      <div class="panel-head"><h1 id="h-dashboard">Dashboard</h1><button id="dash-refresh" class="secondary">Aktualisieren</button></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="card" id="dash-onedrive"></div>
+      <h2>Importläufe</h2>
+      <div class="table-wrap"><table id="dash-imports"><thead><tr><th>Import-ID</th><th>Kapitel</th><th>Datei</th><th>Status</th><th>Validierung</th><th>Fragen</th><th>Tabellen</th><th>Gate</th><th>Aktionen</th></tr></thead><tbody></tbody></table></div>
+      <h2>Output-Dateien (OneDrive-Ziel)</h2>
+      <div class="table-wrap"><table id="dash-outputs"><thead><tr><th>Datei</th><th>Relativer Pfad</th><th>Größe</th><th>Geändert</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- Import -->
+    <section id="tab-import" class="panel" hidden aria-labelledby="h-import">
+      <div class="panel-head"><h1 id="h-import">Kapitelimport</h1></div>
+      <form id="import-form" class="card form-grid" novalidate>
+        <label>Kapitel<select id="imp-chapter" name="chapterId" required></select></label>
+        <label>Sprache<select id="imp-language" name="language"></select></label>
+        <label>Quelltyp<select id="imp-source" name="sourceType"></select></label>
+        <label class="wide">Datei (.docx, .html, .htm – max. 50 MB)<input type="file" id="imp-file" name="file" accept=".docx,.html,.htm"></label>
+        <label class="check"><input type="checkbox" id="imp-force"> Gleiche Datei erneut verarbeiten</label>
+        <div class="wide actions"><button type="submit" id="imp-submit" class="primary">Importieren</button></div>
+      </form>
+      <div id="imp-progress" class="card progress-card" hidden>
+        <div class="hourglass" aria-hidden="true"><span></span></div>
+        <div class="progress-body">
+          <div id="imp-status-text" class="status-text">Datei wird eingelesen …</div>
+          <div class="bar"><div id="imp-bar" class="bar-fill"></div></div>
+        </div>
+      </div>
+      <div id="imp-error" class="alert error" role="alert" hidden></div>
+      <div id="imp-result"></div>
+    </section>
+
+    <!-- Regelwerk -->
+    <section id="tab-rules" class="panel" hidden aria-labelledby="h-rules">
+      <div class="panel-head"><h1 id="h-rules">Regelwerk</h1><span class="muted">Gespeichert in rules.json · gilt ab dem nächsten Import ohne Neustart</span></div>
+      <div class="chips" id="rule-filter"></div>
+      <form id="rule-new" class="card form-grid" novalidate>
+        <h2 class="wide">Neue Regel</h2>
+        <label>Kategorie<select id="rule-category"></select></label>
+        <label>Begriff / Quelle<input id="rule-source" maxlength="200"></label>
+        <label>Ziel / kanonisch<input id="rule-target" maxlength="500"></label>
+        <label>Notiz<input id="rule-note" maxlength="500"></label>
+        <div class="wide actions"><button type="submit" class="primary">Regel anlegen</button></div>
+      </form>
+      <div class="table-wrap"><table id="rules-table"><thead><tr><th>ID</th><th>Kategorie</th><th>Begriff</th><th>Ziel</th><th>Notiz</th><th>Aktionen</th></tr></thead><tbody></tbody></table></div>
+      <div class="card">
+        <h2>Regeln testen</h2>
+        <textarea id="rule-preview-text" rows="3" placeholder="Beispieltext, z. B.: Im onescm sieht der Händler Passenger Car Aufträge ab PI16."></textarea>
+        <div class="actions"><button id="rule-preview" class="secondary">Prüfen</button></div>
+        <pre id="rule-preview-out" class="out"></pre>
+      </div>
+    </section>
+
+    <!-- Claims -->
+    <section id="tab-claims" class="panel" hidden aria-labelledby="h-claims">
+      <div class="panel-head"><h1 id="h-claims">Claims</h1><span class="muted">Automatische Claims sind Vorschläge (DRAFT) und brauchen einen manuellen Review.</span></div>
+      <div class="filters"><label>Kapitel<select id="claim-chapter"></select></label><label>Status<select id="claim-status"></select></label><label>Suche<input id="claim-search" placeholder="Text, ID, Rolle …"></label></div>
+      <details class="card" id="claim-new-box"><summary>Neuen Claim anlegen</summary>
+        <form id="claim-new" class="form-grid" novalidate>
+          <label>Frage<select id="claim-new-question"></select></label>
+          <label class="wide">Aussage<textarea id="claim-new-text" rows="2"></textarea></label>
+          <div class="wide actions"><button type="submit" class="primary">Claim anlegen</button></div>
+        </form>
+      </details>
+      <div class="split">
+        <div class="table-wrap"><table id="claims-table"><thead><tr><th>Claim</th><th>Frage</th><th>Aussage</th><th>Krit.</th><th>Evidence</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div id="claim-editor" class="card editor" hidden></div>
+      </div>
+    </section>
+
+    <!-- Evidence -->
+    <section id="tab-evidence" class="panel" hidden aria-labelledby="h-evidence">
+      <div class="panel-head"><h1 id="h-evidence">Evidence</h1><span class="muted">Rovo ist Recherchequelle (INDIRECT); finale Nachweise kommen aus Jira/Confluence.</span></div>
+      <div class="filters"><label>Kapitel<select id="ev-chapter"></select></label></div>
+      <div class="table-wrap"><table id="evidence-table"><thead><tr><th>Evidence</th><th>Claim</th><th>Quelle</th><th>Titel / Key</th><th>Stufe</th><th>Status</th><th>Faktor</th><th>Aktionen</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- Tabellen -->
+    <section id="tab-tables" class="panel" hidden aria-labelledby="h-tables">
+      <div class="panel-head"><h1 id="h-tables">Tabellen</h1></div>
+      <div class="filters"><label>Kapitel<select id="tbl-chapter"></select></label></div>
+      <div class="table-wrap"><table id="tables-table"><thead><tr><th>Tabelle</th><th>Import</th><th>Quellfrage</th><th>Zeilen × Spalten</th><th>Review</th><th>Export</th></tr></thead><tbody></tbody></table></div>
+      <div id="tbl-preview" class="card" hidden></div>
+    </section>
+
+    <!-- Coverage -->
+    <section id="tab-coverage" class="panel" hidden aria-labelledby="h-coverage">
+      <div class="panel-head"><h1 id="h-coverage">Coverage &amp; Gates</h1><label class="inline">Kapitel <select id="cov-chapter"></select></label><button id="cov-refresh" class="secondary">Neu berechnen</button></div>
+      <div id="cov-summary" class="card"></div>
+      <div class="kpis" id="cov-dims"></div>
+      <div class="card"><h2>Hard Blocker</h2><ul id="cov-blockers" class="list"></ul></div>
+      <div class="card"><h2>Konflikte</h2><div class="table-wrap"><table id="conflicts-table"><thead><tr><th>ID</th><th>Typ</th><th>Schwere</th><th>Beschreibung</th><th>Claims</th><th>Status</th><th>Aktion</th></tr></thead><tbody></tbody></table></div></div>
+      <div class="card"><h2>Rollenabdeckung</h2><div class="table-wrap"><table id="cov-roles"><thead></thead><tbody></tbody></table></div></div>
+    </section>
+
+    <!-- Synchronisation -->
+    <section id="tab-sync" class="panel" hidden aria-labelledby="h-sync">
+      <div class="panel-head"><h1 id="h-sync">Synchronisation</h1></div>
+      <div class="card">
+        <h2>Verbindung zum lokalen OneDrive-Ordner</h2>
+        <form id="sync-form" class="form-grid" novalidate>
+          <label class="wide">Lokaler Zielpfad<input id="sync-path" placeholder="C:\Users\…\OneDrive - …\-oneSCM360"></label>
+          <div class="wide actions"><button type="submit" class="primary">Pfad speichern &amp; prüfen</button><button type="button" id="sync-reset" class="secondary">Auf ONESCM_LOCAL_ONEDRIVE_ROOT zurücksetzen</button></div>
+        </form>
+        <dl id="sync-status" class="kv"></dl>
+      </div>
+      <div class="card">
+        <h2>Export</h2>
+        <div class="form-grid">
+          <label>Kapitel<select id="sync-chapter"></select></label>
+          <div class="actions"><button id="sync-structure" class="secondary">Ordnerstruktur anlegen</button><button id="sync-export" class="primary">Kapitel exportieren</button></div>
+        </div>
+        <div id="sync-result"></div>
+      </div>
+      <div class="card note">
+        <h2>Manueller SharePoint-Transfer</h2>
+        <ol>
+          <li>Im OneDrive-Client prüfen, dass die Dateien synchronisiert sind (keine Konfliktkopien).</li>
+          <li>ZIP-Paket aus <code>06_Exports/Packages</code> bzw. CSV-Dateien aus <code>06_Exports/CSV</code> öffnen.</li>
+          <li>CSV-Dateien manuell in die SharePoint-Listen „oneSCM Knowledge Blocks“, „Claims“, „Evidence“ und „Coverage“ übernehmen.</li>
+        </ol>
+        <p class="muted">Cloudstatus im manuellen Betriebsmodus: <strong>NOT_VERIFIABLE_WITHOUT_GRAPH</strong>.</p>
+      </div>
+    </section>
+
+    <!-- Dokumentation -->
+    <section id="tab-docs" class="panel" hidden aria-labelledby="h-docs">
+      <div class="panel-head"><h1 id="h-docs">Dokumentation</h1></div>
+      <article id="docs-body" class="card doc"></article>
+    </section>
+  </main>
+</body>
+</html>

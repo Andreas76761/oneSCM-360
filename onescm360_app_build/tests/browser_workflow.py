@@ -1,0 +1,263 @@
+"""End-to-end browser workflow (Playwright). Run: python tests/browser_workflow.py
+
+Optional: ONESCM_BROWSER_PATH=<chromium binary>, ONESCM_SCREENSHOTS=<folder>.
+"""
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from helpers import CH01_HTML, ROOT  # noqa: E402
+
+from playwright.sync_api import expect, sync_playwright  # noqa: E402
+from werkzeug.serving import make_server  # noqa: E402
+
+from app import create_app  # noqa: E402
+
+
+class SlowImport:
+    """WSGI middleware that delays /api/import so the loading state is observable."""
+
+    def __init__(self, app, delay=1.2):
+        self.app, self.delay = app, delay
+
+    def __call__(self, environ, start_response):
+        if environ.get("PATH_INFO") == "/api/import":
+            time.sleep(self.delay)
+        return self.app(environ, start_response)
+
+
+def main():
+    tmp = Path(tempfile.mkdtemp(prefix="onescm360-browser-"))
+    onedrive = tmp / "OneDrive - Test (tenant)" / "-oneSCM360"
+    onedrive.mkdir(parents=True)
+    shutil.copy(ROOT / "rules.json", tmp / "rules.json")
+    flask_app = create_app({"DATA_DIR": tmp / "data", "RULES_PATH": tmp / "rules.json", "ONEDRIVE_ROOT": str(onedrive)})
+    server = make_server("127.0.0.1", 0, SlowImport(flask_app), threaded=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}"
+    shots = os.environ.get("ONESCM_SCREENSHOTS")
+    errors: list[str] = []
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True, executable_path=os.environ.get("ONESCM_BROWSER_PATH") or None)
+            page = browser.new_page(viewport={"width": 1440, "height": 1000})
+            page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+            # Expected 4xx answers are logged by Chromium as "Failed to load resource"; everything else
+            # (CSP violations, script errors) counts as a failure.
+            page.on("console", lambda m: errors.append(f"console: {m.text}")
+                    if m.type == "error" and not m.text.startswith("Failed to load resource") else None)
+
+            def shot(name):
+                if shots:
+                    Path(shots).mkdir(parents=True, exist_ok=True)
+                    page.screenshot(path=str(Path(shots) / f"{name}.png"), full_page=True)
+
+            page.goto(url)
+            # --- navigation: all registers permanently visible, active one highlighted
+            names = ["Dashboard", "Import", "Regelwerk", "Claims", "Evidence", "Tabellen", "Coverage", "Synchronisation", "Dokumentation"]
+            for name in names:
+                expect(page.locator("#tabs").get_by_role("button", name=name, exact=True)).to_be_visible()
+            expect(page.locator('#tabs button[data-tab="dashboard"]')).to_have_class(re.compile("active"))
+            expect(page.locator('[data-kpi="imports"] .value')).to_have_text("0")
+
+            # --- import: client-side validation
+            page.locator('#tabs button[data-tab="import"]').click()
+            expect(page.locator('#tabs button[data-tab="import"]')).to_have_attribute("aria-current", "page")
+            expect(page.locator('#tabs button[data-tab="dashboard"]')).not_to_have_class(re.compile("active"))
+            page.locator("#imp-submit").click()
+            expect(page.locator("#imp-error")).to_have_text("Bitte eine Datei auswählen.")
+            page.locator("#imp-file").set_input_files({"name": "notizen.txt", "mimeType": "text/plain", "buffer": b"x"})
+            page.locator("#imp-submit").click()
+            expect(page.locator("#imp-error")).to_contain_text("nicht unterstützt")
+            page.locator("#imp-file").set_input_files({"name": "leer.html", "mimeType": "text/html", "buffer": b""})
+            page.locator("#imp-submit").click()
+            expect(page.locator("#imp-error")).to_have_text("Die Datei ist leer.")
+
+            # --- import: server-side error, hourglass always disappears
+            page.locator("#imp-file").set_input_files({"name": "kaputt.docx", "mimeType": "application/octet-stream", "buffer": b"PK\x03\x04kaputt"})
+            page.locator("#imp-submit").click()
+            expect(page.locator("#imp-progress")).to_be_visible()
+            expect(page.locator("#imp-submit")).to_be_disabled()
+            expect(page.locator("#imp-error")).to_contain_text("beschädigt")
+            expect(page.locator("#imp-progress")).to_be_hidden()
+            expect(page.locator("#imp-submit")).to_be_enabled()
+
+            # --- import: success
+            page.locator("#imp-chapter").select_option("CH01")
+            page.locator("#imp-language").select_option("DE")
+            page.locator("#imp-file").set_input_files({"name": "ch01.html", "mimeType": "text/html", "buffer": CH01_HTML})
+            page.locator("#imp-submit").click()
+            expect(page.locator("#imp-progress")).to_be_visible()
+            expect(page.locator("#imp-status-text")).to_contain_text("Analyse")
+            expect(page.locator("#imp-submit")).to_be_disabled()
+            expect(page.locator("#imp-result-id")).to_have_text(re.compile(r"^IMP-\d{8}-\d{6}-[A-F0-9]{6}$"))
+            expect(page.locator("#imp-progress")).to_be_hidden()
+            expect(page.locator("#imp-submit")).to_be_enabled()
+            expect(page.locator("#imp-error")).to_be_hidden()
+            expect(page.locator("#imp-result-questions")).to_have_text("4 von 20 beantwortet")
+            expect(page.locator("#imp-result-tables")).to_have_text("2")
+            expect(page.locator("#imp-findings")).to_contain_text("oneSCM")
+            expect(page.locator("#imp-summary")).to_contain_text("BLOCKED")
+            shot("02-import")
+            page.locator('#tabs button[data-tab="coverage"]').click()
+            expect(page.locator("#cov-gate")).to_have_text("BLOCKED")
+            expect(page.locator("#cov-blockers")).to_contain_text("Kritischer Claim ohne direkte Evidence")
+
+            # --- rule set CRUD
+            page.locator('#tabs button[data-tab="rules"]').click()
+            expect(page.locator("#rules-table tbody tr")).to_have_count(6)
+            page.locator("#rule-category").select_option("synonym")
+            page.locator("#rule-source").fill("Händler")
+            page.locator("#rule-target").fill("Dealer")
+            page.get_by_role("button", name="Regel anlegen").click()
+            row = page.locator("#rules-table tbody tr", has_text="Händler")
+            expect(row).to_have_count(1)
+            page.locator("#rule-source").fill("händler")
+            page.locator("#rule-target").fill("Dealer")
+            page.get_by_role("button", name="Regel anlegen").click()
+            expect(page.locator("#toast")).to_contain_text("existiert bereits")
+            row.get_by_role("button", name="Bearbeiten").click()
+            edit_row = page.locator("#rules-table tbody tr").filter(has=page.locator('input[aria-label="Ziel"]'))
+            edit_row.locator('input[aria-label="Ziel"]').fill("Händler (Dealer)")
+            edit_row.get_by_role("button", name="Abbrechen").click()
+            expect(page.locator("#rules-table tbody tr", has_text="Händler")).to_contain_text("Dealer")
+            page.locator("#rules-table tbody tr", has_text="Händler").get_by_role("button", name="Bearbeiten").click()
+            edit_row.locator('input[aria-label="Ziel"]').fill("Dealer (DE)")
+            edit_row.get_by_role("button", name="Speichern").click()
+            expect(page.locator("#rules-table tbody tr", has_text="Händler")).to_contain_text("Dealer (DE)")
+            page.locator("#rule-filter button", has_text="Synonyme").click()
+            expect(page.locator("#rules-table tbody tr")).to_have_count(2)
+            page.locator("#rule-preview-text").fill("Der Händler nutzt onescm.")
+            page.locator("#rule-preview").click()
+            expect(page.locator("#rule-preview-out")).to_contain_text("Der Dealer (DE) nutzt oneSCM.")
+            page.once("dialog", lambda d: d.dismiss())
+            page.locator("#rules-table tbody tr", has_text="Händler").get_by_role("button", name="Löschen").click()
+            expect(page.locator("#rules-table tbody tr", has_text="Händler")).to_have_count(1)
+            page.once("dialog", lambda d: d.accept())
+            page.locator("#rules-table tbody tr", has_text="Händler").get_by_role("button", name="Löschen").click()
+            expect(page.locator("#rules-table tbody tr", has_text="Händler")).to_have_count(0)
+            shot("03-rules")
+
+            # --- claims review
+            page.locator('#tabs button[data-tab="claims"]').click()
+            page.locator("#claim-chapter").select_option("CH01")
+            expect(page.locator("#claims-table tbody tr.clickable").first).to_be_visible()
+            page.locator("#claims-table tbody tr", has_text="möglicherweise").click()
+            expect(page.locator("#claim-editor")).to_be_visible()
+            page.locator("#claim-confirm").click()
+            expect(page.locator("#toast")).to_contain_text("Unsichere")
+            target = page.locator("#claims-table tbody tr", has_text="Der Dealer darf Aufträge stornieren")
+            target_id = target.get_attribute("data-claim-id")
+            target.click()
+            expect(page.locator("#claim-editor")).to_have_attribute("data-claim-id", target_id)
+            expect(page.locator('#claim-form [data-field="canonicalStatement"]')).to_have_value("Der Dealer darf Aufträge stornieren.")
+            page.locator("#evidence-new select").first.select_option("JIRA")
+            page.locator('#evidence-new input[placeholder="z. B. ONESCM-123"]').fill("ONESCM-9")
+            page.get_by_role("button", name="Evidence zuordnen").click()
+            expect(page.locator("#claim-editor")).to_contain_text("ONESCM-9")
+            page.locator('#claim-form [data-field="reviewNote"]').fill("Geprüft im Fachreview")
+            page.locator("#claim-confirm").click()
+            expect(page.locator("#claims-table tbody tr", has_text="Der Dealer darf Aufträge stornieren")).to_contain_text("CONFIRMED")
+            page.locator("#claim-new-box summary").click()
+            page.locator("#claim-new-question").select_option("01-F10")
+            page.locator("#claim-new-text").fill("Market Operations darf Preise nur nach Freigabe ändern.")
+            page.locator("#claim-new").get_by_role("button", name="Claim anlegen").click()
+            expect(page.locator("#claims-table tbody tr", has_text="Preise nur nach Freigabe")).to_have_count(1)
+            page.once("dialog", lambda d: d.accept())
+            page.locator("#claim-delete").click()
+            expect(page.locator("#claims-table tbody tr", has_text="Preise nur nach Freigabe")).to_have_count(0)
+            shot("04-claims")
+
+            # --- evidence
+            page.locator('#tabs button[data-tab="evidence"]').click()
+            jira_row = page.locator("#evidence-table tbody tr", has_text="ONESCM-9")
+            jira_row.locator('select[aria-label="Evidence-Stufe"]').select_option("DIRECT_VALIDATED")
+            jira_row.locator('select[aria-label="Evidence-Status"]').select_option("VALIDATED")
+            jira_row.get_by_role("button", name="Speichern").click()
+            expect(page.locator("#evidence-table tbody tr", has_text="ONESCM-9")).to_contain_text("1,00")
+
+            # --- tables
+            page.locator('#tabs button[data-tab="tables"]').click()
+            first = page.locator('#tables-table tbody tr[data-table-id="TBL-CH01-001"]')
+            expect(first).to_contain_text("REVIEW")
+            first.locator('select[aria-label="Quellfrage"]').select_option("01-F01")
+            expect(page.locator('#tables-table tbody tr[data-table-id="TBL-CH01-001"]')).not_to_contain_text("REVIEW")
+            page.locator('#tables-table tbody tr[data-table-id="TBL-CH01-002"]').get_by_role("button", name="Ansehen").click()
+            expect(page.locator("#tbl-preview-table thead")).to_contain_text("Größe")
+            with page.expect_download() as download:
+                page.locator('#tables-table tbody tr[data-table-id="TBL-CH01-002"] a', has_text="CSV").click()
+            assert download.value.suggested_filename == "TBL-CH01-002.csv"
+
+            # --- coverage
+            page.locator('#tabs button[data-tab="coverage"]').click()
+            # The only critical claim was confirmed with validated Jira evidence above, so the
+            # hard blocker from the import is gone and the gate follows the score.
+            expect(page.locator("#cov-gate")).to_have_text(re.compile("REVIEW|INCOMPLETE|STARTED"))
+            expect(page.locator("#cov-dims .kpi")).to_have_count(6)
+            expect(page.locator("#cov-blockers")).to_have_text("Keine Hard Blocker.")
+            expect(page.locator("#cov-roles tbody")).to_contain_text("Dealer")
+            page.locator("#cov-chapter").select_option("CH05")
+            expect(page.locator("#cov-gate")).to_have_text("NOT_STARTED")
+            shot("05-coverage")
+
+            # --- synchronisation: folder connection and export
+            page.locator('#tabs button[data-tab="sync"]').click()
+            expect(page.locator("#sync-local-status")).to_contain_text("READY_FOR_CLIENT")
+            expect(page.locator("#sync-status")).to_contain_text("NOT_VERIFIABLE_WITHOUT_GRAPH")
+            page.locator("#sync-path").fill(str(tmp / "fehlt"))
+            page.get_by_role("button", name="Pfad speichern & prüfen").click()
+            expect(page.locator("#sync-local-status")).to_contain_text("PATH_MISSING")
+            page.locator("#sync-export").click()
+            expect(page.locator("#sync-result")).to_contain_text("PATH_MISSING")
+            page.locator("#sync-reset").click()
+            expect(page.locator("#sync-local-status")).to_contain_text("READY_FOR_CLIENT")
+            page.locator("#sync-chapter").select_option("CH01")
+            page.locator("#sync-export").click()
+            expect(page.locator("#sync-export-ok")).to_contain_text("Paket: 06_Exports/Packages/CH01_")
+            assert any((onedrive / "06_Exports" / "Packages").glob("CH01_*_upload.zip"))
+            shot("06-sync")
+
+            # --- dashboard refresh after export
+            page.locator('#tabs button[data-tab="dashboard"]').click()
+            expect(page.locator('[data-kpi="packages"] .value')).to_have_text("1")
+            expect(page.locator("#dash-outputs tbody tr").first).to_contain_text("06_Exports")
+            expect(page.locator("#dash-imports tbody tr")).to_have_count(2)  # successful + failed import
+            expect(page.locator("#dash-imports tbody tr", has_text="kaputt.docx")).to_contain_text("FAILED")
+            expect(page.locator("#dash-imports tbody tr", has_text="kaputt.docx").locator("td").nth(7)).to_have_text("BLOCKED")
+            page.get_by_role("button", name="Aktualisieren").click()
+            expect(page.locator("#toast")).to_contain_text("Dashboard aktualisiert")
+            shot("01-dashboard")
+
+            # --- documentation
+            page.locator('#tabs button[data-tab="docs"]').click()
+            expect(page.locator("#docs-body h1").first).to_have_text("oneSCM360 Knowledge Studio")
+            expect(page.locator("#docs-body table").first).to_be_visible()
+
+            # --- the selected register survives a reload
+            page.reload()
+            expect(page.locator('#tabs button[data-tab="docs"]')).to_have_class(re.compile("active"))
+
+            # --- narrow viewport: navigation stays visible
+            page.set_viewport_size({"width": 390, "height": 840})
+            page.locator('#tabs button[data-tab="import"]').click()
+            expect(page.locator("#tabs").get_by_role("button", name="Dokumentation")).to_be_visible()
+            assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), "horizontal scroll on mobile"
+            shot("07-mobile")
+            browser.close()
+    finally:
+        server.shutdown()
+        shutil.rmtree(tmp, ignore_errors=True)
+    assert not errors, errors
+    print("Browser-Workflow erfolgreich.")
+
+
+if __name__ == "__main__":
+    main()

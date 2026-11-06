@@ -1,0 +1,652 @@
+"use strict";
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const state = { meta: null, tab: "dashboard", ruleFilter: "", claims: [], selectedClaim: null, chapterCache: {} };
+
+  // ---------- helpers ----------
+  function el(tag, attrs = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs || {})) {
+      if (value === null || value === undefined || value === false) continue;
+      if (key === "class") node.className = value;
+      else if (key === "text") node.textContent = value;
+      else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+      else if (key === "dataset") Object.assign(node.dataset, value);
+      else if (value === true) node.setAttribute(key, "");
+      else node.setAttribute(key, value);
+    }
+    for (const child of children.flat()) {
+      if (child === null || child === undefined || child === false) continue;
+      node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return node;
+  }
+  const badge = (value, cls) => el("span", { class: `badge ${cls || value || ""}`, text: value || "—" });
+  const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString("de-DE") : "—");
+  const fmtSize = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+  const pct = (v) => `${Number(v || 0).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %`;
+
+  function toast(message, isError = false) {
+    const node = $("toast");
+    node.textContent = message;
+    node.className = `toast${isError ? " error" : ""}`;
+    node.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { node.hidden = true; }, isError ? 7000 : 3500);
+  }
+
+  async function api(path, options = {}) {
+    const init = { method: options.method || "GET", headers: {} };
+    if (init.method !== "GET") init.headers["X-oneSCM360"] = "1";
+    if (options.body !== undefined) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(options.body);
+    }
+    let response;
+    try {
+      response = await fetch(path, init);
+    } catch (err) {
+      throw new Error("Server nicht erreichbar. Läuft start_onescm360.ps1 noch?");
+    }
+    let data = null;
+    try { data = await response.json(); } catch { data = null; }
+    if (!response.ok) throw new Error((data && data.error) || `Serverfehler (${response.status}).`);
+    return data;
+  }
+
+  function fillSelect(select, options, { empty, value } = {}) {
+    const previous = value !== undefined ? value : select.value;
+    select.replaceChildren();
+    if (empty !== undefined) select.append(el("option", { value: "", text: empty }));
+    for (const opt of options) {
+      const [val, label] = Array.isArray(opt) ? opt : [opt, opt];
+      select.append(el("option", { value: val, text: label }));
+    }
+    if ([...select.options].some((o) => o.value === previous)) select.value = previous;
+  }
+
+  const chapterOptions = () => state.meta.chapters.map((c) => [c.chapterId, `${c.chapterId} – ${c.title}${c.schemaStatus === "DRAFT" ? " (Schema-Entwurf)" : ""}`]);
+
+  async function chapter(id) {
+    if (!state.chapterCache[id]) state.chapterCache[id] = await api(`/api/chapters/${id}`);
+    return state.chapterCache[id];
+  }
+
+  function emptyRow(tbody, cols, text) {
+    tbody.replaceChildren(el("tr", {}, el("td", { colspan: cols, class: "empty", text })));
+  }
+
+  // ---------- navigation ----------
+  const loaders = {};
+  function showTab(name) {
+    state.tab = name;
+    for (const button of $("tabs").querySelectorAll("button")) {
+      const active = button.dataset.tab === name;
+      button.classList.toggle("active", active);
+      if (active) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
+    }
+    for (const panel of document.querySelectorAll(".panel")) panel.hidden = panel.id !== `tab-${name}`;
+    try { localStorage.setItem("onescm360-tab", name); } catch { /* storage unavailable */ }
+    const loader = loaders[name];
+    if (loader) loader().catch((err) => toast(err.message, true));
+  }
+  $("tabs").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-tab]");
+    if (button) showTab(button.dataset.tab);
+  });
+  window.addEventListener("onescm-changed", () => { refreshTopStatus(); if (state.tab === "dashboard") loaders.dashboard(); });
+
+  async function refreshTopStatus() {
+    try {
+      const status = await api("/api/sync/status");
+      const pill = $("top-onedrive");
+      pill.textContent = `OneDrive lokal: ${status.localStatus}`;
+      pill.title = `${status.path || "nicht konfiguriert"} · Cloud: ${status.cloudStatus}`;
+    } catch { /* ignore */ }
+  }
+
+  // ---------- Dashboard ----------
+  loaders.dashboard = async () => {
+    const data = await api("/api/dashboard");
+    const labels = [["imports", "Importläufe"], ["sourceFiles", "Quelldateien"], ["outputFiles", "Output-Dateien"], ["json", "JSON"], ["csv", "CSV"], ["packages", "Uploadpakete"]];
+    $("kpis").replaceChildren(...labels.map(([key, label]) => el("div", { class: "kpi", dataset: { kpi: key } }, el("div", { class: "label", text: label }), el("div", { class: "value", text: data.kpis[key] }))));
+    const od = data.onedrive;
+    $("dash-onedrive").replaceChildren(
+      el("h2", { text: "OneDrive-Pfadprüfung" }),
+      el("dl", { class: "kv" },
+        el("dt", { text: "Pfad" }), el("dd", { class: "mono", text: od.path || "nicht konfiguriert" }),
+        el("dt", { text: "Existiert" }), el("dd", { text: od.exists ? "ja" : "nein" }),
+        el("dt", { text: "Beschreibbar" }), el("dd", { text: od.writable ? "ja" : "nein" }),
+        el("dt", { text: "Letzte lokale Änderung" }), el("dd", { text: fmtDate(od.lastLocalChange) }),
+        el("dt", { text: "Lokaler Status" }), el("dd", {}, badge(od.localStatus), " ", el("span", { class: "muted", text: od.reason })),
+        el("dt", { text: "Cloudstatus" }), el("dd", {}, badge(od.cloudStatus), " ", el("span", { class: "muted", text: od.cloudNote }))));
+    const tbody = $("dash-imports").tBodies[0];
+    if (!data.imports.length) emptyRow(tbody, 9, "Noch keine Importe.");
+    else tbody.replaceChildren(...data.imports.map((r) => el("tr", { dataset: { importId: r.importId } },
+      el("td", { class: "mono", text: r.importId }), el("td", { text: r.chapterId || "—" }), el("td", { text: r.file }),
+      el("td", {}, badge(r.status)), el("td", {}, badge(r.validationStatus)), el("td", { text: r.questions }),
+      el("td", { text: r.tables }), el("td", {}, badge(r.gate)),
+      el("td", {}, r.status === "INVALID_JSON" ? "" : el("div", { class: "actions" },
+        el("button", { class: "small", text: "Details", onclick: () => showImportDetails(r.importId) }),
+        el("button", { class: "small", text: "Archivieren", onclick: () => archiveImport(r) }),
+        el("button", { class: "small danger", text: "Löschen", onclick: () => deleteImport(r) }))))));
+    const otbody = $("dash-outputs").tBodies[0];
+    if (!data.outputs.length) emptyRow(otbody, 4, "Keine Output-Dateien im OneDrive-Ziel.");
+    else otbody.replaceChildren(...data.outputs.map((o) => el("tr", {}, el("td", { text: o.name }), el("td", { class: "mono", text: o.path }), el("td", { text: fmtSize(o.size) }), el("td", { text: fmtDate(o.modifiedAt) }))));
+  };
+  $("dash-refresh").addEventListener("click", () => loaders.dashboard().then(() => toast("Dashboard aktualisiert.")).catch((e) => toast(e.message, true)));
+
+  async function showImportDetails(id) {
+    const record = await api(`/api/imports/${id}`);
+    showTab("import");
+    renderImportResult(record, null);
+  }
+  async function archiveImport(row) {
+    let force = false;
+    if (!row.exportedAt) {
+      if (!confirm(`${row.importId} wurde noch nicht exportiert. Trotzdem archivieren?`)) return;
+      force = true;
+    } else if (!confirm(`${row.importId} archivieren? Import-JSON und Rohdatei werden nach data/archive verschoben.`)) return;
+    try { await api(`/api/imports/${row.importId}/archive`, { method: "POST", body: { force } }); toast("Import archiviert."); loaders.dashboard(); }
+    catch (e) { toast(e.message, true); }
+  }
+  async function deleteImport(row) {
+    if (!confirm(`${row.importId} und alle daraus erzeugten Claims/Evidence löschen?`)) return;
+    try { await api(`/api/imports/${row.importId}`, { method: "DELETE" }); toast("Import gelöscht."); loaders.dashboard(); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  // ---------- Import ----------
+  loaders.import = async () => {};
+  function setProgress(text, value) {
+    $("imp-status-text").textContent = text;
+    const bar = $("imp-bar");
+    if (value === null) { bar.classList.add("indeterminate"); } else { bar.classList.remove("indeterminate"); bar.style.width = `${value}%`; }
+  }
+
+  function upload(form) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/import");
+      xhr.setRequestHeader("X-oneSCM360", "1");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const value = Math.round((e.loaded / e.total) * 60);
+          setProgress(e.loaded < e.total ? `Datei wird eingelesen … ${Math.round((e.loaded / e.total) * 100)} %` : "Analyse läuft (Parser, Tabellen, Regelwerk, Claims) …", e.loaded < e.total ? value : null);
+        }
+      };
+      xhr.upload.onload = () => setProgress("Analyse läuft (Parser, Tabellen, Regelwerk, Claims) …", null);
+      xhr.onload = () => {
+        let data = null;
+        try { data = JSON.parse(xhr.responseText); } catch { data = null; }
+        if (xhr.status >= 200 && xhr.status < 300 && data) resolve(data);
+        else reject(new Error((data && data.error) || (xhr.status === 413 ? "Die Datei ist größer als 50 MB (Pilotgrenze)." : `Serverfehler (${xhr.status}).`)));
+      };
+      xhr.onerror = () => reject(new Error("Server nicht erreichbar. Läuft start_onescm360.ps1 noch?"));
+      xhr.ontimeout = () => reject(new Error("Zeitüberschreitung beim Import."));
+      xhr.timeout = 10 * 60 * 1000;
+      xhr.send(form);
+    });
+  }
+
+  $("import-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const errorBox = $("imp-error");
+    errorBox.hidden = true;
+    const file = $("imp-file").files[0];
+    const fail = (msg) => { errorBox.textContent = msg; errorBox.hidden = false; };
+    if (!file) return fail("Bitte eine Datei auswählen.");
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    if (!["docx", "html", "htm"].includes(ext) || !file.name.includes(".")) return fail(`Dateityp „.${ext}“ wird nicht unterstützt. Erlaubt sind .docx, .html und .htm.`);
+    if (file.size === 0) return fail("Die Datei ist leer.");
+    if (file.size > state.meta.maxUploadBytes) return fail("Die Datei ist größer als 50 MB (Pilotgrenze).");
+    const form = new FormData();
+    form.append("file", file);
+    form.append("chapterId", $("imp-chapter").value);
+    form.append("language", $("imp-language").value);
+    form.append("sourceType", $("imp-source").value);
+    if ($("imp-force").checked) form.append("force", "1");
+    const button = $("imp-submit");
+    button.disabled = true;
+    $("imp-progress").hidden = false;
+    $("imp-result").replaceChildren();
+    setProgress("Datei wird eingelesen …", 2);
+    try {
+      const result = await upload(form);
+      setProgress("Fertig.", 100);
+      renderImportResult(result.importRecord, result.coverage);
+      toast(result.importRecord.duplicate ? "Diese Datei wurde bereits importiert – vorhandenes Ergebnis angezeigt." : "Import abgeschlossen.");
+      window.dispatchEvent(new Event("onescm-changed"));
+    } catch (err) {
+      fail(err.message);
+      window.dispatchEvent(new Event("onescm-changed"));
+    } finally {
+      button.disabled = false;
+      $("imp-progress").hidden = true;
+      $("imp-bar").classList.remove("indeterminate");
+    }
+  });
+
+  function renderImportResult(record, coverage) {
+    const answered = record.questions.filter((q) => q.answerStatus === "ANSWERED").length;
+    const parts = [
+      el("div", { class: "card", id: "imp-summary" },
+        el("h2", { text: "Ergebnis" }),
+        el("dl", { class: "kv" },
+          el("dt", { text: "Import-ID" }), el("dd", { class: "mono", id: "imp-result-id", text: record.importId }),
+          el("dt", { text: "Kapitel" }), el("dd", { text: `${record.chapterId} · ${record.language} · ${record.sourceType}` }),
+          el("dt", { text: "Datei" }), el("dd", { text: `${record.sourceFile.name} (${fmtSize(record.sourceFile.size)})` }),
+          el("dt", { text: "Status" }), el("dd", {}, badge(record.status), record.duplicate ? el("span", { class: "muted", text: " · bereits importiert (idempotent)" }) : ""),
+          el("dt", { text: "Validierung" }), el("dd", {}, badge(record.validationStatus)),
+          el("dt", { text: "Erkannte Fragen" }), el("dd", { id: "imp-result-questions", text: `${answered} von 20 beantwortet` }),
+          el("dt", { text: "Tabellen" }), el("dd", { id: "imp-result-tables", text: String(record.tables.length) }),
+          el("dt", { text: "Claims / Evidence" }), el("dd", { text: record.counts ? `${record.counts.claims} / ${record.counts.evidence}` : "—" }),
+          el("dt", { text: "Medien" }), el("dd", { text: String((record.media || []).length) }),
+          coverage ? [el("dt", { text: "Coverage" }), el("dd", {}, badge(coverage.gate), ` Readiness ${pct(coverage.readiness)} · ${coverage.gateReason}`)] : "")),
+    ];
+    if (record.errors && record.errors.length) parts.push(el("div", { class: "alert error" }, el("strong", { text: "Fehler: " }), el("ul", { class: "list" }, record.errors.map((e) => el("li", { text: e.message })))));
+    if (record.warnings && record.warnings.length) parts.push(el("div", { class: "alert warn" }, el("strong", { text: "Hinweise: " }), el("ul", { class: "list" }, record.warnings.map((w) => el("li", { text: w })))));
+    parts.push(el("h2", { text: "Fragen" }), el("div", { class: "table-wrap" }, el("table", { id: "imp-questions" },
+      el("thead", {}, el("tr", {}, ["Frage", "Titel", "Kritikalität", "Status", "Regelbefunde", "Antwort (normalisiert)"].map((h) => el("th", { text: h })))),
+      el("tbody", {}, record.questions.map((q) => el("tr", {}, el("td", { class: "mono", text: q.questionId }), el("td", { text: q.title }), el("td", {}, badge(q.criticality)), el("td", {}, badge(q.answerStatus)), el("td", { text: (q.ruleFindings || []).join(", ") || "—" }), el("td", { text: q.normalizedText ? q.normalizedText.slice(0, 220) + (q.normalizedText.length > 220 ? " …" : "") : "—" })))))));
+    parts.push(el("h2", { text: "Regelbefunde" }));
+    if (record.findings.length) parts.push(el("div", { class: "table-wrap" }, el("table", { id: "imp-findings" },
+      el("thead", {}, el("tr", {}, ["Regel", "Kategorie", "Befund", "Anzahl", "Fragen"].map((h) => el("th", { text: h })))),
+      el("tbody", {}, record.findings.map((f) => el("tr", {}, el("td", { class: "mono", text: f.ruleId }), el("td", { text: state.meta.ruleCategories[f.category] || f.category }), el("td", { text: f.message }), el("td", { text: f.count }), el("td", { text: (f.questions || []).join(", ") })))))));
+    else parts.push(el("p", { class: "muted", text: "Keine Regelbefunde." }));
+    $("imp-result").replaceChildren(...parts);
+  }
+
+  // ---------- Regelwerk ----------
+  loaders.rules = async () => {
+    const rules = await api("/api/rules");
+    const cats = state.meta.ruleCategories;
+    $("rule-filter").replaceChildren(el("button", { class: state.ruleFilter === "" ? "active" : "", text: `Alle (${rules.length})`, onclick: () => { state.ruleFilter = ""; loaders.rules(); } }),
+      ...Object.entries(cats).map(([key, label]) => el("button", { class: state.ruleFilter === key ? "active" : "", text: `${label} (${rules.filter((r) => r.category === key).length})`, onclick: () => { state.ruleFilter = key; loaders.rules(); } })));
+    const tbody = $("rules-table").tBodies[0];
+    const shown = rules.filter((r) => !state.ruleFilter || r.category === state.ruleFilter);
+    if (!shown.length) return emptyRow(tbody, 6, "Keine Regeln in dieser Kategorie.");
+    tbody.replaceChildren(...shown.map((rule) => ruleRow(rule)));
+  };
+
+  function ruleRow(rule) {
+    const cats = state.meta.ruleCategories;
+    return el("tr", { dataset: { ruleId: rule.id } },
+      el("td", { class: "mono", text: rule.id }), el("td", { text: cats[rule.category] }), el("td", { text: rule.source }),
+      el("td", { text: rule.target || "—" }), el("td", { text: rule.note || "" }),
+      el("td", {}, el("div", { class: "actions" },
+        el("button", { class: "small", text: "Bearbeiten", onclick: (e) => editRule(e.target.closest("tr"), rule) }),
+        el("button", { class: "small danger", text: "Löschen", onclick: () => deleteRule(rule) }))));
+  }
+
+  function editRule(row, rule) {
+    const cats = state.meta.ruleCategories;
+    const category = el("select", { "aria-label": "Kategorie" });
+    fillSelect(category, Object.entries(cats), { value: rule.category });
+    const source = el("input", { value: rule.source, "aria-label": "Begriff" });
+    const target = el("input", { value: rule.target, "aria-label": "Ziel" });
+    const note = el("input", { value: rule.note, "aria-label": "Notiz" });
+    row.replaceChildren(el("td", { class: "mono", text: rule.id }), el("td", {}, category), el("td", {}, source), el("td", {}, target), el("td", {}, note),
+      el("td", {}, el("div", { class: "actions" },
+        el("button", { class: "small primary", text: "Speichern", onclick: async () => {
+          try { await api(`/api/rules/${rule.id}`, { method: "PUT", body: { category: category.value, source: source.value, target: target.value, note: note.value } }); toast("Regel gespeichert."); loaders.rules(); }
+          catch (e) { toast(e.message, true); }
+        } }),
+        el("button", { class: "small", text: "Abbrechen", onclick: () => row.replaceWith(ruleRow(rule)) }))));
+    source.focus();
+  }
+
+  async function deleteRule(rule) {
+    if (!confirm(`Regel ${rule.id} („${rule.source}“) wirklich löschen?`)) return;
+    try { await api(`/api/rules/${rule.id}`, { method: "DELETE" }); toast("Regel gelöscht."); loaders.rules(); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  $("rule-new").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await api("/api/rules", { method: "POST", body: { category: $("rule-category").value, source: $("rule-source").value, target: $("rule-target").value, note: $("rule-note").value } });
+      $("rule-source").value = ""; $("rule-target").value = ""; $("rule-note").value = "";
+      toast("Regel angelegt.");
+      loaders.rules();
+    } catch (e) { toast(e.message, true); }
+  });
+  $("rule-preview").addEventListener("click", async () => {
+    try {
+      const result = await api("/api/rules/preview", { method: "POST", body: { text: $("rule-preview-text").value } });
+      $("rule-preview-out").textContent = `${result.normalizedText}\n\n${result.findings.map((f) => `• ${f.ruleId}: ${f.message}`).join("\n") || "Keine Befunde."}`;
+    } catch (e) { toast(e.message, true); }
+  });
+
+  // ---------- Claims ----------
+  loaders.claims = async () => {
+    const chapterId = $("claim-chapter").value;
+    const status = $("claim-status").value;
+    const params = new URLSearchParams();
+    if (chapterId) params.set("chapterId", chapterId);
+    if (status) params.set("status", status);
+    state.claims = await api(`/api/claims?${params}`);
+    if (chapterId) {
+      const cfg = await chapter(chapterId);
+      fillSelect($("claim-new-question"), cfg.questions.map((q) => [q.questionId, `${q.questionId} – ${q.title}`]));
+      $("claim-new-box").hidden = false;
+    } else {
+      $("claim-new-box").hidden = true;
+    }
+    renderClaims();
+  };
+  function renderClaims() {
+    const term = $("claim-search").value.trim().toLowerCase();
+    const rows = state.claims.filter((c) => !term || [c.claimId, c.canonicalStatement, c.role, c.subject, c.questionId].join(" ").toLowerCase().includes(term));
+    const tbody = $("claims-table").tBodies[0];
+    if (!rows.length) return emptyRow(tbody, 6, "Keine Claims für diese Auswahl.");
+    tbody.replaceChildren(...rows.map((c) => el("tr", { class: `clickable${state.selectedClaim === c.claimId ? " selected" : ""}`, dataset: { claimId: c.claimId }, onclick: () => openClaim(c.claimId) },
+      el("td", { class: "mono", text: c.claimId }), el("td", { class: "mono", text: c.questionId }),
+      el("td", {}, c.canonicalStatement, c.uncertain ? el("span", { class: "badge warn", text: " unsicher" }) : ""),
+      el("td", {}, badge(c.criticality)), el("td", { text: `${c.evidenceStatus} (${c.evidenceFactor.toFixed(2).replace(".", ",")})` }), el("td", {}, badge(c.validationStatus)))));
+  }
+  $("claim-search").addEventListener("input", renderClaims);
+  $("claim-chapter").addEventListener("change", () => { state.selectedClaim = null; $("claim-editor").hidden = true; loaders.claims(); });
+  $("claim-status").addEventListener("change", () => loaders.claims());
+
+  async function openClaim(claimId) {
+    const token = (state.openToken = (state.openToken || 0) + 1);
+    state.selectedClaim = claimId;
+    renderClaims();
+    const claim = state.claims.find((c) => c.claimId === claimId);
+    if (!claim) return;
+    const cfg = await chapter(claim.chapterId);
+    const evidence = await api(`/api/evidence?claimId=${encodeURIComponent(claimId)}`);
+    if (token !== state.openToken) return; // a newer claim was opened meanwhile; never render stale data
+    const field = (label, name, input) => { input.name = name; input.dataset.field = name; return el("label", {}, label, input); };
+    const select = (options, value) => { const s = el("select"); fillSelect(s, options, { value }); return s; };
+    const check = (name, label, value) => el("label", { class: "check" }, Object.assign(el("input", { type: "checkbox", "data-field": name }), { checked: !!value }), label);
+    const form = el("form", { class: "form-grid", id: "claim-form" },
+      el("label", { class: "wide" }, "Aussage (eine überprüfbare Aussage)", Object.assign(el("textarea", { rows: 3, "data-field": "canonicalStatement" }), { value: claim.canonicalStatement })),
+      field("Frage", "questionId", select(cfg.questions.map((q) => [q.questionId, `${q.questionId} – ${q.title}`]), claim.questionId)),
+      field("Typ", "claimType", select(["FACT", "PERMISSION", "PROCESS", "STATUS", "SOURCE_SYSTEM", "RESTRICTION", "PLAN", "OTHER"], claim.claimType)),
+      field("Subject", "subject", el("input", { value: claim.subject || "" })),
+      field("Predicate", "predicate", el("input", { value: claim.predicate || "" })),
+      el("label", { class: "wide" }, "Object (normalisierte Begriffe)", el("input", { "data-field": "object", value: claim.object || "" })),
+      field("Rolle", "role", select([["", "—"], ...cfg.roles.map((r) => [r, r])], claim.role || "")),
+      field("Division", "division", select([["", "—"], "PC", "VAN", "BOTH"], claim.division || "")),
+      field("Markt", "market", el("input", { value: claim.market || "" })),
+      field("PI", "pi", el("input", { type: "number", min: 0, max: 99, value: claim.pi ?? "" })),
+      field("Reifegrad", "maturity", select([["", "—"], "PRODUCTION", "ACCEPTED", "IN_TEST", "IMPLEMENTED", "PLANNED"], claim.maturity || "")),
+      field("Kritikalität", "criticality", select(["CRITICAL", "HIGH", "MEDIUM", "LOW"], claim.criticality)),
+      field("Evidence-Status", "evidenceStatus", select(["EVIDENCED", "NOT_EVIDENCED", "NOT_RELEVANT"], claim.evidenceStatus)),
+      field("Validierung", "validationStatus", select(state.meta.validationStatuses, claim.validationStatus)),
+      field("Confidence (0–1)", "confidence", el("input", { type: "number", min: 0, max: 1, step: 0.05, value: claim.confidence })),
+      field("Tags (permission, financial, irreversible, security)", "tags", el("input", { value: (claim.tags || []).join(", ") })),
+      el("div", { class: "wide actions" }, check("negated", "Negation", claim.negated), check("conditional", "Bedingung", claim.conditional), check("uncertain", "unsicher", claim.uncertain)),
+      el("label", { class: "wide" }, "Review-Notiz", Object.assign(el("textarea", { rows: 2, "data-field": "reviewNote" }), { value: claim.reviewNote || "" })),
+      el("div", { class: "wide actions" },
+        el("button", { type: "submit", class: "primary", text: "Speichern" }),
+        el("button", { type: "button", class: "secondary", text: "Bestätigen (CONFIRMED)", id: "claim-confirm" }),
+        el("button", { type: "button", class: "danger", text: "Löschen", id: "claim-delete" })));
+    form.addEventListener("submit", async (e) => { e.preventDefault(); await saveClaim(claim, form); });
+    form.querySelector("#claim-confirm").addEventListener("click", async () => { form.querySelector('[data-field="validationStatus"]').value = "CONFIRMED"; await saveClaim(claim, form); });
+    form.querySelector("#claim-delete").addEventListener("click", async () => {
+      if (!confirm(`Claim ${claim.claimId} und zugehörige Evidence löschen?`)) return;
+      try { await api(`/api/claims/${claim.claimId}`, { method: "DELETE" }); toast("Claim gelöscht."); $("claim-editor").hidden = true; state.selectedClaim = null; loaders.claims(); }
+      catch (err) { toast(err.message, true); }
+    });
+    const evList = el("div", { class: "table-wrap" }, el("table", {}, el("thead", {}, el("tr", {}, ["Quelle", "Titel/Key", "Stufe", "Status", ""].map((h) => el("th", { text: h })))),
+      el("tbody", {}, evidence.length ? evidence.map((ev) => el("tr", {}, el("td", { text: ev.sourceType }), el("td", { text: ev.jiraKey || ev.sourceTitle }), el("td", {}, badge(ev.evidenceStrength, "")), el("td", {}, badge(ev.evidenceStatus)),
+        el("td", {}, el("button", { class: "small", text: "Bearbeiten", onclick: () => { showTab("evidence"); } })))) : el("tr", {}, el("td", { colspan: 5, class: "empty", text: "Keine Evidence." })))));
+    const evSource = select(state.meta.sourceTypes, "JIRA");
+    const evStrength = select(Object.keys(state.meta.evidenceStrengths), "DIRECT");
+    const evKey = el("input", { placeholder: "z. B. ONESCM-123" });
+    const evTitle = el("input", { placeholder: "Titel oder URL" });
+    const evForm = el("form", { class: "form-grid", id: "evidence-new" },
+      el("label", {}, "Quelltyp", evSource), el("label", {}, "Stufe", evStrength), el("label", {}, "Jira-Key", evKey), el("label", {}, "Titel / URL", evTitle),
+      el("div", { class: "wide actions" }, el("button", { type: "submit", class: "secondary", text: "Evidence zuordnen" })));
+    evForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = evTitle.value.trim();
+      const isUrl = /^https?:\/\//.test(title);
+      try {
+        await api("/api/evidence", { method: "POST", body: { claimId: claim.claimId, sourceType: evSource.value, evidenceStrength: evStrength.value, jiraKey: evKey.value.trim(), sourceTitle: isUrl ? "" : title, sourceURL: isUrl ? title : "", evidenceStatus: evStrength.value === "DIRECT_VALIDATED" ? "VALIDATED" : "PROPOSED" } });
+        toast("Evidence zugeordnet.");
+        await loaders.claims();
+        openClaim(claim.claimId);
+      } catch (err) { toast(err.message, true); }
+    });
+    $("claim-editor").dataset.claimId = claim.claimId;
+    $("claim-editor").replaceChildren(el("h2", { text: `Claim ${claim.claimId}` }), el("p", { class: "muted", text: `Knowledge Block ${claim.knowledgeId} · Quelle ${claim.sourceImportId}` }), form, el("h2", { text: "Evidence" }), evList, evForm);
+    $("claim-editor").hidden = false;
+  }
+
+  async function saveClaim(claim, form) {
+    const payload = {};
+    for (const node of form.querySelectorAll("[data-field]")) {
+      const key = node.dataset.field;
+      if (node.type === "checkbox") payload[key] = node.checked;
+      else if (key === "pi") payload[key] = node.value === "" ? null : Number(node.value);
+      else if (key === "confidence") payload[key] = Number(node.value);
+      else payload[key] = node.value;
+    }
+    try {
+      await api(`/api/claims/${claim.claimId}`, { method: "PUT", body: payload });
+      toast("Claim gespeichert.");
+      await loaders.claims();
+      openClaim(claim.claimId);
+    } catch (e) { toast(e.message, true); }
+  }
+
+  $("claim-new").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const claim = await api("/api/claims", { method: "POST", body: { chapterId: $("claim-chapter").value, questionId: $("claim-new-question").value, canonicalStatement: $("claim-new-text").value } });
+      $("claim-new-text").value = "";
+      toast("Claim angelegt.");
+      await loaders.claims();
+      openClaim(claim.claimId);
+    } catch (e) { toast(e.message, true); }
+  });
+
+  // ---------- Evidence ----------
+  loaders.evidence = async () => {
+    const chapterId = $("ev-chapter").value;
+    const rows = await api(`/api/evidence${chapterId ? `?chapterId=${chapterId}` : ""}`);
+    const tbody = $("evidence-table").tBodies[0];
+    if (!rows.length) return emptyRow(tbody, 8, "Keine Evidence für diese Auswahl.");
+    tbody.replaceChildren(...rows.map((ev) => {
+      const strength = el("select", { "aria-label": "Evidence-Stufe" });
+      fillSelect(strength, Object.keys(state.meta.evidenceStrengths), { value: ev.evidenceStrength });
+      const status = el("select", { "aria-label": "Evidence-Status" });
+      fillSelect(status, state.meta.evidenceStatuses, { value: ev.evidenceStatus });
+      return el("tr", { dataset: { evidenceId: ev.evidenceId } }, el("td", { class: "mono", text: ev.evidenceId }), el("td", { class: "mono", text: ev.claimId }), el("td", { text: ev.sourceType }),
+        el("td", { text: ev.jiraKey || ev.sourceTitle || ev.sourceURL }), el("td", {}, strength), el("td", {}, status), el("td", { text: ev.factor.toFixed(2).replace(".", ",") }),
+        el("td", {}, el("div", { class: "actions" },
+          el("button", { class: "small primary", text: "Speichern", onclick: async () => {
+            try { await api(`/api/evidence/${ev.evidenceId}`, { method: "PUT", body: { evidenceStrength: strength.value, evidenceStatus: status.value } }); toast("Evidence gespeichert."); loaders.evidence(); }
+            catch (e) { toast(e.message, true); }
+          } }),
+          el("button", { class: "small danger", text: "Löschen", onclick: async () => {
+            if (!confirm(`Evidence ${ev.evidenceId} löschen?`)) return;
+            try { await api(`/api/evidence/${ev.evidenceId}`, { method: "DELETE" }); toast("Evidence gelöscht."); loaders.evidence(); }
+            catch (e) { toast(e.message, true); }
+          } }))));
+    }));
+  };
+  $("ev-chapter").addEventListener("change", () => loaders.evidence());
+
+  // ---------- Tabellen ----------
+  loaders.tables = async () => {
+    const chapterId = $("tbl-chapter").value;
+    const rows = await api(`/api/tables${chapterId ? `?chapterId=${chapterId}` : ""}`);
+    const tbody = $("tables-table").tBodies[0];
+    if (!rows.length) { $("tbl-preview").hidden = true; return emptyRow(tbody, 6, "Keine Tabellen für diese Auswahl."); }
+    const result = [];
+    for (const t of rows) {
+      const cfg = await chapter(t.chapterId);
+      const select = el("select", { "aria-label": "Quellfrage" });
+      fillSelect(select, cfg.questions.map((q) => [q.questionId, q.questionId]), { empty: "— keine (Review) —", value: t.sourceQuestionId || "" });
+      select.addEventListener("change", async () => {
+        try { await api(`/api/tables/${t.tableId}`, { method: "PUT", body: { sourceQuestionId: select.value || null, reviewed: true } }); toast("Zuordnung gespeichert."); loaders.tables(); }
+        catch (e) { toast(e.message, true); }
+      });
+      result.push(el("tr", { class: "clickable", dataset: { tableId: t.tableId } },
+        el("td", { class: "mono", text: t.tableId, onclick: () => previewTable(t) }), el("td", { class: "mono", text: t.importId }), el("td", {}, select),
+        el("td", { text: `${t.rowCount} × ${t.columnCount}${t.unevenRows ? " (ungleiche Zeilen)" : ""}` }), el("td", {}, t.reviewRequired ? badge("REVIEW") : badge("ok", "ok")),
+        el("td", {}, el("div", { class: "actions" }, el("a", { href: `/api/tables/${t.tableId}.json`, text: "JSON" }), el("a", { href: `/api/tables/${t.tableId}.csv`, text: "CSV" }), el("button", { class: "small", text: "Ansehen", onclick: () => previewTable(t) })))));
+    }
+    tbody.replaceChildren(...result);
+  };
+  function previewTable(t) {
+    const width = t.columnCount;
+    const header = t.header && t.header.length ? t.header : Array.from({ length: width }, (_, i) => `Spalte ${i + 1}`);
+    $("tbl-preview").replaceChildren(el("h2", { text: `${t.tableId} · Quellfrage ${t.sourceQuestionId || "nicht zugeordnet"}` }),
+      el("div", { class: "table-wrap" }, el("table", { id: "tbl-preview-table" }, el("thead", {}, el("tr", {}, header.map((h) => el("th", { text: h })))),
+        el("tbody", {}, t.rows.map((r) => el("tr", {}, Array.from({ length: width }, (_, i) => el("td", { text: r[i] ?? "" }))))))));
+    $("tbl-preview").hidden = false;
+  }
+  $("tbl-chapter").addEventListener("change", () => loaders.tables());
+
+  // ---------- Coverage ----------
+  loaders.coverage = async () => {
+    const chapterId = $("cov-chapter").value;
+    const cov = await api(`/api/coverage/${chapterId}`);
+    const conflicts = await api(`/api/conflicts?chapterId=${chapterId}`);
+    $("cov-summary").replaceChildren(el("div", { class: "summary-grid" },
+      el("div", {}, el("div", { class: "muted", text: "Gate" }), el("div", { class: "gate", id: "cov-gate" }, badge(cov.gate))),
+      el("div", {}, el("div", { class: "muted", text: "Readiness" }), el("div", { class: "gate", id: "cov-readiness", text: pct(cov.readiness) })),
+      el("div", {}, el("div", { class: "muted", text: "Begründung" }), el("div", { text: cov.gateReason })),
+      el("div", {}, el("div", { class: "muted", text: "Claims · kritische Fragen · kritische Claims belegt" }), el("div", { text: `${cov.details.claims} · ${cov.details.criticalQuestions} · ${cov.details.criticalClaimsEvidenced}` }))));
+    const dims = [["questionCoverage", "Questions", 20], ["evidenceCoverage", "Evidence", 30], ["roleCoverage", "Roles", 15], ["divisionCoverage", "PC/VAN", 15], ["piCoverage", "PI", 10], ["confidence", "Confidence", 10]];
+    $("cov-dims").replaceChildren(...dims.map(([key, label, weight]) => {
+      const fill = el("div", { class: "bar-fill" });
+      fill.style.width = `${Math.min(100, cov[key])}%`;
+      return el("div", { class: "kpi", dataset: { dim: key } }, el("div", { class: "label" }, el("strong", { text: label }), el("span", { class: "weight", text: `Gewicht ${weight} %` })), el("div", { class: "value", text: pct(cov[key]) }), el("div", { class: "bar" }, fill));
+    }));
+    $("cov-blockers").replaceChildren(...(cov.blockers.length ? cov.blockers.map((b) => el("li", { text: b })) : [el("li", { class: "muted", text: "Keine Hard Blocker." })]));
+    const tbody = $("conflicts-table").tBodies[0];
+    if (!conflicts.length) emptyRow(tbody, 7, "Keine Konflikte erkannt.");
+    else tbody.replaceChildren(...conflicts.map((c) => {
+      const status = el("select", { "aria-label": "Konfliktstatus" });
+      fillSelect(status, state.meta.conflictStatuses, { value: c.status });
+      const note = el("input", { value: c.resolutionNote || "", placeholder: "Begründung" });
+      return el("tr", { dataset: { conflictId: c.conflictId } }, el("td", { class: "mono", text: c.conflictId }), el("td", { text: c.type }), el("td", {}, badge(c.severity)), el("td", { text: c.description }), el("td", { class: "mono", text: c.claimIds.join(", ") }),
+        el("td", {}, status, note), el("td", {}, el("button", { class: "small primary", text: "Speichern", onclick: async () => {
+          try { await api(`/api/conflicts/${c.conflictId}`, { method: "PUT", body: { status: status.value, resolutionNote: note.value } }); toast("Konflikt aktualisiert."); loaders.coverage(); }
+          catch (e) { toast(e.message, true); }
+        } })));
+    }));
+    const roles = cov.details.roles || {};
+    const names = Object.keys(roles);
+    const checks = names.length ? Object.keys(roles[names[0]]) : [];
+    const table = $("cov-roles");
+    table.tHead.replaceChildren(el("tr", {}, el("th", { text: "Rolle" }), checks.map((c) => el("th", { text: c }))));
+    if (!names.length) emptyRow(table.tBodies[0], 1, "Keine Rollen im Kapitel konfiguriert.");
+    else table.tBodies[0].replaceChildren(...names.map((n) => el("tr", {}, el("td", { text: n }), checks.map((c) => el("td", { text: roles[n][c] ? "✓" : "—" })))));
+  };
+  $("cov-chapter").addEventListener("change", () => loaders.coverage());
+  $("cov-refresh").addEventListener("click", () => loaders.coverage().then(() => toast("Coverage neu berechnet.")).catch((e) => toast(e.message, true)));
+
+  // ---------- Synchronisation ----------
+  loaders.sync = async () => {
+    const status = await api("/api/sync/status");
+    renderSyncStatus(status);
+  };
+  function renderSyncStatus(s) {
+    $("sync-path").value = s.path || "";
+    $("sync-status").replaceChildren(
+      el("dt", { text: "Konfiguriert durch" }), el("dd", { text: s.configuredBy === "settings" ? "App-Einstellung" : s.configuredBy === "none" ? "—" : s.configuredBy }),
+      el("dt", { text: "Existiert" }), el("dd", { text: s.exists ? "ja" : "nein" }),
+      el("dt", { text: "Beschreibbar" }), el("dd", { text: s.writable ? "ja" : "nein" }),
+      el("dt", { text: "Letzte lokale Änderung" }), el("dd", { text: fmtDate(s.lastLocalChange) }),
+      el("dt", { text: "Lokaler Status" }), el("dd", { id: "sync-local-status" }, badge(s.localStatus), " ", el("span", { class: "muted", text: s.reason })),
+      el("dt", { text: "Cloudstatus" }), el("dd", {}, badge(s.cloudStatus), " ", el("span", { class: "muted", text: s.cloudNote })));
+  }
+  $("sync-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try { renderSyncStatus(await api("/api/sync/settings", { method: "POST", body: { onedriveRoot: $("sync-path").value } })); toast("Pfad gespeichert."); window.dispatchEvent(new Event("onescm-changed")); }
+    catch (e) { toast(e.message, true); }
+  });
+  $("sync-reset").addEventListener("click", async () => {
+    try { renderSyncStatus(await api("/api/sync/settings", { method: "POST", body: { onedriveRoot: "" } })); toast("Pfad aus ONESCM_LOCAL_ONEDRIVE_ROOT wird verwendet."); window.dispatchEvent(new Event("onescm-changed")); }
+    catch (e) { toast(e.message, true); }
+  });
+  $("sync-structure").addEventListener("click", async () => {
+    try { const r = await api("/api/sync/structure", { method: "POST", body: {} }); toast(r.created.length ? `${r.created.length} Ordner angelegt.` : "Ordnerstruktur ist vollständig."); loaders.sync(); }
+    catch (e) { toast(e.message, true); }
+  });
+  $("sync-export").addEventListener("click", async () => {
+    const button = $("sync-export");
+    button.disabled = true;
+    try {
+      const r = await api("/api/sync/export", { method: "POST", body: { chapterId: $("sync-chapter").value } });
+      $("sync-result").replaceChildren(el("div", { class: "alert ok", id: "sync-export-ok" }, `Export ${r.chapterId}: ${r.files.length} Dateien lokal bereitgestellt. Manifest: ${r.manifest} · Paket: ${r.package}. Cloudstatus: ${r.cloudStatus}.`),
+        el("ul", { class: "list mono" }, r.files.map((f) => el("li", { text: f }))));
+      toast("Export abgeschlossen.");
+      window.dispatchEvent(new Event("onescm-changed"));
+      loaders.sync();
+    } catch (e) {
+      $("sync-result").replaceChildren(el("div", { class: "alert error", text: e.message }));
+    } finally { button.disabled = false; }
+  });
+
+  // ---------- Dokumentation ----------
+  loaders.docs = async () => {
+    const { readme } = await api("/api/docs");
+    $("docs-body").replaceChildren(...renderMarkdown(readme));
+  };
+  function inline(text) {
+    const parts = [];
+    const re = /(`[^`]+`|\*\*[^*]+\*\*)/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      parts.push(m[0].startsWith("`") ? el("code", { text: m[0].slice(1, -1) }) : el("strong", { text: m[0].slice(2, -2) }));
+      last = m.index + m[0].length;
+    }
+    parts.push(text.slice(last));
+    return parts;
+  }
+  function renderMarkdown(md) {
+    const out = [];
+    const lines = md.split(/\r?\n/);
+    let list = null, code = null, table = null;
+    for (const line of lines) {
+      if (line.startsWith("```")) {
+        if (code) { out.push(el("pre", {}, el("code", { text: code.join("\n") }))); code = null; } else code = [];
+        continue;
+      }
+      if (code) { code.push(line); continue; }
+      if (/^\|.*\|$/.test(line.trim())) {
+        const cells = line.trim().slice(1, -1).split("|").map((c) => c.trim());
+        if (cells.every((c) => /^:?-+:?$/.test(c))) continue;
+        if (!table) { table = el("table", {}, el("thead", {}, el("tr", {}, cells.map((c) => el("th", {}, inline(c))))), el("tbody")); out.push(el("div", { class: "table-wrap" }, table)); }
+        else table.tBodies[0].append(el("tr", {}, cells.map((c) => el("td", {}, inline(c)))));
+        continue;
+      }
+      table = null;
+      const heading = line.match(/^(#{1,3})\s+(.*)/);
+      const item = line.match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
+      if (item) { if (!list) { list = el("ul"); out.push(list); } list.append(el("li", {}, inline(item[1]))); continue; }
+      list = null;
+      if (heading) out.push(el(`h${heading[1].length}`, {}, inline(heading[2])));
+      else if (line.trim()) out.push(el("p", {}, inline(line)));
+    }
+    return out;
+  }
+
+  // ---------- init ----------
+  async function init() {
+    state.meta = await api("/api/meta");
+    $("app-version").textContent = `v${state.meta.version}`;
+    for (const id of ["imp-chapter", "cov-chapter", "sync-chapter"]) fillSelect($(id), chapterOptions());
+    for (const id of ["claim-chapter", "ev-chapter", "tbl-chapter"]) fillSelect($(id), chapterOptions(), { empty: "Alle Kapitel" });
+    fillSelect($("imp-language"), state.meta.languages);
+    fillSelect($("imp-source"), state.meta.sourceTypes);
+    fillSelect($("claim-status"), state.meta.validationStatuses, { empty: "Alle" });
+    fillSelect($("rule-category"), Object.entries(state.meta.ruleCategories));
+    let start = "dashboard";
+    try { start = localStorage.getItem("onescm360-tab") || "dashboard"; } catch { /* ignore */ }
+    if (!document.querySelector(`#tabs button[data-tab="${start}"]`)) start = "dashboard";
+    refreshTopStatus();
+    showTab(start);
+  }
+  init().catch((err) => toast(err.message, true));
+})();

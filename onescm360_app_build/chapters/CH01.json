@@ -1,0 +1,167 @@
+{
+  "chapterId": "CH01",
+  "number": "01",
+  "title": "Grundlagen und Überblick",
+  "schemaStatus": "REFERENCE",
+  "focus": "Ziel, Nutzen, Prozesse, Rollen, PC/VAN, Systeme, Release und Quellen",
+  "mandatoryEvaluations": [],
+  "languages": [
+    "DE",
+    "EN",
+    "DE+EN"
+  ],
+  "roles": [
+    "Dealer",
+    "Market Operations"
+  ],
+  "requiredDimensions": [
+    "questions",
+    "evidence",
+    "roles",
+    "division",
+    "pi",
+    "confidence"
+  ],
+  "questions": [
+    {
+      "questionId": "01-F01",
+      "group": "Einführung/Nutzen",
+      "title": "Ziel der Anwendung",
+      "titleEn": "Purpose of the application",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F02",
+      "group": "Einführung/Nutzen",
+      "title": "Nutzen",
+      "titleEn": "Benefits",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "01-F03",
+      "group": "Einführung/Nutzen",
+      "title": "Unterstützte Geschäftsprozesse",
+      "titleEn": "Supported business processes",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F04",
+      "group": "Rollen/Scope",
+      "title": "Rollen und Berechtigungen",
+      "titleEn": "Roles and permissions",
+      "criticality": "CRITICAL"
+    },
+    {
+      "questionId": "01-F05",
+      "group": "Rollen/Scope",
+      "title": "Scope PC und VAN",
+      "titleEn": "PC and VAN scope",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F06",
+      "group": "Rollen/Scope",
+      "title": "Unterschiede zwischen PC und VAN",
+      "titleEn": "Differences between PC and VAN",
+      "criticality": "CRITICAL"
+    },
+    {
+      "questionId": "01-F07",
+      "group": "Prozess/System",
+      "title": "End-to-End-Prozess",
+      "titleEn": "End-to-end process",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F08",
+      "group": "Prozess/System",
+      "title": "Module",
+      "titleEn": "Modules",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "01-F09",
+      "group": "Prozess/System",
+      "title": "Voraussetzungen",
+      "titleEn": "Prerequisites",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "01-F10",
+      "group": "Prozess/System",
+      "title": "Business Rules",
+      "titleEn": "Business rules",
+      "criticality": "CRITICAL"
+    },
+    {
+      "questionId": "01-F11",
+      "group": "Prozess/System",
+      "title": "Status und Reifegrad",
+      "titleEn": "Status and maturity",
+      "criticality": "CRITICAL"
+    },
+    {
+      "questionId": "01-F12",
+      "group": "Prozess/System",
+      "title": "Systeme und Schnittstellen",
+      "titleEn": "Systems and interfaces",
+      "criticality": "CRITICAL"
+    },
+    {
+      "questionId": "01-F13",
+      "group": "Outputs/Support",
+      "title": "Outputs und Dokumente",
+      "titleEn": "Outputs and documents",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "01-F14",
+      "group": "Outputs/Support",
+      "title": "Marktunterschiede",
+      "titleEn": "Market differences",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F15",
+      "group": "Outputs/Support",
+      "title": "Einschränkungen und bekannte Probleme",
+      "titleEn": "Restrictions and known issues",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F16",
+      "group": "Outputs/Support",
+      "title": "Erfolgskriterien",
+      "titleEn": "Success criteria",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "01-F17",
+      "group": "Release/Risiko",
+      "title": "Releasestand PI0 bis PI16",
+      "titleEn": "Release status PI0 to PI16",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F18",
+      "group": "Release/Risiko",
+      "title": "Planung PI17 und PI18",
+      "titleEn": "Planning PI17 and PI18",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F19",
+      "group": "Release/Risiko",
+      "title": "Risiken und offene Punkte",
+      "titleEn": "Risks and open issues",
+      "criticality": "HIGH"
+    },
+    {
+      "questionId": "01-F20",
+      "group": "Release/Risiko",
+      "title": "Primärquellen Jira und Confluence",
+      "titleEn": "Primary sources Jira and Confluence",
+      "criticality": "HIGH"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "import.schema.json",
+  "title": "oneSCM360 Import",
+  "type": "object",
+  "required": ["importId", "chapterId", "language", "sourceFile", "status", "questions", "tables", "findings", "createdAt"],
+  "properties": {
+    "importId": {"type": "string", "pattern": "^IMP-[0-9]{8}-[0-9]{6}-[A-F0-9]{6}$"},
+    "chapterId": {"type": "string", "pattern": "^CH(0[1-9]|1[0-6])$"},
+    "language": {"enum": ["DE", "EN", "DE+EN"]},
+    "sourceFile": {
+      "type": "object",
+      "required": ["name", "type", "size", "sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {"enum": ["docx", "html", "htm"]},
+        "size": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "status": {"enum": ["RECEIVED", "PARSED", "ANALYZED", "COMPLETED", "FAILED"]},
+    "journal": {"type": "array", "items": {"type": "object", "required": ["status", "at"]}},
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["questionId", "text"],
+        "properties": {
+          "questionId": {"type": "string", "pattern": "^[0-9]{2}-F(0[1-9]|1[0-9]|20)$"},
+          "text": {"type": "string"},
+          "normalizedText": {"type": "string"}
+        }
+      }
+    },
+    "tables": {"type": "array"},
+    "findings": {"type": "array"},
+    "errors": {"type": "array"},
+    "createdAt": {"type": "string"}
+  }
+}

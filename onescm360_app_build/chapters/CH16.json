@@ -1,0 +1,167 @@
+{
+  "chapterId": "CH16",
+  "number": "16",
+  "title": "Kapitel 16",
+  "schemaStatus": "DRAFT",
+  "focus": "",
+  "mandatoryEvaluations": [],
+  "languages": [
+    "DE",
+    "EN",
+    "DE+EN"
+  ],
+  "roles": [
+    "Dealer",
+    "Market Operations"
+  ],
+  "requiredDimensions": [
+    "questions",
+    "evidence",
+    "roles",
+    "division",
+    "pi",
+    "confidence"
+  ],
+  "questions": [
+    {
+      "questionId": "16-F01",
+      "group": "Allgemein",
+      "title": "Frage 16-F01",
+      "titleEn": "Question 16-F01",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F02",
+      "group": "Allgemein",
+      "title": "Frage 16-F02",
+      "titleEn": "Question 16-F02",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F03",
+      "group": "Allgemein",
+      "title": "Frage 16-F03",
+      "titleEn": "Question 16-F03",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F04",
+      "group": "Allgemein",
+      "title": "Frage 16-F04",
+      "titleEn": "Question 16-F04",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F05",
+      "group": "Allgemein",
+      "title": "Frage 16-F05",
+      "titleEn": "Question 16-F05",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F06",
+      "group": "Allgemein",
+      "title": "Frage 16-F06",
+      "titleEn": "Question 16-F06",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F07",
+      "group": "Allgemein",
+      "title": "Frage 16-F07",
+      "titleEn": "Question 16-F07",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F08",
+      "group": "Allgemein",
+      "title": "Frage 16-F08",
+      "titleEn": "Question 16-F08",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F09",
+      "group": "Allgemein",
+      "title": "Frage 16-F09",
+      "titleEn": "Question 16-F09",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F10",
+      "group": "Allgemein",
+      "title": "Frage 16-F10",
+      "titleEn": "Question 16-F10",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F11",
+      "group": "Allgemein",
+      "title": "Frage 16-F11",
+      "titleEn": "Question 16-F11",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F12",
+      "group": "Allgemein",
+      "title": "Frage 16-F12",
+      "titleEn": "Question 16-F12",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F13",
+      "group": "Allgemein",
+      "title": "Frage 16-F13",
+      "titleEn": "Question 16-F13",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F14",
+      "group": "Allgemein",
+      "title": "Frage 16-F14",
+      "titleEn": "Question 16-F14",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F15",
+      "group": "Allgemein",
+      "title": "Frage 16-F15",
+      "titleEn": "Question 16-F15",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F16",
+      "group": "Allgemein",
+      "title": "Frage 16-F16",
+      "titleEn": "Question 16-F16",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F17",
+      "group": "Allgemein",
+      "title": "Frage 16-F17",
+      "titleEn": "Question 16-F17",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F18",
+      "group": "Allgemein",
+      "title": "Frage 16-F18",
+      "titleEn": "Question 16-F18",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F19",
+      "group": "Allgemein",
+      "title": "Frage 16-F19",
+      "titleEn": "Question 16-F19",
+      "criticality": "MEDIUM"
+    },
+    {
+      "questionId": "16-F20",
+      "group": "Allgemein",
+      "title": "Frage 16-F20",
+      "titleEn": "Question 16-F20",
+      "criticality": "MEDIUM"
+    }
+  ]
+}
