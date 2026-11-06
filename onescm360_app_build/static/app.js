@@ -874,6 +874,22 @@
     $("man-frame").src = url;
     $("man-frame").hidden = false;
   });
+  $("man-docx").addEventListener("click", async () => {
+    const chapter = $("man-chapter").value, stage = $("man-stage").value;
+    const response = await fetch(`/api/manual/${chapter}/docx?stage=${encodeURIComponent(stage)}&design=${encodeURIComponent($("man-design").value)}`);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      $("man-result").replaceChildren(el("div", { class: "alert error", id: "man-error", text: data.error || `Fehler (${response.status}).` }));
+      return;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = el("a", { href: url, download: `${chapter}_Handbuch_${stage}.docx` });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast("Word-Handbuchstand heruntergeladen.");
+  });
   $("man-generate").addEventListener("click", async () => {
     const button = $("man-generate");
     button.disabled = true;

@@ -69,8 +69,9 @@ class ManualTests(AppCase, unittest.TestCase):
         r = self.post("/api/manual/CH01", {"stage": "Draft"})
         self.assertEqual(r.status_code, 201, r.get_json())
         files = r.get_json()["files"]
-        self.assertEqual(len(files), 2)
+        self.assertEqual([f.rsplit(".", 1)[1] for f in files], ["html", "docx", "md"])
         self.assertTrue(all(f.startswith("05_Manual_Generated/Draft/CH01_") for f in files))
+        self.assertEqual((self.onedrive / files[1]).read_bytes()[:2], b"PK")
         self.assertTrue((self.onedrive / files[0]).read_text(encoding="utf-8").startswith("<!doctype html>"))
         second = self.post("/api/manual/CH01", {"stage": "Draft"}).get_json()["files"]
         self.assertNotEqual(files, second)  # never overwrite

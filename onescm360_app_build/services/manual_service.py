@@ -5,7 +5,7 @@ Stage rules (deterministic, derived from the coverage gate):
   Reviewed  only if the gate is not BLOCKED; REVIEWED and CONFIRMED claims
   Released  only if the gate is READY; CONFIRMED claims only
 Output goes to 05_Manual_Generated/<Stage>/ in the local OneDrive folder as
-HTML (opens in Word and browsers) and Markdown.
+HTML (opens in Word and browsers), Word (.docx with the design template's styles) and Markdown.
 """
 from __future__ import annotations
 
@@ -37,7 +37,8 @@ def stage_allowed(stage: str, gate: str) -> tuple[bool, str]:
 
 def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[dict], tables: list[dict],
                  coverage: dict, rules: list[dict], imports: list[dict], design: dict) -> dict:
-    """Return {"html", "markdown", "stats", "title"} for one chapter and stage, formatted with a design template."""
+    """Return {"html", "docx", "markdown", "stats", "title"} for one chapter and stage, formatted with a design template."""
+    from . import word_template as wt
     from .design_service import box_html, css, fill_without_pages, role_badge, symbols
     from .icons import role_icon
 
@@ -89,6 +90,23 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
     if stage != "Released":
         h.append(box_html(design, "open", "Kein freigegebener Handbuchstand. Inhalte können sich noch ändern."))
     h.append('<div class="cols">')
+    c = design["colors"]
+    stage_run = {"Released": ("Freigegeben", c["ok"]), "Reviewed": ("Geprüft", c["petrol"]),
+                 "Draft": ("Entwurf – fachliche Validierung erforderlich", c["warn"])}[stage]
+    status_run = {"DRAFT": ("OFFEN", c["warn"]), "REVIEWED": ("GEPRÜFT", c["petrol"]), "CONFIRMED": None}
+    division_run = {"PC": ("PC", c["pc"]), "VAN": ("VAN", c["van"]), "BOTH": ("BEIDE", c["navy"]), "CV": ("CV", c["off"])}
+    meta = [("Version", f"Handbuchstand {stage}"), ("Stand", f"{now:%d.%m.%Y %H:%M}"), ("Status", stage_run[0]),
+            ("Gate / Readiness", f"{coverage['gate']} · {readiness} %"),
+            ("Enthaltene Aussagen", f"{len(included)} ({', '.join(STATUS_TEXT[s] for s in sorted(allowed_status, key=list(STATUS_TEXT).index))})"),
+            ("Kapitelschema", chapter.get("schemaStatus", "")), ("Erstellt mit", "oneSCM360 Knowledge Studio"),
+            ("Designvorlage", design["name"])]
+    w = [wt.paragraph("Title", design["documentTitle"]), wt.paragraph("Subtitle", f"Kapitel {number} – {chapter['title']}"),
+         wt.table(["Angabe", "Wert"], [list(row) for row in meta], design),
+         wt.box(design, "info", f'{", ".join(sources) or "noch keine abgeschlossenen Importe"}. '
+                                f"Aussagen werden nur übernommen, wenn sie die Stufe {stage} erreicht haben.")]
+    if stage != "Released":
+        w.append(wt.box(design, "open", "Kein freigegebener Handbuchstand. Inhalte können sich noch ändern."))
+    w += [wt.toc(), wt.page_break()]
     md = [f"# {title}", "", f"**Stufe:** {stage} · **Stand:** {now:%d.%m.%Y %H:%M} · **Gate:** {coverage['gate']} · "
           f"**Readiness:** {readiness} %", "", f"Quellen: {', '.join(sources) or '—'}", ""]
 
@@ -99,11 +117,14 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
             group_no += 1
             question_no = 0
             h.append(f"<h1>{group_no} {e(group or '')}</h1>")
+            w.append(wt.paragraph("Heading1", f"{group_no} {group or ''}"))
             md += [f"## {group}", ""]
         question_no += 1
         qid = question["questionId"]
         h.append(f'<h2>{group_no}.{question_no} {e(question["title"])} <span class="src">{e(qid)}</span></h2>')
         md += [f"### {qid} · {question['title']}", ""]
+        w.append(wt.paragraph("Heading2", "", wt.run(f"{group_no}.{question_no} {question['title']} ")
+                              + wt.run(qid, color=c["muted"], size_pt=design["typography"]["source"]["size"])))
         items = per_question.get(qid, [])
         refs_for_question = set()
         if items:
@@ -117,6 +138,11 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
                 h.append(f"<li>{e(claim['canonicalStatement'])} {status_badge[claim['validationStatus']]} "
                          f"{division_badge.get(claim.get('division', ''), '')} {role}"
                          + (f' <span class="src">[{e(scope)}]</span>' if scope else "") + "</li>")
+                tags = [x for x in (status_run[claim["validationStatus"]], division_run.get(claim.get("division", ""))) if x]
+                w.append(wt.paragraph("ListBullet", "", wt.run(claim["canonicalStatement"])
+                                      + "".join(wt.run(f"  {label}", bold=True, color=color) for label, color in tags)
+                                      + (wt.run(f"  Rolle: {claim['role']}", color=c["navy"]) if claim.get("role") else "")
+                                      + (wt.run(f"  [{scope}]", color=c["muted"]) if scope else "")))
                 md.append(f"- {claim['canonicalStatement']}"
                           + (f" _({STATUS_TEXT[claim['validationStatus']]})_" if claim["validationStatus"] != "CONFIRMED" else "")
                           + (f" [{scope}]" if scope else "") + (f" — Quelle: {', '.join(refs)}" if refs else ""))
@@ -125,6 +151,7 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
         else:
             h.append('<p class="src">Für diese Stufe liegen noch keine Inhalte vor.</p>')
             md += ["_Für diese Stufe liegen noch keine Inhalte vor._", ""]
+            w.append(wt.paragraph("Quellenzeile", "Für diese Stufe liegen noch keine Inhalte vor."))
         for table in tables_by_q.get(qid, []):
             width = table.get("columnCount") or max(len(r) for r in table["rows"])
             header = list(table.get("header") or []) or [f"Spalte {i + 1}" for i in range(width)]
@@ -132,16 +159,21 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
             for row in table["rows"]:
                 h.append("<tr>" + "".join(f"<td>{e(row[i]) if i < len(row) else ''}</td>" for i in range(width)) + "</tr>")
             h.append(f'</table><p class="cap">Tabelle {e(table["tableId"])}</p>')
+            w += [wt.table(header, [[row[i] if i < len(row) else "" for i in range(width)] for row in table["rows"]], design),
+                  wt.paragraph("Caption", f"Tabelle {table['tableId']}")]
             md += ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
             md += ["| " + " | ".join((row[i] if i < len(row) else "").replace("|", "\\|") for i in range(width)) + " |" for row in table["rows"]]
             md.append("")
         if show_sources and refs_for_question:
             h.append(f'<p class="src">Quellen: {e(", ".join(sorted(refs_for_question)))}</p>')
+            w.append(wt.paragraph("Quellenzeile", f'Quellen: {", ".join(sorted(refs_for_question))}'))
 
     glossary = [r for r in rules if r["category"] in ("abbreviation", "explanation")]
     if glossary:
         h.append(f"<h1>{group_no + 1} Glossar</h1><table><tr><th>Begriff</th><th>Bedeutung</th></tr>")
         md += ["## Glossar", "", "| Begriff | Bedeutung |", "|---|---|"]
+        w += [wt.paragraph("Heading1", f"{group_no + 1} Glossar"),
+              wt.table(["Begriff", "Bedeutung"], [[r["source"], r["target"]] for r in sorted(glossary, key=lambda r: r["source"].casefold())], design)]
         for rule in sorted(glossary, key=lambda r: r["source"].casefold()):
             h.append(f"<tr><td>{e(rule['source'])}</td><td>{e(rule['target'])}</td></tr>")
             md.append(f"| {rule['source']} | {rule['target']} |")
@@ -151,7 +183,8 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
              f'<span>Designvorlage: {e(design["name"])}</span></div></div></body></html>')
     stats = {"claims": len(included), "questionsWithContent": answered, "questions": len(chapter["questions"]),
              "tables": sum(len(v) for v in tables_by_q.values()), "design": design["name"]}
-    return {"html": "\n".join(h), "markdown": "\n".join(md) + "\n", "stats": stats, "title": title}
+    docx = wt.build_document(design, "".join(w), values, title)
+    return {"html": "\n".join(h), "docx": docx, "markdown": "\n".join(md) + "\n", "stats": stats, "title": title}
 
 
 def safe_stamp() -> str:
