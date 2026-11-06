@@ -180,7 +180,10 @@
 
     <!-- Interner Chat -->
     <section id="tab-chat" class="panel" hidden aria-labelledby="h-chat">
-      <div class="panel-head"><h1 id="h-chat">Interner Chat</h1><span class="muted">Jede Frage wird genau einer Funktion zugeordnet (Router) und auf den lokalen Daten ausgeführt. Der Chat ändert keine Daten.</span></div>
+      <div class="panel-head"><h1 id="h-chat">Interner Chat</h1><span class="muted">Der Router schlägt genau eine Funktion aus der Tool Registry vor – die Security Policy entscheidet, ob sie ausgeführt wird. Kein Internet, kein externes LLM.</span></div>
+      <details class="card" id="chat-registry-box"><summary>Tool Registry v1 (10 Funktionen)</summary>
+        <div class="table-wrap"><table id="chat-registry"><thead><tr><th>Tool</th><th>Zweck</th><th>Quelle</th><th>Operation</th><th>Netz</th><th>Schreibend</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+      </details>
       <div class="chat-layout">
         <div class="card chat-main">
           <div id="chat-log" class="chat-log" aria-live="polite"></div>
@@ -191,21 +194,27 @@
           </form>
         </div>
         <aside class="chat-side">
+          <div class="card" id="chat-security">
+            <h2>Sicherheit</h2>
+            <dl class="kv" id="chat-policy"></dl>
+          </div>
           <div class="card">
             <h2>Router</h2>
             <label>Modus<select id="chat-mode"><option value="rules">Regeln (offline, nachvollziehbar)</option><option value="model">Lokales Modell (z. B. FunctionGemma über Ollama)</option></select></label>
             <p class="muted" id="chat-router-info"></p>
-            <div class="actions"><button type="button" id="chat-eval" class="secondary">Router testen</button></div>
+            <div class="actions"><button type="button" id="chat-eval" class="secondary">Routing-Testsuite ausführen</button></div>
             <div id="chat-eval-result"></div>
           </div>
           <div class="card">
-            <h2>Trainingsdaten</h2>
-            <p class="muted">Vorlagen über alle Kapitel, Rollen und Domänen plus Ihr Feedback aus dem Chat – im Format des FunctionGemma-Notebooks. Die Fragen des Router-Tests sind ausgeschlossen.</p>
-            <div class="actions"><a class="button-link" id="chat-train-notebook" href="/api/chat/training-data?format=notebook">JSONL (Notebook-Format)</a><a class="button-link" href="/api/chat/training-data?format=messages">JSONL (Chat-Format)</a></div>
+            <h2>Audit-Protokoll</h2>
+            <p class="muted">Pro Werkzeugaufruf: Zeit, Benutzer, Tool, Operation, Ergebnis. Ohne Frage- und Dokumentinhalte.</p>
+            <div class="actions"><button type="button" id="chat-audit-refresh" class="small">Aktualisieren</button></div>
+            <ul id="chat-audit" class="audit-list"></ul>
           </div>
           <div class="card">
-            <h2>Funktionen</h2>
-            <ul id="chat-tools" class="tool-list"></ul>
+            <h2>Trainingsdaten</h2>
+            <p class="muted">Vorlagen über alle Kapitel, Rollen und Fahrzeugtypen plus bestätigtes Feedback – nur Tools der Registry, im Format des FunctionGemma-Notebooks. Die Fragen der Testsuite sind ausgeschlossen.</p>
+            <div class="actions"><a class="button-link" id="chat-train-notebook" href="/api/chat/training-data?format=notebook">JSONL (Notebook-Format)</a><a class="button-link" href="/api/chat/training-data?format=messages">JSONL (Chat-Format)</a></div>
           </div>
         </aside>
       </div>

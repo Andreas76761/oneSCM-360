@@ -1,0 +1,712 @@
+{
+  "version": "1.0",
+  "name": "oneSCM360 Tool Registry v1",
+  "tools": [
+    {
+      "name": "search_knowledge",
+      "purpose": "Knowledge Blocks und freigegebenes Wissen durchsuchen",
+      "source_label": "oneSCM360 Store",
+      "description": "Search approved internal oneSCM360 knowledge only.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "search terms"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          },
+          "vehicle_type": {
+            "type": "string",
+            "enum": [
+              "PC",
+              "VAN",
+              "CV",
+              "ALL"
+            ],
+            "description": "vehicle division"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Draft",
+              "Reviewed",
+              "Released"
+            ],
+            "description": "review status"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "DE",
+              "EN"
+            ],
+            "description": "language"
+          },
+          "role": {
+            "type": "string",
+            "description": "role id, e.g. Dealer, MO, HQ"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": false,
+        "confirmation_required": false
+      }
+    },
+    {
+      "name": "search_manual",
+      "purpose": "Handbuch CH01–CH16 durchsuchen (importierte Kapiteltexte)",
+      "source_label": "lokaler Store",
+      "description": "Search the oneSCM360 manual text of chapters CH01-CH16 in the local store.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "search terms"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          },
+          "question": {
+            "type": "string",
+            "description": "question id such as 01-F04"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "DE",
+              "EN"
+            ],
+            "description": "language"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": false,
+        "confirmation_required": false
+      }
+    },
+    {
+      "name": "search_jira",
+      "purpose": "Tickets/Evidence finden",
+      "source_label": "interne Jira-Schnittstelle",
+      "description": "Find internal Jira tickets used as evidence.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "search terms"
+          },
+          "jira_key": {
+            "type": "string",
+            "description": "Jira key such as ONESCM-123"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          }
+        },
+        "required": []
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "INTERNAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "jira_internal",
+        "writes": false,
+        "confirmation_required": false
+      },
+      "connector": {
+        "type": "internal_api",
+        "configured": false
+      }
+    },
+    {
+      "name": "search_confluence",
+      "purpose": "interne Dokumentation suchen",
+      "source_label": "Confluence",
+      "description": "Search internal Confluence documentation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "search terms"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "INTERNAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "confluence_internal",
+        "writes": false,
+        "confirmation_required": false
+      },
+      "connector": {
+        "type": "internal_api",
+        "configured": false
+      }
+    },
+    {
+      "name": "query_rovo",
+      "purpose": "Rovo-Abfrage (nur intern/freigegeben)",
+      "source_label": "Rovo (intern)",
+      "description": "Ask the internal, approved Rovo agent.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "question for Rovo"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "INTERNAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "rovo_internal",
+        "writes": false,
+        "confirmation_required": false
+      },
+      "connector": {
+        "type": "internal_api",
+        "configured": false
+      }
+    },
+    {
+      "name": "get_claims",
+      "purpose": "Claims laden",
+      "source_label": "oneSCM360",
+      "description": "Load oneSCM360 claims by id or filters.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "description": "claim id such as CLM-1A2B3C4D"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Draft",
+              "Reviewed",
+              "Released",
+              "Rejected"
+            ],
+            "description": "review status"
+          },
+          "evidence": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "indirect",
+              "direct"
+            ],
+            "description": "evidence strength"
+          },
+          "vehicle_type": {
+            "type": "string",
+            "enum": [
+              "PC",
+              "VAN",
+              "CV",
+              "ALL"
+            ],
+            "description": "vehicle division"
+          },
+          "role": {
+            "type": "string",
+            "description": "role id"
+          },
+          "criticality": {
+            "type": "string",
+            "enum": [
+              "CRITICAL",
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ],
+            "description": "criticality"
+          }
+        },
+        "required": []
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": false,
+        "confirmation_required": false
+      }
+    },
+    {
+      "name": "get_evidence",
+      "purpose": "Evidence zu Claim ermitteln",
+      "source_label": "oneSCM360",
+      "description": "Get the evidence records for a claim or chapter.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "description": "claim id"
+          },
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "JIRA",
+              "CONFLUENCE",
+              "ROVO",
+              "HTML",
+              "WORD",
+              "OTHER"
+            ],
+            "description": "evidence source"
+          },
+          "strength": {
+            "type": "string",
+            "enum": [
+              "DIRECT_VALIDATED",
+              "MULTIPLE_CONSISTENT",
+              "DIRECT",
+              "INDIRECT",
+              "OUTDATED",
+              "CONFLICTING",
+              "MISSING"
+            ],
+            "description": "evidence strength"
+          }
+        },
+        "required": []
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": false,
+        "confirmation_required": false
+      }
+    },
+    {
+      "name": "calculate_coverage",
+      "purpose": "Coverage/Gates berechnen",
+      "source_label": "lokaler Service",
+      "description": "Calculate oneSCM360 coverage using approved local rules.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chapter": {
+            "type": "string",
+            "description": "chapter id"
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "questions",
+                "claims",
+                "evidence",
+                "roles",
+                "PC",
+                "VAN",
+                "CV",
+                "PI_status"
+              ]
+            }
+          }
+        },
+        "required": [
+          "chapter"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": false,
+        "confirmation_required": false
+      }
+    },
+    {
+      "name": "validate_chapter",
+      "purpose": "Kapitel validieren",
+      "source_label": "lokales Regelwerk",
+      "description": "Validate a chapter against the local rule set: imports, integrity, blockers, conflicts, open questions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          }
+        },
+        "required": [
+          "chapter"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "READ"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": false,
+        "confirmation_required": false
+      }
+    },
+    {
+      "name": "export_knowledge",
+      "purpose": "JSON/CSV/Review-Paket erzeugen",
+      "source_label": "lokaler Export",
+      "description": "Create a JSON, CSV or review package export of a chapter in the local OneDrive folder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "chapter": {
+            "type": "string",
+            "enum": [
+              "CH01",
+              "CH02",
+              "CH03",
+              "CH04",
+              "CH05",
+              "CH06",
+              "CH07",
+              "CH08",
+              "CH09",
+              "CH10",
+              "CH11",
+              "CH12",
+              "CH13",
+              "CH14",
+              "CH15",
+              "CH16"
+            ],
+            "description": "chapter id CH01-CH16"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "csv",
+              "review_package"
+            ],
+            "description": "export format"
+          }
+        },
+        "required": [
+          "chapter"
+        ]
+      },
+      "security": {
+        "classification": "INTERNAL",
+        "network": "LOCAL_ONLY",
+        "internet_access": false,
+        "authentication_required": true,
+        "authorization_required": true,
+        "audit": true,
+        "allowed_operations": [
+          "WRITE_LOCAL"
+        ],
+        "blocked_operations": [
+          "DELETE",
+          "PUBLIC_SHARE",
+          "EXTERNAL_EXPORT"
+        ],
+        "source": "onescm360",
+        "writes": true,
+        "confirmation_required": true
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 from services import claim_service, conflict_service, coverage_service
 from services.chapter_service import ChapterError, ChapterService
 from services.chat_service import ChatError, ChatService
+from services.policy_service import PolicyError, PolicyService, install_network_guard
 from services.classification_service import ClassificationError, ClassificationService
 from services.export_service import ExportService, table_csv
 from services.import_service import LANGUAGES, MAX_BYTES, ImportError_, ImportService
@@ -83,6 +85,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.errorhandler(RuleError)
     @app.errorhandler(KnowledgeError)
     @app.errorhandler(ChatError)
+    @app.errorhandler(PolicyError)
     def domain_error(exc):
         return jsonify(error=str(exc)), exc.status
 
@@ -137,7 +140,37 @@ def create_app(config: dict | None = None) -> Flask:
                     imports.save(record)
         return snapshot
 
-    chat = ChatService(data, knowledge, imports, rules, classification, compute_coverage, chapters, ROOT / "chat_eval.json",
+    policy = PolicyService(Path(config.get("REGISTRY_PATH") or ROOT / "tool_registry.json"),
+                           Path(config.get("POLICY_PATH") or ROOT / "security_policy.json"),
+                           data.root / "audit.jsonl", config.get("USER"))
+    if policy.policy.get("external_network") is False and config.get("NETWORK_GUARD", True):
+        install_network_guard(policy.policy.get("internal_networks", []))
+    app.extensions["onescm"]["policy"] = policy
+
+    def export_chapter(chapter_id: str, parts: str = "package") -> dict:
+        chapter = chapters.get(chapter_id)
+        records = [r for r in imports.records(chapter_id) if r.get("status") == "COMPLETED"]
+        if not records:
+            raise ImportError_(f"Für {chapter_id} gibt es keinen abgeschlossenen Import.", 409, "NO_IMPORT")
+        snapshot = compute_coverage(chapter_id)
+        kdata = knowledge.load()
+        chapter_knowledge = {
+            "knowledgeBlocks": [k for k in kdata["knowledgeBlocks"] if k["chapterId"] == chapter_id],
+            "claims": [c for c in kdata["claims"] if c["chapterId"] == chapter_id],
+            "evidence": kdata["evidence"],
+            "conflicts": [c for c in kdata["conflicts"] if c["chapterId"] == chapter_id],
+        }
+        try:
+            result = exporter.export_chapter(chapter, records, chapter_knowledge, snapshot, data.raw, parts)
+        except PermissionError as exc:
+            raise ImportError_(str(exc), 409, "EXPORT_NOT_READY") from exc
+        for record in records:
+            record["exportedAt"] = result["manifest"]
+            imports.save(record)
+        return result
+
+    chat = ChatService(data, knowledge, imports, rules, classification, compute_coverage, chapters, policy, export_chapter,
+                       ROOT / "chat_eval.json",
                        config.get("ROUTER_URL", os.environ.get("ONESCM_ROUTER_URL", "")),
                        config.get("ROUTER_MODEL", os.environ.get("ONESCM_ROUTER_MODEL", "")))
     app.extensions["onescm"]["chat"] = chat
@@ -356,29 +389,12 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.post("/api/sync/export")
     def sync_export():
-        chapter_id = body().get("chapterId", "")
-        chapter = chapters.get(chapter_id)
-        records = [r for r in imports.records(chapter_id) if r.get("status") == "COMPLETED"]
-        if not records:
-            return jsonify(error=f"Für {chapter_id} gibt es keinen abgeschlossenen Import."), 409
-        snapshot = compute_coverage(chapter_id)
-        kdata = knowledge.load()
-        chapter_knowledge = {
-            "knowledgeBlocks": [k for k in kdata["knowledgeBlocks"] if k["chapterId"] == chapter_id],
-            "claims": [c for c in kdata["claims"] if c["chapterId"] == chapter_id],
-            "evidence": kdata["evidence"],
-            "conflicts": [c for c in kdata["conflicts"] if c["chapterId"] == chapter_id],
-        }
-        try:
-            result = exporter.export_chapter(chapter, records, chapter_knowledge, snapshot, data.raw)
-        except PermissionError as exc:
-            return jsonify(error=str(exc)), 409
-        for record in records:
-            record["exportedAt"] = result["manifest"]
-            imports.save(record)
-        return jsonify(result), 201
+        return jsonify(export_chapter(body().get("chapterId", ""))), 201
 
-    # -- internal chat bot ------------------------------------------------------------------------
+    # -- internal chat bot (router → policy → tool) ---------------------------------------------------
+    def chat_session():
+        return re.sub(r"[^A-Za-z0-9-]", "", request.headers.get("X-oneSCM360-Session", ""))[:64]
+
     @app.get("/api/chat/info")
     def chat_info():
         return jsonify(chat.info())
@@ -386,7 +402,18 @@ def create_app(config: dict | None = None) -> Flask:
     @app.post("/api/chat")
     def chat_ask():
         payload = body()
-        return jsonify(chat.ask(str(payload.get("message", "")), str(payload.get("mode", "rules"))))
+        return jsonify(chat.ask(str(payload.get("message", "")), str(payload.get("mode", "rules")), chat_session()))
+
+    @app.post("/api/chat/execute")
+    def chat_execute():
+        payload = body()
+        if payload.get("confirm") is not True:
+            return jsonify(error="Ausführung nur mit ausdrücklicher Bestätigung."), 400
+        return jsonify(chat.execute_confirmed(str(payload.get("tool", "")), payload.get("arguments") or {}, chat_session()))
+
+    @app.get("/api/chat/audit")
+    def chat_audit():
+        return jsonify(policy.audit_entries(100))
 
     @app.post("/api/chat/feedback")
     def chat_feedback():

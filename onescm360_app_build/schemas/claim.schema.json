@@ -18,7 +18,7 @@
     "conditional": {"type": "boolean"},
     "uncertain": {"type": "boolean"},
     "criticality": {"enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]},
-    "division": {"enum": ["PC", "VAN", "BOTH", ""]},
+    "division": {"enum": ["PC", "VAN", "CV", "BOTH", ""]},
     "role": {"type": "string", "maxLength": 200},
     "market": {"type": "string", "maxLength": 100},
     "pi": {"type": ["integer", "null"], "minimum": 0, "maximum": 99},

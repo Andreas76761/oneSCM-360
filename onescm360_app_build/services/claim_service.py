@@ -66,7 +66,7 @@ APPROVAL_PREDICATES = {"genehmigen", "freigeben"}
 STOPWORDS = set("der die das den dem des ein eine einen einem einer und oder im in am an auf für mit von zu zum zur bei aus nach über unter vor ist sind wird werden "
                 "the a an and or of to in on for with by from at is are be as it this that diese dieser dieses auch noch bereits "
                 # Scope words (division, restriction) are compared separately, not as part of the object.
-                "pc van vans pkw transporter both beide divisionen nur ausschließlich lediglich only exclusively seit since ab "
+                "pc van vans pkw transporter cv lkw nutzfahrzeug nutzfahrzeuge both beide divisionen nur ausschließlich lediglich only exclusively seit since ab "
                 # Maturity words are compared via the maturity field.
                 "produktiv produktion production productive live betrieb test testing testphase uat umgesetzt implementiert implemented "
                 "entwickelt developed abgenommen accepted geplant planned roadmap vorgesehen".split())
@@ -173,10 +173,15 @@ def _maturity(text: str) -> str:
     return ""
 
 
+CV_RE = re.compile(r"\b(CV|Commercial Vehicles?|Nutzfahrzeuge?n?|Lkw|LKW)\b")
+
+
 def _division(text: str) -> str:
     pc, van = bool(PC_RE.search(text)), bool(VAN_RE.search(text))
     if BOTH_RE.search(text) or (pc and van):
         return "BOTH"
+    if CV_RE.search(text) and not (pc or van):
+        return "CV"
     return "PC" if pc else "VAN" if van else ""
 
 

@@ -92,6 +92,7 @@ def calculate(chapter: dict, claims: list[dict], evidence: list[dict], conflicts
             return 1.0
         return 0.5 if relevant else 0.0
     division = (division_score("PC") + division_score("VAN")) / 2
+    division_scores = {name: round(division_score(name) * 100, 1) for name in ("PC", "VAN", "CV")}
 
     # PI: historical stages PI0-16 plus planning PI17/18
     historical = [c for c in claims if c.get("pi") is not None and c["pi"] <= 16]
@@ -152,6 +153,8 @@ def calculate(chapter: dict, claims: list[dict], evidence: list[dict], conflicts
         "details": {
             "weights": WEIGHTS, "claims": len(claims), "criticalQuestions": f"{critical_q_done}/{critical_q_total}",
             "criticalClaimsEvidenced": f"{sum(1 for c in critical_claims if factor[c['claimId']] >= DIRECT_THRESHOLD)}/{len(critical_claims)}",
+            "divisionScores": division_scores,
+            "claimsReleased": round(100 * sum(1 for c in claims if c["validationStatus"] == "CONFIRMED") / len(claims), 1) if claims else 0.0,
             "roles": role_details, "confidenceParts": {"evidence": round(evidence_score * 100, 1), "consistency": round(consistency * 100, 1),
                                                          "validation": round(validation * 100, 1), "recency": round(recency * 100, 1),
                                                          "independence": round(independent * 100, 1)},

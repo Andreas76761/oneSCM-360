@@ -143,3 +143,14 @@ tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font
 .button-link { display: inline-block; border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 6px 12px; text-decoration: none; font-size: 13px; }
 .button-link:hover { background: var(--accent-soft); }
 @media (max-width: 1000px) { .chat-layout { grid-template-columns: 1fr; } .chat-log { max-height: none; } }
+
+.steps { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.steps li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.steps li.skipped { opacity: .6; }
+.badge.ALLOWED { background: var(--ok-soft); color: var(--ok); } .badge.DENIED { background: var(--bad-soft); color: var(--bad); }
+.msg.bot.denied { border-color: #efc1bc; background: #fff7f6; }
+.audit-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; max-height: 260px; overflow-y: auto; }
+.audit-list li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+#chat-policy { grid-template-columns: max-content minmax(0, 1fr); }
+#chat-policy dd { word-break: normal; overflow-wrap: anywhere; }
+.local-first { margin: 0; padding-left: 18px; font-size: 12px; } .local-first li { margin: 1px 0; }

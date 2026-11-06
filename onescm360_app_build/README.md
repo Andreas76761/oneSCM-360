@@ -53,7 +53,7 @@ powershell.exe -ExecutionPolicy Bypass -File '.\start_onescm360.ps1' -OneDriveRo
 | Tabellen | Separat extrahierte Tabellen ansehen, Quellfrage zuordnen, als JSON oder CSV herunterladen. |
 | Coverage | Readiness, sechs Dimensionen, Gate, Hard Blocker, Konflikte (auflösen mit Begründung), Rollenabdeckung. |
 | Synchronisation | Verbindung zum lokalen OneDrive-Ordner, Ordnerstruktur anlegen, Kapitel exportieren, Hinweise zum manuellen SharePoint-Transfer. |
-| Interner Chat | Fragen in natürlicher Sprache. Ein Router ordnet jede Frage genau einer Funktion mit Parametern zu und führt sie auf den lokalen Daten aus (siehe unten). Nur lesend. |
+| Interner Chat | Fragen in natürlicher Sprache. Der Router wählt genau ein Tool aus der Tool Registry, die Security Policy prüft (default DENY), dann wird es auf den lokalen Daten ausgeführt. Mit Audit-Protokoll, Routing-Testsuite und Trainingsdaten-Export (siehe unten). |
 | Dokumentation | Diese Datei. |
 
 ## Fachliche Regeln
@@ -173,49 +173,86 @@ Hard Blocker:
 - widersprüchlicher Produktivstatus
 - gebrochene referentielle Integrität (auch `CHAPTER_MISMATCH` und `INVALID_JSON`)
 
-## Interner Chat (Router nach FunctionGemma-Prinzip)
+## Interner Chat: Router, Security Policy, Tool Registry
 
-Vorbild ist das Google-Notebook „Fine-tuning with FunctionGemma“ (`google/functiongemma-270m-it`). Ein kleines Modell lernt dort, eine Frage dem richtigen Werkzeug zuzuordnen, im Beispiel interne Wissensbasis oder Google-Suche. Die Anwendung führt das Werkzeug danach aus.
+Vorbild ist das Google-Notebook „Fine-tuning with FunctionGemma“ (`google/functiongemma-270m-it`). Der Chat ist in vier Schichten getrennt:
 
-So arbeitet der Chat:
+```
+UI (Register „Interner Chat“)
+  → lokaler Router (Regeln oder FunctionGemma auf localhost): Intent → Tool → Parameter
+  → Security/Policy Engine: Allowlist · Berechtigung · Schema-Prüfung · Audit · default DENY
+  → Tool Layer (tool_registry.json)
+  → interne Daten (CH01–CH16, Regeln, Claims, Evidence, Knowledge Blocks, Importe)
+╳ Internet  ╳ öffentliches LLM  ╳ externe API  ╳ öffentliche Suche
+```
 
-1. Ein **Router** macht aus der Frage genau einen Funktionsaufruf, z. B. `get_coverage({"chapter": "CH01"})`.
-2. Die App führt die Funktion auf den lokalen Daten aus. Die Antwort zeigt den Aufruf und das Ergebnis mit Links in die Register.
-3. Der Chat ändert keine Daten.
-4. Antworten aus Claims mit Status `DRAFT` oder `REVIEWED` sind als nicht bestätigt markiert. Abgelehnte Claims erscheinen nie.
+**Der Router entscheidet, was getan werden soll. Die Policy entscheidet, ob es getan werden darf.** Coverage, Gates und Validierung berechnet weiterhin der deterministische Python-Service, nie das Modell.
 
-| Funktion | Zweck |
+### Tool Registry v1 (`tool_registry.json`)
+
+| Tool | Zweck | Quelle | Schreibend |
+|---|---|---|---|
+| `search_knowledge` | Knowledge Blocks und freigegebenes Wissen durchsuchen (inkl. Regelwerk) | oneSCM360 Store | Nein |
+| `search_manual` | Handbuch CH01–CH16 durchsuchen (importierte Kapiteltexte) | lokaler Store | Nein |
+| `search_jira` | Tickets/Evidence finden | interne Jira-Schnittstelle | Nein |
+| `search_confluence` | interne Dokumentation suchen | Confluence | Nein |
+| `query_rovo` | Rovo-Abfrage (nur intern/freigegeben) | Rovo | Nein |
+| `get_claims` | Claims laden | oneSCM360 | Nein |
+| `get_evidence` | Evidence zu Claim ermitteln | oneSCM360 | Nein |
+| `calculate_coverage` | Coverage/Gates berechnen (Dimensionen questions, claims, evidence, roles, PC, VAN, CV, PI_status) | lokaler Service | Nein |
+| `validate_chapter` | Kapitel validieren | lokales Regelwerk | Nein |
+| `export_knowledge` | JSON, CSV oder Review-Paket erzeugen | lokaler Export | Ja, nur nach Bestätigung |
+
+Jedes Tool hat:
+
+- **ein JSON-Schema mit Enums**, z. B. `chapter` CH01–CH16, `vehicle_type` PC/VAN/CV/ALL, `status` Draft/Reviewed/Released, `language` DE/EN.
+- **Sicherheits-Metadaten:** `classification`, `network`, `internet_access: false`, `authentication_required`, `authorization_required`, `audit`, `allowed_operations`, `blocked_operations`, `source`, `writes`, `confirmation_required`.
+
+Die App startet nicht, wenn ein Tool Internetzugriff verlangt. Das Modell erhält nur Name, Beschreibung und Schema, nie die Sicherheitsdaten.
+
+Statuszuordnung: `Released` = Claim `CONFIRMED`, `Reviewed` = `REVIEWED`, `Draft` = `DRAFT`.
+
+Jira, Confluence und Rovo sind derzeit als „Connector fehlt“ markiert. Bis eine interne Schnittstelle konfiguriert ist, durchsuchen diese Tools die bereits importierte Evidence der jeweiligen Quelle und sagen das in der Antwort.
+
+### Security Policy v1 (`security_policy.json`)
+
+```
+security_mode: INTERNAL_RESTRICTED · default_policy: DENY
+external_network / external_llm / external_search / telemetry_external: false
+allowed_sources: onescm360, jira_internal, confluence_internal, rovo_internal
+```
+
+Die App startet nicht, wenn `default_policy` nicht `DENY` ist oder ein externer Schalter auf `true` steht.
+
+| Gate | Umsetzung im Pilot |
 |---|---|
-| `search_knowledge` | internes Wissen durchsuchen (optional Kapitel, Rolle, Domäne) |
-| `get_coverage` | Readiness, Gate und Dimensionen eines Kapitels |
-| `list_blockers` | Hard Blocker eines Kapitels |
-| `list_conflicts` | Konflikte, optional nach Status |
-| `find_claims` | Claims nach Kapitel, Status, Evidence (`missing`/`indirect`/`direct`), Rolle, Kritikalität |
-| `get_claim` | einen Claim mit Evidence |
-| `lookup_rule` | Begriff im Regelwerk |
-| `list_imports` | Importe nach Kapitel, Sprache, Rolle, Domäne |
-| `search_tables` | Tabellen durchsuchen |
-| `search_external` | Jira, Confluence, Rovo oder Web |
+| 1 Authentication | lokaler Windows-Benutzer (Einzelplatz, localhost). SSO/Entra ID ist laut Projektentscheidung im Pilot nicht vorgesehen. |
+| 2 Authorization | Profile je Benutzer in `profiles`: erlaubte Tools (Muster wie `search_*`), Kapitel und Operationen (`READ`, `WRITE_LOCAL`). Ohne Profil wird abgelehnt. Kapitelrechte filtern auch Suchergebnisse. Der Router kann sie nicht überschreiben. |
+| 3 Tool-Allowlist | nur Tools der Registry. `search_web`, `send_email`, `delete_data`, `http_request` usw. werden vorgeschlagen, aber abgelehnt und protokolliert. |
+| 4 Netzwerk | Im App-Prozess scheitert jede ausgehende Verbindung außer zu localhost (und den optional in `internal_networks` freigegebenen internen Netzen) technisch. Das lokale Modell muss auf localhost laufen. Ergänzend wird eine Firewall-Regel empfohlen, denn andere Programme auf dem Rechner deckt diese Sperre nicht ab. |
+| 5 Audit | `data/audit.jsonl` pro Aufruf: Zeitpunkt, Benutzer, Session, Tool, Operation, Klassifikation, ALLOWED/DENIED, ausgeführt, Begründung, Router. Die Frage wird nur als Hash und Länge gespeichert, Suchtexte als Zeichenzahl. Mit `audit_include_prompt: true` würde die Frage im Klartext gespeichert. |
 
-`search_external` wird erkannt, ist aber nicht angebunden, gemäß der Entscheidung „kein Graph, keine Tokens“. Der Chat liefert dann eine kopierbare Suchanfrage.
+### Local First
 
-### Router-Modi
+Wissensfragen ohne ausdrücklichen Status durchlaufen diese Reihenfolge. Die erste Quelle mit Treffern liefert die Antwort:
 
-- **Regeln (Standard):** offline, ohne KI-Modell, reproduzierbar.
-- **Lokales Modell:** Das Modell wird über die Ollama-API `/api/chat` mit den Funktionsdeklarationen aufgerufen.
-  - Adresse und Modell kommen aus `ONESCM_ROUTER_URL` (Standard `http://127.0.0.1:11434`, nur localhost erlaubt) und `ONESCM_ROUTER_MODEL` (Standard `functiongemma`).
-  - Erkannt werden Ollama-`tool_calls` und das rohe FunctionGemma-Format `<start_function_call>call:…{…}<end_function_call>`.
-  - Unbekannte Funktionen und ungültige Parameter werden verworfen.
-  - Ist das Modell nicht erreichbar oder die Antwort ungültig, antwortet der Regel-Router und zeigt einen Hinweis.
+1. `search_knowledge` mit Status **Released** (inkl. Regelwerk)
+2. `search_knowledge` mit Status Reviewed, dann Draft (als „nicht freigegeben“ gekennzeichnet)
+3. `search_manual`
+4. `search_jira`, dann `search_confluence`, dann `query_rovo`
+5. Ende: „Keine freigegebene Quelle gefunden.“ Es gibt keinen automatischen Rückgriff auf das Internet.
 
-### Router-Test und Trainingsdaten
+Jeder Schritt ist ein eigener, policy-geprüfter und auditierter Aufruf. Die Antwort zeigt die Kette.
 
-- **Router testen:** prüft den gewählten Router gegen den Testsatz `chat_eval.json` mit 24 Fragen und zeigt `Success: x / 24`, wie `check_success_rate` im Notebook.
-- **Feedback:** Unter jeder Antwort bestätigen Sie die Funktion („✓ Ja“) oder wählen die richtige. Das Feedback landet in `data/chat_feedback.jsonl`.
-- **Trainingsdaten:** Der Export enthält Vorlagen über alle Kapitel, Rollen, Domänen und Regelwerksbegriffe sowie das bestätigte Feedback. Die Fragen des Testsatzes sind ausgeschlossen. Formate:
-  - Notebook-Format: `user_content`, `tool_name`, `tool_arguments` als JSON-String.
-  - Chat-Format: `messages` mit Rollen `developer`/`user`/`assistant` und `tool_calls` sowie `tools`.
-- Das Fine-Tuning selbst ist nicht Teil der App. Es läuft wie im Notebook mit Transformers/TRL `SFTTrainer`, z. B. in Colab.
+### Router-Modi, Testsuite, Trainingsdaten
+
+- **Router-Modi:**
+  - Regeln (Standard, offline).
+  - Lokales Modell über die Ollama-API `/api/chat` (`ONESCM_ROUTER_URL`, nur localhost; `ONESCM_ROUTER_MODEL`, Standard `functiongemma`). Erkannt werden Ollama-`tool_calls` und das rohe FunctionGemma-Format `<start_function_call>call:…{…}<end_function_call>`.
+  - Was das Modell vorschlägt, läuft genauso durch die Policy. Ist es nicht erreichbar, antwortet der Regel-Router.
+- **Routing-Testsuite** `chat_eval.json`: 30 Fälle mit erwartetem Tool, Kernparametern und, wo angegeben, der Policy-Entscheidung (u. a. Internet, E-Mail, Löschen → DENIED). Die Anzeige ist `Success: x / 30`, wie `check_success_rate` im Notebook.
+- **Trainingsdaten:** Vorlagen über alle Kapitel, Rollen, Fahrzeugtypen und Regelbegriffe sowie bestätigtes Chat-Feedback. Enthalten sind nur Registry-Tools, die Testsuite ist ausgeschlossen. Formate: Notebook-Format (`user_content`, `tool_name`, `tool_arguments`) oder Chat-Format mit `tool_calls`.
+- **Empfohlene Reihenfolge:** Tool Registry → Security Policy → Routing-Testsuite → Trainingsdatensatz → lokales Fine-Tuning (TRL `SFTTrainer`, wie im Notebook) → Offline-Akzeptanztest mit derselben Testsuite im Modus „Lokales Modell“.
 
 ## Export (OneDrive)
 
@@ -306,7 +343,9 @@ onescm360_app_build/
 ├── static/                 app.js, style.css
 ├── rules.json              editierbares Regelwerk
 ├── classification.json     Rollen und Domänen für den Mehrfachimport
-├── chat_eval.json          Testsatz für den Chat-Router
+├── tool_registry.json      Tool Registry v1 (Schemas + Sicherheits-Metadaten)
+├── security_policy.json    Security Policy v1 (INTERNAL_RESTRICTED, default DENY, Profile)
+├── chat_eval.json          Routing-Testsuite
 ├── chapters/CH01…CH16.json Kapitelkonfiguration (Fragen, Kritikalität, Rollen)
 ├── schemas/                import.schema.json, claim.schema.json
 ├── services/               import, docx/html parser, rules, claims, knowledge, conflicts, coverage, export
