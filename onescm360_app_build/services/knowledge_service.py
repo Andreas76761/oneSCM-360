@@ -36,6 +36,7 @@ class KnowledgeService:
         self.chapters = chapters
         with Path(schema_path).open(encoding="utf-8") as handle:
             self.claim_schema = json.load(handle)
+        self.role_catalog = lambda: []  # replaced by the app with the configured role catalog
 
     # -- persistence -----------------------------------------------------
     def load(self) -> dict:
@@ -175,7 +176,7 @@ class KnowledgeService:
                     data["knowledgeBlocks"].append(kb)
                 kid = kb["knowledgeId"]
             base = {"claimId": short_id("CLM"), "knowledgeId": kid, "chapterId": chapter_id, "questionId": question_id,
-                    "canonicalStatement": statement, **analyse_statement(statement, chapter.get("roles", []), systems),
+                    "canonicalStatement": statement, **analyse_statement(statement, self.role_catalog() or chapter.get("roles", []), systems),
                     "criticality": question["criticality"], "evidenceStatus": "NOT_EVIDENCED",
                     "validationStatus": "DRAFT", "confidence": 0.5, "sourceImportId": "MANUAL", "reviewNote": ""}
             claim = self._coerce_claim({k: v for k, v in payload.items() if k not in ("chapterId",)}, base)

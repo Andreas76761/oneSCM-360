@@ -10,6 +10,8 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from .claim_service import find_roles
+
 CHAPTER_IN_NAME = re.compile(r"(?:^|[^A-Za-z])(?:CH|Kap(?:itel)?|Chapter)[\s_.-]*0?(\d{1,2})(?!\d)", re.I)
 QUESTION_PREFIX = re.compile(r"(?:^|\s)(?:CH\s*)?(\d{2})\s*[-–_]\s*F\s*\d{1,2}\b", re.I | re.M)
 LANG_IN_NAME = re.compile(r"(?:^|[^A-Za-z])(DE[+_&-]?EN|EN[+_&-]?DE|DE|EN|deutsch|german|englisch|english)(?![A-Za-z])", re.I)
@@ -77,15 +79,44 @@ class ClassificationService:
         ids = [d.get("id") for d in domains]
         if not all(isinstance(i, str) and re.fullmatch(r"[a-z0-9-]{1,60}", i) for i in ids) or len(set(ids)) != len(ids):
             raise ClassificationError("classification.json: Domänen-IDs fehlen oder sind doppelt.")
-        return {"roles": [str(r) for r in data.get("roles") or []], "domains": domains}
+        roles = []
+        for role in data.get("roles") or []:
+            if isinstance(role, str):
+                role = {"id": role, "name": role, "aliases": [role]}
+            if not isinstance(role, dict) or not isinstance(role.get("id"), str) or not role["id"].strip():
+                raise ClassificationError("classification.json: jede Rolle braucht eine ID.")
+            roles.append({"id": role["id"], "name": role.get("name") or role["id"],
+                          "aliases": [str(a) for a in role.get("aliases") or [] if str(a).strip()]})
+        if len({r["id"] for r in roles}) != len(roles):
+            raise ClassificationError("classification.json: Rollen-IDs sind doppelt.")
+        return {"roles": roles, "domains": domains}
 
-    def roles(self) -> list[str]:
+    def role_catalog(self) -> list[dict]:
+        """Configured roles plus any role a chapter references that is not in the catalog."""
         roles = list(self.config()["roles"])
+        known = {r["id"] for r in roles}
         for chapter in self.chapters.list():
             for role in self.chapters.get(chapter["chapterId"]).get("roles", []):
-                if role not in roles:
-                    roles.append(role)
+                if role not in known:
+                    roles.append({"id": role, "name": role, "aliases": [role]})
+                    known.add(role)
         return roles
+
+    def roles(self) -> list[str]:
+        return [r["id"] for r in self.role_catalog()]
+
+    def normalize_role(self, value: str) -> str | None:
+        """Map an ID, display name or alias (e.g. "Market Operations") to the role ID ("MO")."""
+        value = (value or "").strip()
+        if not value:
+            return ""
+        for role in self.role_catalog():
+            if value == role["id"]:
+                return role["id"]
+        for role in self.role_catalog():
+            if value.casefold() in {a.casefold() for a in [role["name"], *role["aliases"]]}:
+                return role["id"]
+        return None
 
     def domains(self) -> list[dict]:
         return [{"id": d["id"], "name": d["name"]} for d in self.config()["domains"]]
@@ -94,7 +125,7 @@ class ClassificationService:
         return next((d["name"] for d in self.config()["domains"] if d["id"] == domain_id), "")
 
     def validate(self, role: str, domain: str):
-        if role and role not in self.roles():
+        if role and self.normalize_role(role) is None:
             raise ClassificationError(f"Unbekannte Rolle „{role}“.")
         if domain and domain not in {d["id"] for d in self.config()["domains"]}:
             raise ClassificationError(f"Unbekannte Domäne „{domain}“.")
@@ -113,12 +144,20 @@ class ClassificationService:
         stem = Path(name).stem.replace("_", " ").replace("-", " ")
 
         role, role_source = "", ""
-        for role_name in self.roles():
-            if _count(role_name, stem):
-                role, role_source = role_name, "Dateiname"
-                break
-        if not role:
-            scores = Counter({r: _count(r, text) for r in self.roles()})
+        catalog = self.role_catalog()
+        # Domain names such as "Market Setting" must not count as the role "Market".
+        domain_names = [d["name"] for d in self.config()["domains"]]
+
+        def without_domains(value: str) -> str:
+            for name in domain_names:
+                value = re.sub(re.escape(name), " ", value, flags=re.I)
+            return value
+
+        name_hits = find_roles(without_domains(stem), catalog)
+        if name_hits:
+            role, role_source = name_hits[0][1], "Dateiname"
+        else:
+            scores = Counter(rid for _pos, rid, _text in find_roles(without_domains(text), catalog))
             best = scores.most_common(2)
             # A clear majority is required; documents that cover several roles stay "Alle Rollen".
             if best and best[0][1] >= 2 and (len(best) == 1 or best[0][1] >= 2 * best[1][1]):

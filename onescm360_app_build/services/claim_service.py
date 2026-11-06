@@ -102,13 +102,45 @@ def split_sentences(text: str) -> list[str]:
     return sentences
 
 
+def role_matchers(roles) -> list[tuple[str, str, re.Pattern]]:
+    """Build (roleId, alias, pattern) for a role catalog; plain strings are their own single alias.
+
+    Longer aliases are tried first so that "Market Operations" (MO) wins over "Market".
+    Short upper-case aliases such as IT, HQ or MO are matched case-sensitively ("it" is no role).
+    """
+    items = []
+    for role in roles or []:
+        if isinstance(role, str):
+            rid, aliases = role, [role]
+        else:
+            rid = role["id"]
+            aliases = list(dict.fromkeys([*role.get("aliases", []), rid, role.get("name", rid)]))
+        items.extend((rid, alias) for alias in aliases if alias)
+    items.sort(key=lambda item: -len(item[1]))
+    result = []
+    for rid, alias in items:
+        flags = 0 if alias.isupper() and len(alias) <= 3 else re.IGNORECASE
+        result.append((rid, alias, re.compile(r"(?<![\wÄÖÜäöüß])" + re.escape(alias) + r"(?![\wÄÖÜäöüß])", flags)))
+    return result
+
+
+def find_roles(text: str, roles) -> list[tuple[int, str, str]]:
+    """Return (position, roleId, matched text) for every role mention, longest alias first."""
+    masked = text
+    hits = []
+    for rid, _alias, pattern in role_matchers(roles):
+        for match in pattern.finditer(masked):
+            hits.append((match.start(), rid, match.group(0)))
+        masked = pattern.sub(lambda m: " " * len(m.group(0)), masked)
+    return sorted(hits)
+
+
 def split_conjunctions(sentence: str, roles: list[str]) -> list[str]:
     """Split coordinated statements unless the sentence is conditional."""
     if CONDITION.search(sentence):
         return [sentence]
     parts = [p.strip(" ,;") for p in re.split(r"\s*;\s*", sentence) if p.strip(" ,;")]
     result = []
-    role_re = re.compile("|".join(re.escape(r) for r in roles), re.I) if roles else None
     for part in parts:
         pieces = re.split(r",?\s+(?:und|sowie|and|as well as)\s+", part)
         if len(pieces) < 2:
@@ -116,7 +148,7 @@ def split_conjunctions(sentence: str, roles: list[str]) -> list[str]:
             continue
         current = pieces[0]
         for piece in pieces[1:]:
-            distinct = (_has_verb(piece) or (role_re and role_re.search(piece)) or PI_RE.search(piece)
+            distinct = (_has_verb(piece) or find_roles(piece, roles) or PI_RE.search(piece)
                         or PC_RE.search(piece) or VAN_RE.search(piece) or _maturity(piece))
             if distinct and len(_words(piece)) >= 3 and len(_words(current)) >= 3:
                 result.append(current.strip())
@@ -150,7 +182,9 @@ def _division(text: str) -> str:
 
 def analyse_statement(text: str, roles: list[str], systems: list[str]) -> dict:
     lowered = text.lower()
-    role = next((r for r in roles if re.search(r"(?<!\w)" + re.escape(r) + r"(?!\w)", text, re.I)), "")
+    role_hits = find_roles(text, roles)
+    role = role_hits[0][1] if role_hits else ""
+    role_text = role_hits[0][2] if role_hits else ""
     system = next((s for s in systems if re.search(r"(?<!\w)" + re.escape(s) + r"(?!\w)", text, re.I)), "")
     modal = next((MODALS[w] for w in _words(lowered) if w in MODALS), "")
     verb = ""
@@ -169,7 +203,7 @@ def analyse_statement(text: str, roles: list[str], systems: list[str]) -> dict:
         words = _words(text)
         subject = " ".join(words[:3]) if words else ""
     obj_text = text
-    for remove in filter(None, [subject, role, system]):
+    for remove in filter(None, [role_text, subject, role, system]):
         obj_text = re.sub(re.escape(remove), " ", obj_text, flags=re.I)
     obj_text = SOURCE_SYSTEM_RE.sub(" ", obj_text)
     obj_text = PI_RE.sub(" ", obj_text)
@@ -209,9 +243,9 @@ def evidence_factor(evidence: dict) -> float:
     return EVIDENCE_FACTORS.get(evidence.get("evidenceStrength", "MISSING"), 0.0)
 
 
-def build_from_import(record: dict, chapter: dict, systems: list[str], source_type: str) -> dict:
+def build_from_import(record: dict, chapter: dict, systems: list[str], source_type: str, role_catalog=None) -> dict:
     """Create knowledge blocks, claims and evidence proposals for one import."""
-    roles = chapter.get("roles", [])
+    roles = role_catalog or chapter.get("roles", [])
     criticality = {q["questionId"]: q["criticality"] for q in chapter["questions"]}
     blocks, claims, evidence = [], [], []
     base_strength = IMPORT_SOURCE_STRENGTH.get(source_type, "INDIRECT")

@@ -72,12 +72,36 @@ Beim Auswählen liest die App jede Datei, ohne sie zu importieren (`POST /api/im
 |---|---|---|
 | Kapitel | `CH05`, `Kapitel 5`, `Chapter 05` | häufigste Fragekennung `05-F..` |
 | Sprache | `_DE`, `_EN`, `_DE_EN`, `deutsch`, `english` | Anteil deutscher bzw. englischer Funktionswörter; beides deutlich vertreten ergibt `DE+EN` |
-| Rolle | Rollenname, z. B. `Dealer` | klar überwiegend genannte Rolle, sonst „Alle Rollen“ |
+| Rolle | Rollenname oder Schreibvariante, z. B. `Dealer`, `MO`, `Market-Operations`, `HQ` | klar überwiegend genannte Rolle, sonst „Alle Rollen“ |
 | Domäne | Domänenname oder Stichwort, z. B. `Finance` | Stichwort-Treffer mit klarem Vorsprung, sonst „Ohne Domäne“ |
 
 Nicht erkannte Angaben übernehmen die Standardwerte oberhalb der Liste. In der Liste steht bei jedem Wert, woher er stammt: „erkannt: Dateiname“, „erkannt: Inhalt“ oder „manuell“.
 
-Rollen und Domänen stehen in `classification.json`. Die sieben Domänen entsprechen denen der bestehenden Handbuch-App:
+Rollen und Domänen stehen in `classification.json`.
+
+### Rollen
+
+| ID | Anzeige | Erkannt als |
+|---|---|---|
+| `Dealer` | Dealer | Dealer, Händler, Autohaus |
+| `MO` | MO (Market Operations) | MO, Market Operations, Market Operation |
+| `HQ` | HQ | HQ, Headquarters, Zentrale |
+| `Market` | Market | Market, Markt, Märkte, Markets |
+| `IT` | IT | IT, IT-Abteilung, IT department |
+| `intern` | intern | intern, interne, internal |
+
+Regeln für die Erkennung:
+
+- Längere Schreibvarianten gehen vor. „Market Operations“ ergibt also MO und nicht Market.
+- Domänennamen wie „Market Setting“ zählen nicht als Rolle.
+- Kurze Großbuchstaben-Kürzel (MO, HQ, IT) werden nur in genau dieser Schreibweise erkannt. Das englische „it“ ist also keine Rolle.
+- Gespeichert wird immer die ID. Eine Schreibvariante als Eingabe, z. B. „Market Operations“, wird auf die ID umgesetzt.
+
+Rollen und Varianten lassen sich in `classification.json` ergänzen.
+
+Die Rollenabdeckung im Coverage bewertet nur die Rollen, die in `chapters/CHxx.json` unter `roles` stehen. Derzeit sind das Dealer und MO. Weitere Rollen werden dort je Kapitel aufgenommen.
+
+Die sieben Domänen entsprechen denen der bestehenden Handbuch-App: Die sieben Domänen entsprechen denen der bestehenden Handbuch-App:
 
 - Product Management
 - Contract Generation

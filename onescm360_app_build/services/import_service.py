@@ -140,6 +140,8 @@ class ImportService:
     def run(self, filename: str, data: bytes, chapter_id: str, language: str, source_type: str = "ROVO",
             force: bool = False, role: str = "", domain: str = "") -> dict:
         name, ftype = self.validate_upload(filename, data, chapter_id, language, source_type, role, domain)
+        if self.classification and role:
+            role = self.classification.normalize_role(role)
         digest = hashlib.sha256(data).hexdigest()
         with LOCK:
             existing = next((r for r in self.records(chapter_id)
@@ -171,7 +173,8 @@ class ImportService:
                 self._step(record, "PARSED")
                 self._analyse(record, parsed)
                 self._step(record, "ANALYZED")
-                bundle = claim_service.build_from_import(record, self.chapters.get(chapter_id), self.rules.systems(), source_type)
+                bundle = claim_service.build_from_import(record, self.chapters.get(chapter_id), self.rules.systems(), source_type,
+                                                         self.classification.role_catalog() if self.classification else None)
                 record["counts"] = {k: len(v) for k, v in bundle.items()}
                 jsonschema.validate(record, self.schema)
                 self.knowledge.add_import(bundle)

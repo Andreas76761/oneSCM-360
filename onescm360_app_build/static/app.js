@@ -178,14 +178,14 @@
   const labelFor = {
     chapterId: (v) => { const c = state.meta.chapters.find((x) => x.chapterId === v); return c ? `${c.chapterId} – ${c.title}` : "Kapitel fehlt"; },
     language: (v) => v || "Sprache fehlt",
-    role: (v) => v || "Alle Rollen",
+    role: (v) => (v ? (state.meta.roles.find((r) => r.id === v) || { name: v }).name : "Alle Rollen"),
     domain: (v) => (state.meta.domains.find((d) => d.id === v) || {}).name || "Ohne Domäne",
     name: (v) => (v || "?").slice(0, 1).toUpperCase(),
   };
   const fieldOptions = {
     chapterId: () => [["", "— Kapitel wählen —"], ...chapterOptions()],
     language: () => [["", "— Sprache wählen —"], ...state.meta.languages],
-    role: () => [["", "Alle Rollen"], ...state.meta.roles],
+    role: () => [["", "Alle Rollen"], ...state.meta.roles.map((r) => [r.id, r.name])],
     domain: () => [["", "Ohne Domäne"], ...state.meta.domains.map((d) => [d.id, d.name])],
     sourceType: () => state.meta.sourceTypes,
   };
@@ -545,7 +545,7 @@
       field("Subject", "subject", el("input", { value: claim.subject || "" })),
       field("Predicate", "predicate", el("input", { value: claim.predicate || "" })),
       el("label", { class: "wide" }, "Object (normalisierte Begriffe)", el("input", { "data-field": "object", value: claim.object || "" })),
-      field("Rolle", "role", select([["", "—"], ...cfg.roles.map((r) => [r, r])], claim.role || "")),
+      field("Rolle", "role", select([["", "—"], ...state.meta.roles.map((r) => [r.id, r.name]), ...(claim.role && !state.meta.roles.some((r) => r.id === claim.role) ? [[claim.role, claim.role]] : [])], claim.role || "")),
       field("Division", "division", select([["", "—"], "PC", "VAN", "BOTH"], claim.division || "")),
       field("Markt", "market", el("input", { value: claim.market || "" })),
       field("PI", "pi", el("input", { type: "number", min: 0, max: 99, value: claim.pi ?? "" })),
@@ -716,7 +716,7 @@
     const table = $("cov-roles");
     table.tHead.replaceChildren(el("tr", {}, el("th", { text: "Rolle" }), checks.map((c) => el("th", { text: c }))));
     if (!names.length) emptyRow(table.tBodies[0], 1, "Keine Rollen im Kapitel konfiguriert.");
-    else table.tBodies[0].replaceChildren(...names.map((n) => el("tr", {}, el("td", { text: n }), checks.map((c) => el("td", { text: roles[n][c] ? "✓" : "—" })))));
+    else table.tBodies[0].replaceChildren(...names.map((n) => el("tr", {}, el("td", { text: labelFor.role(n) }), checks.map((c) => el("td", { text: roles[n][c] ? "✓" : "—" })))));
   };
   $("cov-chapter").addEventListener("change", () => loaders.coverage());
   $("cov-refresh").addEventListener("click", () => loaders.coverage().then(() => toast("Coverage neu berechnet.")).catch((e) => toast(e.message, true)));

@@ -44,6 +44,7 @@ def create_app(config: dict | None = None) -> Flask:
     knowledge = KnowledgeService(data.knowledge, ROOT / "schemas" / "claim.schema.json", chapters)
     classification = ClassificationService(Path(config.get("CLASSIFICATION_PATH") or ROOT / "classification.json"), chapters)
     imports = ImportService(data, chapters, rules, knowledge, ROOT / "schemas" / "import.schema.json", classification)
+    knowledge.role_catalog = classification.role_catalog
     exporter = ExportService(data, config.get("ONEDRIVE_ROOT", os.environ.get("ONESCM_LOCAL_ONEDRIVE_ROOT")))
     app.extensions["onescm"] = {"data": data, "chapters": chapters, "rules": rules, "knowledge": knowledge,
                                 "imports": imports, "exporter": exporter}
@@ -145,7 +146,8 @@ def create_app(config: dict | None = None) -> Flask:
                        sourceTypes=claim_service.SOURCE_TYPES, ruleCategories=CATEGORIES,
                        evidenceStrengths=claim_service.EVIDENCE_FACTORS, validationStatuses=VALIDATION_STATUSES,
                        evidenceStatuses=EVIDENCE_STATUSES, conflictStatuses=CONFLICT_STATUSES,
-                       roles=classification.roles(), domains=classification.domains(),
+                       roles=[{"id": r["id"], "name": r["name"]} for r in classification.role_catalog()],
+                       domains=classification.domains(),
                        maxUploadBytes=MAX_BYTES, csrfHeader=CSRF_HEADER)
 
     @app.get("/api/chapters/<chapter_id>")

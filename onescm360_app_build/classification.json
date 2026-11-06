@@ -1,19 +1,185 @@
 {
-  "roles": ["Dealer", "Market Operations"],
+  "roles": [
+    {
+      "id": "Dealer",
+      "name": "Dealer",
+      "aliases": [
+        "Dealer",
+        "Dealers",
+        "Händler",
+        "Händlerin",
+        "Autohaus"
+      ]
+    },
+    {
+      "id": "MO",
+      "name": "MO (Market Operations)",
+      "aliases": [
+        "MO",
+        "Market Operations",
+        "Market Operation"
+      ]
+    },
+    {
+      "id": "HQ",
+      "name": "HQ",
+      "aliases": [
+        "HQ",
+        "Headquarters",
+        "Headquarter",
+        "Zentrale"
+      ]
+    },
+    {
+      "id": "Market",
+      "name": "Market",
+      "aliases": [
+        "Market",
+        "Markt",
+        "Märkte",
+        "Markets"
+      ]
+    },
+    {
+      "id": "IT",
+      "name": "IT",
+      "aliases": [
+        "IT",
+        "IT-Abteilung",
+        "IT department"
+      ]
+    },
+    {
+      "id": "intern",
+      "name": "intern",
+      "aliases": [
+        "intern",
+        "interne",
+        "internal"
+      ]
+    }
+  ],
   "domains": [
-    {"id": "product-management", "name": "Product Management",
-     "keywords": ["product management", "produktmanagement", "produkt", "produkte", "product", "products", "eligibility", "zulässigkeit", "fahrzeugmodell", "baureihe"]},
-    {"id": "contract-generation", "name": "Contract Generation",
-     "keywords": ["contract generation", "vertragserstellung", "vertragsgenerierung", "vertrag erstellen", "angebot", "angebote", "offer", "quote", "template", "vorlage"]},
-    {"id": "contract-management", "name": "Contract Management",
-     "keywords": ["contract management", "vertragsverwaltung", "vertragsmanagement", "vertragsänderung", "kündigung", "stornierung", "storno", "verlängerung", "amendment", "termination", "cancellation"]},
-    {"id": "customer-management", "name": "Customer Management",
-     "keywords": ["customer management", "kundenverwaltung", "kundenmanagement", "kunde", "kunden", "kundendaten", "customer", "customers", "endkunde"]},
-    {"id": "finance-management", "name": "Finance Management",
-     "keywords": ["finance management", "finanzmanagement", "finance", "finanzen", "rechnung", "rechnungen", "invoice", "invoices", "zahlung", "payment", "gutschrift", "credit note", "steuer", "tax", "währung", "currency", "preis", "preise", "price", "pricing"]},
-    {"id": "market-setting", "name": "Market Setting",
-     "keywords": ["market setting", "market settings", "marktkonfiguration", "markteinstellung", "markteinstellungen", "marktspezifisch", "länderkonfiguration", "country setting", "localisation", "lokalisierung"]},
-    {"id": "admin-section", "name": "Admin Section",
-     "keywords": ["admin section", "administration", "admin", "benutzerverwaltung", "user management", "rollenverwaltung", "berechtigungsverwaltung", "stammdatenpflege", "systemeinstellungen"]}
+    {
+      "id": "product-management",
+      "name": "Product Management",
+      "keywords": [
+        "product management",
+        "produktmanagement",
+        "produkt",
+        "produkte",
+        "product",
+        "products",
+        "eligibility",
+        "zulässigkeit",
+        "fahrzeugmodell",
+        "baureihe"
+      ]
+    },
+    {
+      "id": "contract-generation",
+      "name": "Contract Generation",
+      "keywords": [
+        "contract generation",
+        "vertragserstellung",
+        "vertragsgenerierung",
+        "vertrag erstellen",
+        "angebot",
+        "angebote",
+        "offer",
+        "quote",
+        "template",
+        "vorlage"
+      ]
+    },
+    {
+      "id": "contract-management",
+      "name": "Contract Management",
+      "keywords": [
+        "contract management",
+        "vertragsverwaltung",
+        "vertragsmanagement",
+        "vertragsänderung",
+        "kündigung",
+        "stornierung",
+        "storno",
+        "verlängerung",
+        "amendment",
+        "termination",
+        "cancellation"
+      ]
+    },
+    {
+      "id": "customer-management",
+      "name": "Customer Management",
+      "keywords": [
+        "customer management",
+        "kundenverwaltung",
+        "kundenmanagement",
+        "kunde",
+        "kunden",
+        "kundendaten",
+        "customer",
+        "customers",
+        "endkunde"
+      ]
+    },
+    {
+      "id": "finance-management",
+      "name": "Finance Management",
+      "keywords": [
+        "finance management",
+        "finanzmanagement",
+        "finance",
+        "finanzen",
+        "rechnung",
+        "rechnungen",
+        "invoice",
+        "invoices",
+        "zahlung",
+        "payment",
+        "gutschrift",
+        "credit note",
+        "steuer",
+        "tax",
+        "währung",
+        "currency",
+        "preis",
+        "preise",
+        "price",
+        "pricing"
+      ]
+    },
+    {
+      "id": "market-setting",
+      "name": "Market Setting",
+      "keywords": [
+        "market setting",
+        "market settings",
+        "marktkonfiguration",
+        "markteinstellung",
+        "markteinstellungen",
+        "marktspezifisch",
+        "länderkonfiguration",
+        "country setting",
+        "localisation",
+        "lokalisierung"
+      ]
+    },
+    {
+      "id": "admin-section",
+      "name": "Admin Section",
+      "keywords": [
+        "admin section",
+        "administration",
+        "admin",
+        "benutzerverwaltung",
+        "user management",
+        "rollenverwaltung",
+        "berechtigungsverwaltung",
+        "stammdatenpflege",
+        "systemeinstellungen"
+      ]
+    }
   ]
 }
