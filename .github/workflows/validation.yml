@@ -36,7 +36,14 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: python -m pip install -r requirements.txt playwright==1.62.0
-      - run: python -m playwright install --with-deps chromium
+      - name: Install Chromium (retry, the apt download sometimes stalls)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            timeout 300 python -m playwright install --with-deps chromium && exit 0
+            echo "Attempt $attempt failed or timed out, retrying"
+          done
+          exit 1
       - name: Run all browser workflows
         run: |
           python - <<'PY'
