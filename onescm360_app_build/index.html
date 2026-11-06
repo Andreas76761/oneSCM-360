@@ -30,8 +30,8 @@
       <div class="panel-head"><h1 id="h-dashboard">Dashboard</h1><button id="dash-refresh" class="secondary">Aktualisieren</button></div>
       <div class="kpis" id="kpis"></div>
       <div class="card" id="dash-onedrive"></div>
-      <h2>Importläufe</h2>
-      <div class="table-wrap"><table id="dash-imports"><thead><tr><th>Import-ID</th><th>Kapitel</th><th>Datei</th><th>Status</th><th>Validierung</th><th>Fragen</th><th>Tabellen</th><th>Gate</th><th>Aktionen</th></tr></thead><tbody></tbody></table></div>
+      <div class="panel-head queue-head"><h2>Importläufe</h2><label class="inline">Ordnen nach <select id="dash-group"><option value="">Datum</option><option value="chapterId">Kapitel</option><option value="language">Sprache</option><option value="role">Rolle</option><option value="domain">Domäne</option></select></label></div>
+      <div class="table-wrap"><table id="dash-imports"><thead><tr><th>Import-ID</th><th>Kapitel</th><th>Datei</th><th>Sprache</th><th>Rolle</th><th>Domäne</th><th>Status</th><th>Validierung</th><th>Fragen</th><th>Tabellen</th><th>Gate</th><th>Aktionen</th></tr></thead><tbody></tbody></table></div>
       <h2>Output-Dateien (OneDrive-Ziel)</h2>
       <div class="table-wrap"><table id="dash-outputs"><thead><tr><th>Datei</th><th>Relativer Pfad</th><th>Größe</th><th>Geändert</th></tr></thead><tbody></tbody></table></div>
     </section>
@@ -39,13 +39,38 @@
     <!-- Import -->
     <section id="tab-import" class="panel" hidden aria-labelledby="h-import">
       <div class="panel-head"><h1 id="h-import">Kapitelimport</h1></div>
-      <form id="import-form" class="card form-grid" novalidate>
-        <label>Kapitel<select id="imp-chapter" name="chapterId" required></select></label>
-        <label>Sprache<select id="imp-language" name="language"></select></label>
-        <label>Quelltyp<select id="imp-source" name="sourceType"></select></label>
-        <label class="wide">Datei (.docx, .html, .htm – max. 50 MB)<input type="file" id="imp-file" name="file" accept=".docx,.html,.htm"></label>
-        <label class="check"><input type="checkbox" id="imp-force"> Gleiche Datei erneut verarbeiten</label>
-        <div class="wide actions"><button type="submit" id="imp-submit" class="primary">Importieren</button></div>
+      <form id="import-form" novalidate>
+        <div class="card">
+          <label class="drop" for="imp-file">
+            <span class="drop-title">Dateien auswählen oder hierher ziehen</span>
+            <span class="muted">.docx, .html, .htm · je Datei max. 50 MB · Mehrfachauswahl möglich</span>
+            <input type="file" id="imp-file" name="file" accept=".docx,.html,.htm" multiple>
+          </label>
+          <h2>Standard für nicht erkannte Angaben</h2>
+          <p class="muted">Kapitel, Sprache, Rolle und Domäne werden je Datei aus Dateiname und Inhalt vorgeschlagen. Was nicht erkannt wird, übernimmt diese Werte. Jeder Wert ist in der Liste änderbar.</p>
+          <div class="form-grid">
+            <label>Kapitel<select id="imp-chapter" name="chapterId"></select></label>
+            <label>Sprache<select id="imp-language" name="language"></select></label>
+            <label>Rolle<select id="imp-role" name="role"></select></label>
+            <label>Domäne<select id="imp-domain" name="domain"></select></label>
+            <label>Quelltyp<select id="imp-source" name="sourceType"></select></label>
+          </div>
+        </div>
+        <div id="imp-queue-card" class="card" hidden>
+          <div class="panel-head queue-head">
+            <h2 id="imp-queue-title">Dateien</h2>
+            <label class="inline">Ordnen nach <select id="imp-group">
+              <option value="chapterId">Kapitel</option><option value="language">Sprache</option>
+              <option value="role">Rolle</option><option value="domain">Domäne</option><option value="name">Dateiname</option>
+            </select></label>
+            <button type="button" id="imp-clear" class="small">Liste leeren</button>
+          </div>
+          <div class="table-wrap"><table id="imp-queue"><thead><tr><th>Datei</th><th>Kapitel</th><th>Sprache</th><th>Rolle</th><th>Domäne</th><th>Quelltyp</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="card actions-card">
+          <label class="check"><input type="checkbox" id="imp-force"> Gleiche Dateien erneut verarbeiten</label>
+          <button type="submit" id="imp-submit" class="primary">Importieren</button>
+        </div>
       </form>
       <div id="imp-progress" class="card progress-card" hidden>
         <div class="hourglass" aria-hidden="true"><span></span></div>
@@ -55,6 +80,7 @@
         </div>
       </div>
       <div id="imp-error" class="alert error" role="alert" hidden></div>
+      <div id="imp-batch-summary"></div>
       <div id="imp-result"></div>
     </section>
 

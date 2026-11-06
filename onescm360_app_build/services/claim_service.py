@@ -232,13 +232,18 @@ def build_from_import(record: dict, chapter: dict, systems: list[str], source_ty
             "knowledgeId": kid, "chapterId": record["chapterId"], "questionId": qid,
             "textDE": question["normalizedText"] if lang in ("DE", "DE+EN") else "",
             "textEN": question["normalizedText"] if lang in ("EN", "DE+EN") else "",
-            "category": chapter.get("title", ""), "topic": question.get("title", ""),
+            "category": record.get("domainName") or chapter.get("title", ""), "topic": question.get("title", ""),
+            "domain": record.get("domain", ""), "role": record.get("role", ""),
             "division": "", "market": "", "validationStatus": "DRAFT", "version": 1,
             "validity": "", "sourceImportId": record["importId"],
         })
         divisions = set()
         for statement in statements:
             analysis = analyse_statement(statement, roles, systems)
+            if not analysis["role"] and record.get("role"):
+                # The file was assigned to one role: statements without an explicit role belong to it.
+                analysis["role"] = record["role"]
+                analysis["roleFromImport"] = True
             divisions.add(analysis["division"])
             claim_id = short_id("CLM")
             claim = {

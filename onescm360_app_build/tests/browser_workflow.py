@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import CH01_HTML, ROOT  # noqa: E402
+from helpers import CH01_HTML, ROOT, html_doc, make_docx, p  # noqa: E402
 
 from playwright.sync_api import expect, sync_playwright  # noqa: E402
 from werkzeug.serving import make_server  # noqa: E402
@@ -68,32 +68,43 @@ def main():
             expect(page.locator('#tabs button[data-tab="dashboard"]')).to_have_class(re.compile("active"))
             expect(page.locator('[data-kpi="imports"] .value')).to_have_text("0")
 
-            # --- import: client-side validation
+            # --- import: files are checked on selection; invalid ones never reach the import
             page.locator('#tabs button[data-tab="import"]').click()
             expect(page.locator('#tabs button[data-tab="import"]')).to_have_attribute("aria-current", "page")
             expect(page.locator('#tabs button[data-tab="dashboard"]')).not_to_have_class(re.compile("active"))
             page.locator("#imp-submit").click()
             expect(page.locator("#imp-error")).to_have_text("Bitte eine Datei auswählen.")
+            queue_row = lambda name: page.locator("#imp-queue tbody tr", has_text=name)
             page.locator("#imp-file").set_input_files({"name": "notizen.txt", "mimeType": "text/plain", "buffer": b"x"})
-            page.locator("#imp-submit").click()
-            expect(page.locator("#imp-error")).to_contain_text("nicht unterstützt")
+            expect(queue_row("notizen.txt")).to_contain_text("nicht unterstützt")
             page.locator("#imp-file").set_input_files({"name": "leer.html", "mimeType": "text/html", "buffer": b""})
+            expect(queue_row("leer.html")).to_contain_text("Die Datei ist leer.")
+            page.locator("#imp-file").set_input_files({"name": "kaputt.docx", "mimeType": "application/octet-stream", "buffer": b"PK\x03\x04kaputt"})
+            expect(queue_row("kaputt.docx")).to_contain_text("beschädigt")
             page.locator("#imp-submit").click()
-            expect(page.locator("#imp-error")).to_have_text("Die Datei ist leer.")
+            expect(page.locator("#imp-error")).to_contain_text("notizen.txt: Dateityp")
+            expect(page.locator("#imp-error")).to_contain_text("kaputt.docx: Die DOCX-Datei ist beschädigt")
+            expect(page.locator("#imp-progress")).to_be_hidden()
+            page.locator("#imp-clear").click()
+            expect(page.locator("#imp-queue-card")).to_be_hidden()
 
             # --- import: server-side error, hourglass always disappears
-            page.locator("#imp-file").set_input_files({"name": "kaputt.docx", "mimeType": "application/octet-stream", "buffer": b"PK\x03\x04kaputt"})
+            page.locator("#imp-file").set_input_files({"name": "CH01_ohne_fragen.html", "mimeType": "text/html", "buffer": html_doc(p("Nur Text ohne Fragekennung."))})
+            expect(queue_row("CH01_ohne_fragen.html")).to_contain_text("BEREIT")
+            expect(queue_row("CH01_ohne_fragen.html").locator('select[aria-label="Kapitel"]')).to_have_value("CH01")
+            expect(queue_row("CH01_ohne_fragen.html")).to_contain_text("erkannt: Dateiname")
             page.locator("#imp-submit").click()
             expect(page.locator("#imp-progress")).to_be_visible()
             expect(page.locator("#imp-submit")).to_be_disabled()
-            expect(page.locator("#imp-error")).to_contain_text("beschädigt")
+            expect(page.locator("#imp-error")).to_contain_text("Keine Fragen 01-F01 bis 01-F20")
             expect(page.locator("#imp-progress")).to_be_hidden()
             expect(page.locator("#imp-submit")).to_be_enabled()
+            expect(queue_row("CH01_ohne_fragen.html")).to_contain_text("FEHLER")
+            page.locator("#imp-clear").click()
 
-            # --- import: success
-            page.locator("#imp-chapter").select_option("CH01")
-            page.locator("#imp-language").select_option("DE")
+            # --- import: single file success
             page.locator("#imp-file").set_input_files({"name": "ch01.html", "mimeType": "text/html", "buffer": CH01_HTML})
+            expect(queue_row("ch01.html")).to_contain_text("BEREIT")
             page.locator("#imp-submit").click()
             expect(page.locator("#imp-progress")).to_be_visible()
             expect(page.locator("#imp-status-text")).to_contain_text("Analyse")
@@ -105,6 +116,45 @@ def main():
             expect(page.locator("#imp-result-questions")).to_have_text("4 von 20 beantwortet")
             expect(page.locator("#imp-result-tables")).to_have_text("2")
             expect(page.locator("#imp-findings")).to_contain_text("oneSCM")
+            expect(queue_row("ch01.html")).to_contain_text("IMPORTIERT")
+
+            # --- multi import: three files, classified and grouped by language, role, chapter, domain
+            page.locator("#imp-file").set_input_files([
+                {"name": "CH02_Dealer_Contract-Management_DE.html", "mimeType": "text/html",
+                 "buffer": html_doc(p("02-F01 Der Dealer legt Verträge im Portal an und prüft die Laufzeit."))},
+                {"name": "CH03_Market-Operations_Finance_EN.html", "mimeType": "text/html",
+                 "buffer": html_doc(p("03-F01 Market Operations creates the invoice for the dealer and checks the payment."))},
+                {"name": "Antworten_Kapitel_2_Market-Setting_EN.docx", "mimeType": "application/octet-stream",
+                 "buffer": make_docx(["02-F02 The market configuration is maintained per country by the team."])},
+            ])
+            expect(page.locator("#imp-queue tbody tr", has_text="BEREIT")).to_have_count(3)
+            expect(page.locator("#imp-submit")).to_have_text("3 Dateien importieren")
+            expect(queue_row("CH03_Market").locator('select[aria-label="Rolle"]')).to_have_value("Market Operations")
+            expect(queue_row("CH03_Market").locator('select[aria-label="Domäne"]')).to_have_value("finance-management")
+            expect(queue_row("CH03_Market").locator('select[aria-label="Sprache"]')).to_have_value("EN")
+            expect(queue_row("Antworten_Kapitel_2").locator('select[aria-label="Kapitel"]')).to_have_value("CH02")
+            expect(queue_row("Antworten_Kapitel_2").locator('select[aria-label="Domäne"]')).to_have_value("market-setting")
+            group_rows = page.locator("#imp-queue tbody tr.group-row")
+            expect(group_rows.first).to_contain_text("Kapitel: CH01")
+            page.locator("#imp-group").select_option("role")
+            # ch01.html names the Dealer far more often than Market Operations → Dealer
+            expect(group_rows).to_have_text(["Rolle: Alle Rollen (1)", "Rolle: Dealer (2)", "Rolle: Market Operations (1)"])
+            page.locator("#imp-group").select_option("language")
+            expect(group_rows).to_have_text(["Sprache: DE (2)", "Sprache: EN (2)"])
+            page.locator("#imp-group").select_option("domain")
+            expect(group_rows).to_have_text(["Domäne: Contract Management (1)", "Domäne: Finance Management (1)", "Domäne: Market Setting (1)", "Domäne: Ohne Domäne (1)"])
+            queue_row("Antworten_Kapitel_2").locator('select[aria-label="Rolle"]').select_option("Market Operations")
+            expect(queue_row("Antworten_Kapitel_2")).to_contain_text("manuell")
+            page.locator("#imp-group").select_option("chapterId")
+            expect(group_rows).to_have_text(["Kapitel: CH01 – Grundlagen und Überblick (1)", "Kapitel: CH02 – Kapitel 02 (2)", "Kapitel: CH03 – Kapitel 03 (1)"])
+            page.locator("#imp-submit").click()
+            expect(page.locator("#imp-status-text")).to_contain_text("von 3")
+            expect(page.locator("#imp-batch-result")).to_have_text("3 von 3 Dateien importiert.")
+            expect(page.locator("#imp-progress")).to_be_hidden()
+            expect(page.locator("#imp-queue tbody tr", has_text="IMPORTIERT")).to_have_count(4)
+            expect(page.locator("#imp-result-scope")).to_have_text(re.compile("Rolle|Dealer|Market Operations|Alle Rollen"))
+            shot("02b-multi-import")
+            queue_row("ch01.html").get_by_role("button", name="Ergebnis").click()
             expect(page.locator("#imp-summary")).to_contain_text("BLOCKED")
             shot("02-import")
             page.locator('#tabs button[data-tab="coverage"]').click()
@@ -229,9 +279,14 @@ def main():
             page.locator('#tabs button[data-tab="dashboard"]').click()
             expect(page.locator('[data-kpi="packages"] .value')).to_have_text("1")
             expect(page.locator("#dash-outputs tbody tr").first).to_contain_text("06_Exports")
-            expect(page.locator("#dash-imports tbody tr")).to_have_count(2)  # successful + failed import
-            expect(page.locator("#dash-imports tbody tr", has_text="kaputt.docx")).to_contain_text("FAILED")
-            expect(page.locator("#dash-imports tbody tr", has_text="kaputt.docx").locator("td").nth(7)).to_have_text("BLOCKED")
+            expect(page.locator("#dash-imports tbody tr")).to_have_count(5)  # 4 successful + 1 failed import
+            failed_row = page.locator("#dash-imports tbody tr", has_text="CH01_ohne_fragen.html")
+            expect(failed_row).to_contain_text("FAILED")
+            expect(failed_row.locator("td.gate-cell")).to_have_text("BLOCKED")
+            expect(page.locator("#dash-imports tbody tr", has_text="CH03_Market")).to_contain_text("Finance Management")
+            page.locator("#dash-group").select_option("role")
+            expect(page.locator("#dash-imports tbody tr.group-row")).to_have_text(["Alle Rollen (1)", "Dealer (2)", "Market Operations (2)"])
+            page.locator("#dash-group").select_option("")
             page.get_by_role("button", name="Aktualisieren").click()
             expect(page.locator("#toast")).to_contain_text("Dashboard aktualisiert")
             shot("01-dashboard")

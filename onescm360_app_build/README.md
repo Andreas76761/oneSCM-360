@@ -45,8 +45,8 @@ powershell.exe -ExecutionPolicy Bypass -File '.\start_onescm360.ps1' -OneDriveRo
 
 | Register | Funktion |
 |---|---|
-| Dashboard | KPIs (Importläufe, Quelldateien, Output-Dateien, JSON, CSV, Uploadpakete), Importtabelle, Outputtabelle, OneDrive-Pfadprüfung. Beschädigte Import-JSONs erscheinen als `INVALID_JSON` / `BLOCKED`. |
-| Import | Kapitel, Sprache (DE, EN, DE+EN), Quelltyp und Datei auswählen. Während des Imports laufen Sanduhr und Fortschrittsbalken, der Button ist gesperrt. Ergebnis: Import-ID, erkannte Fragen, Tabellen, Validierung, Regelbefunde, Coverage. |
+| Dashboard | Importläufe mit Sprache, Rolle und Domäne, gruppierbar. KPIs (Importläufe, Quelldateien, Output-Dateien, JSON, CSV, Uploadpakete), Importtabelle, Outputtabelle, OneDrive-Pfadprüfung. Beschädigte Import-JSONs erscheinen als `INVALID_JSON` / `BLOCKED`. |
+| Import | Eine oder mehrere Dateien auswählen oder hineinziehen. Je Datei schlägt die App Kapitel, Sprache, Rolle und Domäne vor (siehe unten). Alle Werte sind in der Liste änderbar. Die Liste lässt sich nach Kapitel, Sprache, Rolle, Domäne oder Dateiname ordnen. Der Import läuft Datei für Datei mit Sanduhr und Gesamtfortschritt. Eine fehlerhafte Datei stoppt die übrigen nicht. Ergebnis je Datei: Import-ID, erkannte Fragen, Tabellen, Validierung, Regelbefunde, Coverage. |
 | Regelwerk | Namenskonvention, Systemübersicht, Synonyme, Erklärungen, Abkürzungen: anlegen, bearbeiten, speichern, abbrechen, löschen mit Rückfrage. Testfeld für Regeln. |
 | Claims | Claims filtern, bearbeiten (Subject/Predicate/Object, Rolle, Division, PI, Reifegrad …), bestätigen, löschen, manuell anlegen, Evidence zuordnen. |
 | Evidence | Evidence-Stufe und -Status pflegen, Faktor sehen, löschen. |
@@ -63,6 +63,36 @@ Je Kapitel gibt es die Fragen `xx-F01` bis `xx-F20`. Die Erkennung toleriert `F0
 
 - Eine Kennung eines anderen Kapitels (z. B. `02-F01` in CH01) wird als `CHAPTER_MISMATCH` gemeldet und blockiert den Import (Validierung `BLOCKED`).
 - Fragen außerhalb von F01 bis F20 werden ignoriert und als Hinweis ausgegeben.
+
+### Mehrfachimport: Kapitel, Sprache, Rolle, Domäne
+
+Beim Auswählen liest die App jede Datei, ohne sie zu importieren (`POST /api/import/classify`). Daraus macht sie Vorschläge:
+
+| Angabe | Aus dem Dateinamen | Aus dem Inhalt |
+|---|---|---|
+| Kapitel | `CH05`, `Kapitel 5`, `Chapter 05` | häufigste Fragekennung `05-F..` |
+| Sprache | `_DE`, `_EN`, `_DE_EN`, `deutsch`, `english` | Anteil deutscher bzw. englischer Funktionswörter; beides deutlich vertreten ergibt `DE+EN` |
+| Rolle | Rollenname, z. B. `Dealer` | klar überwiegend genannte Rolle, sonst „Alle Rollen“ |
+| Domäne | Domänenname oder Stichwort, z. B. `Finance` | Stichwort-Treffer mit klarem Vorsprung, sonst „Ohne Domäne“ |
+
+Nicht erkannte Angaben übernehmen die Standardwerte oberhalb der Liste. In der Liste steht bei jedem Wert, woher er stammt: „erkannt: Dateiname“, „erkannt: Inhalt“ oder „manuell“.
+
+Rollen und Domänen stehen in `classification.json`. Die sieben Domänen entsprechen denen der bestehenden Handbuch-App:
+
+- Product Management
+- Contract Generation
+- Contract Management
+- Customer Management
+- Finance Management
+- Market Setting
+- Admin Section
+
+Was beim Import mit Rolle und Domäne passiert:
+
+- Rolle und Domäne werden am Import gespeichert und gehen in den Export.
+- Die Domäne wird als `Category` der Knowledge Blocks übernommen.
+- Aussagen ohne eigene Rolle erhalten die Rolle der Datei (`roleFromImport`). Eine im Satz genannte Rolle hat Vorrang.
+- Dieselbe Datei kann für verschiedene Rollen oder Domänen getrennt importiert werden.
 
 ### Tabellen
 
@@ -206,6 +236,7 @@ onescm360_app_build/
 ├── index.html              Oberfläche (Register)
 ├── static/                 app.js, style.css
 ├── rules.json              editierbares Regelwerk
+├── classification.json     Rollen und Domänen für den Mehrfachimport
 ├── chapters/CH01…CH16.json Kapitelkonfiguration (Fragen, Kritikalität, Rollen)
 ├── schemas/                import.schema.json, claim.schema.json
 ├── services/               import, docx/html parser, rules, claims, knowledge, conflicts, coverage, export
