@@ -174,6 +174,11 @@ class ExportService:
             cid = chapter["chapterId"]
             stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
             prefix = f"{cid}_{stamp}"
+            counter = 1
+            # Two exports within the same second must never overwrite each other.
+            while (root / "06_Exports" / f"{prefix}_manifest.json").exists():
+                counter += 1
+                prefix = f"{cid}_{stamp}-{counter}"
             written: list[Path] = []
 
             def write(rel: str, content: bytes):
