@@ -432,6 +432,14 @@ def main():
             page.locator("#man-stage").select_option("Draft")
             page.locator("#man-preview").click()
             expect(page.frame_locator("#man-frame").locator(".hf.top")).to_contain_text("oneSCM Training · Modul 01")
+            with page.expect_download() as manual_docx:
+                page.locator("#man-docx").click()
+            assert manual_docx.value.suggested_filename == "CH01_Handbuch_Draft.docx"
+            assert Path(manual_docx.value.path()).read_bytes()[:2] == b"PK"
+            page.locator("#man-stage").select_option("Released")
+            page.locator("#man-docx").click()
+            expect(page.locator("#man-error")).to_contain_text("Gate READY")
+            page.locator("#man-stage").select_option("Draft")
 
             # --- internal chat bot: router → policy → tool
             page.locator('#tabs button[data-tab="chat"]').click()

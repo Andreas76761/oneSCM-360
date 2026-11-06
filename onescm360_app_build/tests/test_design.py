@@ -265,6 +265,44 @@ class DesignedManualTests(AppCase, unittest.TestCase):
         r = self.post("/api/manual/CH01", {"stage": "Draft", "design": "releaseletter"}).get_json()
         self.assertEqual(r["stats"]["design"], "oneSCM Release Letter")
 
+    def test_manual_as_word_document(self):
+        self.upload(CH01_HTML, "ch01.html")
+        r = self.client.get("/api/manual/CH01/docx?stage=Draft&design=training")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('filename="CH01_Handbuch_Draft.docx"', r.headers["Content-Disposition"])
+        with zipfile.ZipFile(io.BytesIO(r.data)) as z:
+            names = set(z.namelist())
+            self.assertTrue({"word/document.xml", "word/styles.xml", "word/numbering.xml", "word/header1.xml"} <= names)
+            doc = z.read("word/document.xml").decode("utf-8")
+            styles = z.read("word/styles.xml").decode("utf-8")
+            settings = z.read("word/settings.xml").decode("utf-8")
+            footer = z.read("word/footer1.xml").decode("utf-8")
+            self.assertIn("numbering+xml", z.read("[Content_Types].xml").decode("utf-8"))
+        self.assertIn('<w:pStyle w:val="Heading1"/>', doc)
+        self.assertIn('<w:pStyle w:val="ListBullet"/>', doc)
+        self.assertIn('<w:pStyle w:val="HinweisOffen"/>', doc)
+        self.assertIn(" TOC ", doc)
+        self.assertIn("Rolle: Dealer", doc)
+        self.assertIn('w:styleId="ListBullet"', styles)
+        self.assertIn("<w:updateFields", settings)
+        self.assertIn("PAGE", footer)
+        self.assertIn("oneSCM Training", doc)
+        released = self.client.get("/api/manual/CH01/docx?stage=Released")
+        self.assertEqual(released.status_code, 409)
+        self.assertIn("Gate READY", released.get_json()["error"])
+
+    def test_manual_docx_opens_with_python_docx(self):
+        try:
+            import docx
+        except ImportError:
+            self.skipTest("python-docx nicht installiert")
+        self.upload(CH01_HTML, "ch01.html")
+        document = docx.Document(io.BytesIO(self.client.get("/api/manual/CH01/docx?stage=Draft").data))
+        styles = [p.style.name for p in document.paragraphs]
+        self.assertIn("Heading 1", styles)
+        self.assertIn("List Bullet", styles)
+        self.assertGreaterEqual(len(document.tables), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

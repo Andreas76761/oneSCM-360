@@ -380,7 +380,15 @@ Aufbau des Handbuchs:
 - Die zugeordneten Tabellen. Tabellen ohne geprüfte Quellfrage fehlen.
 - Ein Glossar aus dem Regelwerk.
 
-Die Vorschau erscheint in der App. Beim Erzeugen entstehen HTML (öffnet in Word und im Browser) und Markdown unter `05_Manual_Generated/<Stufe>/` im OneDrive-Ordner. Bestehende Stände werden nie überschrieben.
+Die Vorschau erscheint in der App. Beim Erzeugen entstehen HTML (öffnet in Word und im Browser), Word (.docx) und Markdown unter `05_Manual_Generated/<Stufe>/` im OneDrive-Ordner. Bestehende Stände werden nie überschrieben. „Word herunterladen“ liefert die .docx direkt, ohne sie abzulegen.
+
+Der Word-Handbuchstand nutzt die Formatvorlagen der gewählten Designvorlage:
+
+- Titel, Untertitel, Überschrift 1 und 2 (Word-Standardnamen, also mit Navigationsbereich)
+- ein Inhaltsverzeichnis, das Word beim Öffnen aktualisiert (Word fragt nach)
+- Aufzählungen in der Formatvorlage „Liste mit Aufzählungszeichen“, mit farbigen Kennzeichnungen für Status, Sparte und Rolle
+- die Layoutboxen „Hinweis Info“ und „Hinweis Offen“, Tabellen im Format „oneSCM Tabelle“, Beschriftungen und Quellenzeilen
+- Seitenformat, Ränder, Spalten sowie Kopf- und Fußzeile mit Seitenzahlen
 
 ## Bilder aus DOCX
 

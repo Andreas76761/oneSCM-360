@@ -197,12 +197,12 @@
       </div>
       <div class="card">
         <h2>Handbuchstand erzeugen</h2>
-        <p class="muted">Draft ist immer möglich, Reviewed nur ohne Hard Blocker, Released nur bei Gate READY. Ablage: <code>05_Manual_Generated/&lt;Stufe&gt;</code> als HTML (öffnet in Word) und Markdown.</p>
+        <p class="muted">Draft ist immer möglich, Reviewed nur ohne Hard Blocker, Released nur bei Gate READY. Ablage: <code>05_Manual_Generated/&lt;Stufe&gt;</code> als HTML, Word (.docx mit den Formatvorlagen der Designvorlage und Inhaltsverzeichnis) und Markdown.</p>
         <div class="form-grid">
           <label>Kapitel<select id="man-chapter"></select></label>
           <label>Designvorlage<select id="man-design"></select></label>
           <label>Stufe<select id="man-stage"><option value="Draft">Draft</option><option value="Reviewed">Reviewed</option><option value="Released">Released</option></select></label>
-          <div class="actions"><button type="button" id="man-preview" class="secondary">Vorschau</button><button type="button" id="man-generate" class="primary">Handbuchstand erzeugen</button></div>
+          <div class="actions"><button type="button" id="man-preview" class="secondary">Vorschau</button><button type="button" id="man-docx" class="secondary">Word herunterladen</button><button type="button" id="man-generate" class="primary">Handbuchstand erzeugen</button></div>
         </div>
         <div id="man-result"></div>
         <iframe id="man-frame" class="manual-frame" title="Vorschau Handbuchstand" sandbox="" hidden></iframe>

@@ -591,6 +591,14 @@ def create_app(config: dict | None = None) -> Flask:
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
         return response
 
+    @app.get("/api/manual/<chapter_id>/docx")
+    def manual_docx(chapter_id):
+        stage = request.args.get("stage", "Draft")
+        manual = manual_for(chapter_id, stage, request.args.get("design", ""))
+        response = app.response_class(manual["docx"], mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        response.headers["Content-Disposition"] = f'attachment; filename="{chapter_id}_Handbuch_{stage}.docx"'
+        return response
+
     @app.post("/api/manual/<chapter_id>")
     def manual_generate(chapter_id):
         payload = body()
@@ -608,9 +616,12 @@ def create_app(config: dict | None = None) -> Flask:
             counter += 1
             base = f"{chapter_id}_{safe_stamp()}-{counter}_Handbuch_{stage}"
         files = []
-        for suffix, content in (("html", manual["html"]), ("md", manual["markdown"])):
+        for suffix, content in (("html", manual["html"]), ("docx", manual["docx"]), ("md", manual["markdown"])):
             target = folder / f"{base}.{suffix}"
-            target.write_text(content, encoding="utf-8")
+            if isinstance(content, bytes):
+                target.write_bytes(content)
+            else:
+                target.write_text(content, encoding="utf-8")
             files.append(target.relative_to(root).as_posix())
         return jsonify(chapterId=chapter_id, stage=stage, files=files, stats=manual["stats"],
                        cloudStatus=status["cloudStatus"]), 201
