@@ -467,6 +467,16 @@ def main():
             expect(page.locator("#book-error")).to_contain_text("Kein Kapitel erreicht die Stufe Released")
             expect(page.locator('#book-overview tr[data-chapter="CH01"]')).to_contain_text("Gate READY")
             page.locator("#book-stage").select_option("Draft")
+            # release letter: the complete manual just generated is the newest basis
+            expect(page.locator("#release-since option").first).to_contain_text("Gesamthandbuch Draft")
+            expect(page.locator("#release-design")).to_have_value("releaseletter")
+            page.locator("#release-name").fill("PI17")
+            page.locator("#release-preview").click()
+            expect(page.frame_locator("#release-frame").locator(".subtitle")).to_contain_text("Änderungen seit Gesamthandbuch Draft")
+            expect(page.frame_locator("#release-frame").locator(".hf.top")).to_contain_text("oneSCM Release Letter · PI17")
+            expect(page.frame_locator("#release-frame").locator("body")).to_contain_text("Seit der Basis gibt es keine Änderungen.")
+            page.locator("#release-generate").click()
+            expect(page.locator("#release-ok")).to_contain_text("0 neu, 0 geändert")
 
             # --- internal chat bot: router → policy → tool
             page.locator('#tabs button[data-tab="chat"]').click()

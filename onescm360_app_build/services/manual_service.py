@@ -230,18 +230,21 @@ def _stage_texts(stage: str, design: dict):
     return badge, run, contains
 
 
-def _cover(out: _Output, design: dict, subtitle: str, meta: list[tuple[str, str]], meta_html: dict, sources: list[str], stage: str):
-    """Title, subtitle, metadata table, source note and (unless Released) the open-validation box."""
+def _cover(out: _Output, design: dict, subtitle: str, meta: list[tuple[str, str]], meta_html: dict, sources: list[str] | None, stage: str):
+    """Title, subtitle, metadata table, source note (unless sources is None) and, unless Released, the open-validation box."""
     from . import word_template as wt
     from .design_service import box_html
     e = html.escape
     out.h += [f'<p class="title">{e(design["documentTitle"])}</p>', f'<p class="subtitle">{e(subtitle)}</p>', '<table class="meta">']
     out.h += [f"<tr><td>{e(k)}</td><td>{meta_html.get(k, e(v))}</td></tr>" for k, v in meta if k != "Designvorlage"]
-    note = (f'{", ".join(sources) or "noch keine abgeschlossenen Importe"}. '
-            f"Aussagen werden nur übernommen, wenn sie die Stufe {stage} erreicht haben.")
-    out.h += ["</table>", box_html(design, "info", e(note))]
+    out.h.append("</table>")
     out.w += [wt.paragraph("Title", design["documentTitle"]), wt.paragraph("Subtitle", subtitle),
-              wt.table(["Angabe", "Wert"], [list(row) for row in meta], design), wt.box(design, "info", note)]
+              wt.table(["Angabe", "Wert"], [list(row) for row in meta], design)]
+    if sources is not None:
+        note = (f'{", ".join(sources) or "noch keine abgeschlossenen Importe"}. '
+                f"Aussagen werden nur übernommen, wenn sie die Stufe {stage} erreicht haben.")
+        out.h.append(box_html(design, "info", e(note)))
+        out.w.append(wt.box(design, "info", note))
     if stage != "Released":
         out.h.append(box_html(design, "open", "Kein freigegebener Handbuchstand. Inhalte können sich noch ändern."))
         out.w.append(wt.box(design, "open", "Kein freigegebener Handbuchstand. Inhalte können sich noch ändern."))
@@ -291,7 +294,8 @@ def build_manual(chapter: dict, stage: str, claims: list[dict], evidence: list[d
     _glossary(out, rules, design, f"{stats.pop('groups') + 1} Glossar")
     out.h.append("</div>")
     page, docx, markdown = _finish(out, design, values, title, stage)
-    return {"html": page, "docx": docx, "markdown": markdown, "stats": {**stats, "design": design["name"]}, "title": title}
+    return {"html": page, "docx": docx, "markdown": markdown, "stats": {**stats, "design": design["name"]}, "title": title,
+            "claims": included, "chapters": [chapter["chapterId"]], "kind": "chapter"}
 
 
 def build_book(entries: list[dict], stage: str, claims: list[dict], evidence: list[dict], rules: list[dict],
@@ -341,7 +345,7 @@ def build_book(entries: list[dict], stage: str, claims: list[dict], evidence: li
     out.md += [f"# {title}", "", f"**Stufe:** {stage} · **Stand:** {now:%d.%m.%Y %H:%M} · **Kapitel:** {len(selected)} von {len(entries)}", "",
                "| " + " | ".join(header) + " |", "|" + "---|" * len(header)] + ["| " + " | ".join(r) + " |" for r in rows] + [""]
     by_claim = _evidence_by_claim(evidence)
-    per_chapter = []
+    per_chapter, all_included = [], []
     for index, entry in enumerate(selected, start=1):
         chapter = entry["chapter"]
         heading = f"{index} Kapitel {chapter['chapterId'][2:]} – {chapter['title']}"
@@ -351,6 +355,7 @@ def build_book(entries: list[dict], stage: str, claims: list[dict], evidence: li
         out.w.append(wt.paragraph("Heading1", heading))
         out.md += [f"# {heading}", ""]
         included = _included(claims, chapter["chapterId"], stage)
+        all_included += included
         stats = _render_questions(out, chapter, included, by_claim, entry["tables"], entry["imports"], design, media_root,
                                   prefix=f"{index}.", level=2)
         stats.pop("groups")
@@ -360,7 +365,8 @@ def build_book(entries: list[dict], stage: str, claims: list[dict], evidence: li
     page, docx, markdown = _finish(out, design, values, title, stage)
     totals = {k: sum(p[k] for p in per_chapter) for k in ("claims", "questionsWithContent", "questions", "tables", "images")}
     return {"html": page, "docx": docx, "markdown": markdown, "title": title,
-            "stats": {**totals, "chapters": [p["chapterId"] for p in per_chapter], "design": design["name"]}, "overview": overview}
+            "stats": {**totals, "chapters": [p["chapterId"] for p in per_chapter], "design": design["name"]}, "overview": overview,
+            "claims": all_included, "chapters": [p["chapterId"] for p in per_chapter], "kind": "book"}
 
 
 def safe_stamp() -> str:

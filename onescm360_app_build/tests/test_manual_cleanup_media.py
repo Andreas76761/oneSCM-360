@@ -1,3 +1,4 @@
+import html
 import io
 import json
 import os
@@ -293,6 +294,77 @@ class BookTests(AppCase, unittest.TestCase):
         markdown = (self.onedrive / files[2]).read_text(encoding="utf-8")
         self.assertIn("# 2 Kapitel 02", markdown)
         self.assertIn("| CH03 |", markdown)
+
+
+class ReleaseLetterTests(AppCase, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.upload(CH01_HTML, "ch01.html")
+
+    def claims(self, chapter="CH01"):
+        return [c for c in self.client.get("/api/claims").get_json() if c["chapterId"] == chapter]
+
+    def test_without_snapshot(self):
+        self.assertEqual(self.client.get("/api/release/snapshots").get_json(), [])
+        self.assertEqual(self.client.get("/api/release/preview?since=CH01_20260101-000000_Handbuch_Draft").status_code, 404)
+        self.assertEqual(self.client.get("/api/release/preview?since=../../etc").status_code, 404)
+
+    def test_changes_since_chapter_manual(self):
+        files = self.post("/api/manual/CH01", {"stage": "Draft"}).get_json()["files"]
+        snapshots = self.client.get("/api/release/snapshots").get_json()
+        self.assertEqual(len(snapshots), 1)
+        since = snapshots[0]["snapshotId"]
+        self.assertEqual(since, files[0].rsplit("/", 1)[1][:-5])
+        self.assertEqual((snapshots[0]["kind"], snapshots[0]["chapters"]), ("chapter", ["CH01"]))
+        unchanged = self.client.get(f"/api/release/preview?since={since}").get_data(as_text=True)
+        self.assertIn("Seit der Basis gibt es keine Änderungen.", unchanged)
+
+        claims = self.claims()
+        reworded, promoted, rejected = claims[0], claims[1], claims[2]
+        self.put(f"/api/claims/{reworded['claimId']}", {"canonicalStatement": "Neu formulierte Aussage zum Ziel."})
+        self.put(f"/api/claims/{promoted['claimId']}", {"validationStatus": "REVIEWED"})
+        self.put(f"/api/claims/{rejected['claimId']}", {"validationStatus": "REJECTED"})
+        created = self.post("/api/claims", {"chapterId": "CH01", "questionId": "01-F02", "canonicalStatement": "Ganz neue Aussage zum Nutzen."})
+        self.assertEqual(created.status_code, 201, created.get_json())
+
+        page = self.client.get(f"/api/release/preview?since={since}").get_data(as_text=True)
+        self.assertIn("Änderungen seit CH01 Draft vom", page)
+        self.assertIn("NEU</span> Ganz neue Aussage zum Nutzen.", page)
+        self.assertIn(f"GEÄNDERT</span> Neu formulierte Aussage zum Ziel. <span class=\"src\">(vorher: {html.escape(reworded['canonicalStatement'])})", page)
+        self.assertIn("(ungeprüft → geprüft)", page)
+        self.assertIn(f"ENTFALLEN</span> {html.escape(rejected['canonicalStatement'])} <span class=\"src\">(Status jetzt abgelehnt)", page)
+        self.assertIn("01-F02 · ", page)
+        r = self.post("/api/release", {"since": since})
+        self.assertEqual(r.status_code, 201, r.get_json())
+        stats = r.get_json()["stats"]
+        self.assertEqual((stats["new"], stats["changed"], stats["status"], stats["removed"]), (1, 1, 1, 1))
+        self.assertTrue(all("/ReleaseLetter_" in f and "_Aenderungen_Draft." in f for f in r.get_json()["files"]))
+        self.assertEqual(len(self.client.get("/api/release/snapshots").get_json()), 1)  # a release letter is no new basis
+        named = self.client.get(f"/api/release/preview?since={since}&release=PI17").get_data(as_text=True)
+        self.assertIn("oneSCM Release Letter · PI17", named)
+        self.assertIn("<tr><td>Release</td><td>PI17</td></tr>", named)
+        self.assertEqual(self.client.get(f"/api/release/preview?since={since}&release={'x' * 41}").status_code, 400)
+        docx = self.client.get(f"/api/release/docx?since={since}&release=PI17")
+        with zipfile.ZipFile(io.BytesIO(docx.data)) as z:
+            doc = z.read("word/document.xml").decode("utf-8")
+            footer = z.read("word/footer1.xml").decode("utf-8")
+        self.assertIn("ENTFALLEN", doc)
+        self.assertIn("Ganz neue Aussage zum Nutzen.", doc)
+        self.assertIn("Release PI17", footer)
+        # compared with Reviewed, the unreviewed statements are not part of the manual
+        reviewed = self.client.get(f"/api/release/preview?since={since}&stage=Reviewed").get_data(as_text=True)
+        self.assertNotIn("Ganz neue Aussage zum Nutzen.", reviewed)  # new but unreviewed: not in a Reviewed manual
+        self.assertIn("Status jetzt ungeprüft", reviewed)
+
+    def test_book_snapshot_includes_later_chapters(self):
+        self.post("/api/book", {"stage": "Draft"})
+        since = self.client.get("/api/release/snapshots").get_json()[0]["snapshotId"]
+        self.assertTrue(since.startswith("Gesamthandbuch_"))
+        self.upload(html_doc(p("02-F01 Der Dealer legt Verträge im Portal an.")), "ch02.html", chapter="CH02")
+        page = self.client.get(f"/api/release/preview?since={since}").get_data(as_text=True)
+        self.assertIn("Kapitel 02", page)
+        self.assertIn("NEU</span> Der Dealer legt Verträge im Portal an", page)
+        self.assertIn("Änderungen seit Gesamthandbuch Draft vom", page)
 
 
 if __name__ == "__main__":
