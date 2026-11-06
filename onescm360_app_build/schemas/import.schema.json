@@ -8,6 +8,8 @@
     "importId": {"type": "string", "pattern": "^IMP-[0-9]{8}-[0-9]{6}-[A-F0-9]{6}$"},
     "chapterId": {"type": "string", "pattern": "^CH(0[1-9]|1[0-6])$"},
     "language": {"enum": ["DE", "EN", "DE+EN"]},
+    "role": {"type": "string", "maxLength": 200},
+    "domain": {"type": "string", "pattern": "^([a-z0-9-]{1,60})?$"},
     "sourceFile": {
       "type": "object",
       "required": ["name", "type", "size", "sha256"],

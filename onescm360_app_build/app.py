@@ -16,6 +16,7 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from services import claim_service, conflict_service, coverage_service
 from services.chapter_service import ChapterError, ChapterService
+from services.classification_service import ClassificationError, ClassificationService
 from services.export_service import ExportService, table_csv
 from services.import_service import LANGUAGES, MAX_BYTES, ImportError_, ImportService
 from services.knowledge_service import (CONFLICT_STATUSES, EVIDENCE_STATUSES, VALIDATION_STATUSES,
@@ -41,7 +42,9 @@ def create_app(config: dict | None = None) -> Flask:
     chapters = ChapterService(Path(config.get("CHAPTERS_DIR") or ROOT / "chapters"))
     rules = RuleService(Path(config.get("RULES_PATH") or ROOT / "rules.json"), data.backups)
     knowledge = KnowledgeService(data.knowledge, ROOT / "schemas" / "claim.schema.json", chapters)
-    imports = ImportService(data, chapters, rules, knowledge, ROOT / "schemas" / "import.schema.json")
+    classification = ClassificationService(Path(config.get("CLASSIFICATION_PATH") or ROOT / "classification.json"), chapters)
+    imports = ImportService(data, chapters, rules, knowledge, ROOT / "schemas" / "import.schema.json", classification)
+    knowledge.role_catalog = classification.role_catalog
     exporter = ExportService(data, config.get("ONEDRIVE_ROOT", os.environ.get("ONESCM_LOCAL_ONEDRIVE_ROOT")))
     app.extensions["onescm"] = {"data": data, "chapters": chapters, "rules": rules, "knowledge": knowledge,
                                 "imports": imports, "exporter": exporter}
@@ -82,6 +85,7 @@ def create_app(config: dict | None = None) -> Flask:
         return jsonify(error=str(exc)), exc.status
 
     @app.errorhandler(ChapterError)
+    @app.errorhandler(ClassificationError)
     def chapter_error(exc):
         return jsonify(error=str(exc)), 400
 
@@ -142,6 +146,8 @@ def create_app(config: dict | None = None) -> Flask:
                        sourceTypes=claim_service.SOURCE_TYPES, ruleCategories=CATEGORIES,
                        evidenceStrengths=claim_service.EVIDENCE_FACTORS, validationStatuses=VALIDATION_STATUSES,
                        evidenceStatuses=EVIDENCE_STATUSES, conflictStatuses=CONFLICT_STATUSES,
+                       roles=[{"id": r["id"], "name": r["name"]} for r in classification.role_catalog()],
+                       domains=classification.domains(),
                        maxUploadBytes=MAX_BYTES, csrfHeader=CSRF_HEADER)
 
     @app.get("/api/chapters/<chapter_id>")
@@ -155,10 +161,16 @@ def create_app(config: dict | None = None) -> Flask:
         content = upload.read() if upload else b""
         record = imports.run(upload.filename if upload else "", content, request.form.get("chapterId", ""),
                              request.form.get("language", ""), request.form.get("sourceType", "ROVO"),
-                             force=request.form.get("force") == "1")
+                             force=request.form.get("force") == "1", role=request.form.get("role", ""),
+                             domain=request.form.get("domain", ""))
         snapshot = compute_coverage(record["chapterId"])
         record = imports.get(record["importId"]) | ({"duplicate": True} if record.get("duplicate") else {})
         return jsonify(importRecord=record, coverage=snapshot), 200 if record.get("duplicate") else 201
+
+    @app.post("/api/import/classify")
+    def classify_import():
+        upload = request.files.get("file")
+        return jsonify(imports.classify(upload.filename if upload else "", upload.read() if upload else b""))
 
     @app.get("/api/imports")
     def list_imports():

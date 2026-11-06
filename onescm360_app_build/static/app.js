@@ -121,19 +121,30 @@
         el("dt", { text: "Lokaler Status" }), el("dd", {}, badge(od.localStatus), " ", el("span", { class: "muted", text: od.reason })),
         el("dt", { text: "Cloudstatus" }), el("dd", {}, badge(od.cloudStatus), " ", el("span", { class: "muted", text: od.cloudNote }))));
     const tbody = $("dash-imports").tBodies[0];
-    if (!data.imports.length) emptyRow(tbody, 9, "Noch keine Importe.");
-    else tbody.replaceChildren(...data.imports.map((r) => el("tr", { dataset: { importId: r.importId } },
-      el("td", { class: "mono", text: r.importId }), el("td", { text: r.chapterId || "—" }), el("td", { text: r.file }),
-      el("td", {}, badge(r.status)), el("td", {}, badge(r.validationStatus)), el("td", { text: r.questions }),
-      el("td", { text: r.tables }), el("td", {}, badge(r.gate)),
-      el("td", {}, r.status === "INVALID_JSON" ? "" : el("div", { class: "actions" },
-        el("button", { class: "small", text: "Details", onclick: () => showImportDetails(r.importId) }),
-        el("button", { class: "small", text: "Archivieren", onclick: () => archiveImport(r) }),
-        el("button", { class: "small danger", text: "Löschen", onclick: () => deleteImport(r) }))))));
+    const groupKey = $("dash-group").value;
+    if (!data.imports.length) emptyRow(tbody, 12, "Noch keine Importe.");
+    else {
+      const rows = [];
+      for (const group of groupBy(data.imports, groupKey, labelFor[groupKey] || ((v) => v))) {
+        if (groupKey) rows.push(el("tr", { class: "group-row" }, el("td", { colspan: 12, text: `${group.label} (${group.items.length})` })));
+        for (const r of group.items) rows.push(el("tr", { dataset: { importId: r.importId } },
+          el("td", { class: "mono", text: r.importId }), el("td", { text: r.chapterId || "—" }), el("td", { text: r.file }),
+          el("td", { text: r.language || "—" }), el("td", { text: r.status === "INVALID_JSON" ? "—" : labelFor.role(r.role) }),
+          el("td", { text: r.status === "INVALID_JSON" ? "—" : labelFor.domain(r.domain) }),
+          el("td", {}, badge(r.status)), el("td", {}, badge(r.validationStatus)), el("td", { text: r.questions }),
+          el("td", { text: r.tables }), el("td", { class: "gate-cell" }, badge(r.gate)),
+          el("td", {}, r.status === "INVALID_JSON" ? "" : el("div", { class: "actions" },
+            el("button", { class: "small", text: "Details", onclick: () => showImportDetails(r.importId) }),
+            el("button", { class: "small", text: "Archivieren", onclick: () => archiveImport(r) }),
+            el("button", { class: "small danger", text: "Löschen", onclick: () => deleteImport(r) })))));
+      }
+      tbody.replaceChildren(...rows);
+    }
     const otbody = $("dash-outputs").tBodies[0];
     if (!data.outputs.length) emptyRow(otbody, 4, "Keine Output-Dateien im OneDrive-Ziel.");
     else otbody.replaceChildren(...data.outputs.map((o) => el("tr", {}, el("td", { text: o.name }), el("td", { class: "mono", text: o.path }), el("td", { text: fmtSize(o.size) }), el("td", { text: fmtDate(o.modifiedAt) }))));
   };
+  $("dash-group").addEventListener("change", () => loaders.dashboard().catch((e) => toast(e.message, true)));
   $("dash-refresh").addEventListener("click", () => loaders.dashboard().then(() => toast("Dashboard aktualisiert.")).catch((e) => toast(e.message, true)));
 
   async function showImportDetails(id) {
@@ -156,26 +167,160 @@
     catch (e) { toast(e.message, true); }
   }
 
-  // ---------- Import ----------
+  // ---------- Import (Mehrfachimport) ----------
   loaders.import = async () => {};
+  const queue = [];
+  let queueSeq = 0;
+  let importing = false;
+  const FIELDS = ["chapterId", "language", "role", "domain", "sourceType"];
+  const DEFAULT_IDS = { chapterId: "imp-chapter", language: "imp-language", role: "imp-role", domain: "imp-domain", sourceType: "imp-source" };
+
+  const labelFor = {
+    chapterId: (v) => { const c = state.meta.chapters.find((x) => x.chapterId === v); return c ? `${c.chapterId} – ${c.title}` : "Kapitel fehlt"; },
+    language: (v) => v || "Sprache fehlt",
+    role: (v) => (v ? (state.meta.roles.find((r) => r.id === v) || { name: v }).name : "Alle Rollen"),
+    domain: (v) => (state.meta.domains.find((d) => d.id === v) || {}).name || "Ohne Domäne",
+    name: (v) => (v || "?").slice(0, 1).toUpperCase(),
+  };
+  const fieldOptions = {
+    chapterId: () => [["", "— Kapitel wählen —"], ...chapterOptions()],
+    language: () => [["", "— Sprache wählen —"], ...state.meta.languages],
+    role: () => [["", "Alle Rollen"], ...state.meta.roles.map((r) => [r.id, r.name])],
+    domain: () => [["", "Ohne Domäne"], ...state.meta.domains.map((d) => [d.id, d.name])],
+    sourceType: () => state.meta.sourceTypes,
+  };
+
+  /** Sort items by a key and return [{label, items}] groups (used by the queue and the dashboard). */
+  function groupBy(items, key, label) {
+    if (!key) return [{ label: "", items }];
+    const groups = new Map();
+    for (const item of [...items].sort((a, b) => String(label(a[key] ?? "")).localeCompare(String(label(b[key] ?? "")), "de") || String(a.name || a.file || "").localeCompare(String(b.name || b.file || ""), "de"))) {
+      const text = label(item[key] ?? "");
+      if (!groups.has(text)) groups.set(text, []);
+      groups.get(text).push(item);
+    }
+    return [...groups].map(([text, list]) => ({ label: text, items: list }));
+  }
+
+  function defaults() {
+    return Object.fromEntries(FIELDS.map((f) => [f, $(DEFAULT_IDS[f]).value]));
+  }
+
+  function clientCheck(file) {
+    const ext = file.name.includes(".") ? file.name.split(".").pop().toLowerCase() : "";
+    if (!["docx", "html", "htm"].includes(ext)) return `Dateityp „.${ext || "?"}“ wird nicht unterstützt. Erlaubt sind .docx, .html und .htm.`;
+    if (file.size === 0) return "Die Datei ist leer.";
+    if (file.size > state.meta.maxUploadBytes) return "Die Datei ist größer als 50 MB (Pilotgrenze).";
+    return "";
+  }
+
+  async function addFiles(files) {
+    $("imp-error").hidden = true;
+    const added = [];
+    for (const file of files) {
+      if (queue.some((q) => q.file.name === file.name && q.file.size === file.size && q.file.lastModified === file.lastModified && q.status !== "done")) continue;
+      const base = defaults();
+      const item = { id: ++queueSeq, file, name: file.name, status: "checking", error: "", origin: {}, ...base };
+      for (const f of FIELDS) item.origin[f] = "default";
+      const problem = clientCheck(file);
+      if (problem) { item.status = "invalid"; item.error = problem; }
+      queue.push(item);
+      added.push(item);
+    }
+    renderQueue();
+    for (const item of added.filter((i) => i.status === "checking")) {
+      try {
+        const form = new FormData();
+        form.append("file", item.file);
+        const response = await fetch("/api/import/classify", { method: "POST", headers: { "X-oneSCM360": "1" }, body: form });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error((data && data.error) || `Serverfehler (${response.status}).`);
+        for (const [field, source] of [["chapterId", "chapterSource"], ["language", "languageSource"], ["role", "roleSource"], ["domain", "domainSource"]]) {
+          if (data[field] && item.origin[field] !== "user") { item[field] = data[field]; item.origin[field] = data[source]; }
+        }
+        item.status = "ready";
+      } catch (err) {
+        item.status = "invalid";
+        item.error = err.message;
+      }
+      renderQueue();
+    }
+  }
+
+  function selectFor(item, field) {
+    const select = el("select", { "aria-label": { chapterId: "Kapitel", language: "Sprache", role: "Rolle", domain: "Domäne", sourceType: "Quelltyp" }[field], disabled: importing || item.status === "done" || item.status === "running" });
+    fillSelect(select, fieldOptions[field](), { value: item[field] });
+    select.addEventListener("change", () => { item[field] = select.value; item.origin[field] = "user"; if (item.status === "failed") item.status = "ready"; renderQueue(); });
+    const origin = item.origin[field];
+    const hint = origin && origin !== "default" && origin !== "user" ? el("span", { class: "origin", text: `erkannt: ${origin}` }) : origin === "user" ? el("span", { class: "origin", text: "manuell" }) : null;
+    return el("td", {}, select, hint);
+  }
+
+  function statusCell(item) {
+    switch (item.status) {
+      case "checking": return el("td", {}, badge("PRÜFT …", "warn"));
+      case "invalid": return el("td", {}, badge("NICHT IMPORTIERBAR", "bad"), el("div", { class: "row-error", text: item.error }));
+      case "ready": return el("td", {}, badge(item.chapterId && item.language ? "BEREIT" : "ANGABE FEHLT", item.chapterId && item.language ? "ok" : "warn"));
+      case "running": return el("td", {}, badge("LÄUFT …", "warn"));
+      case "done": return el("td", {}, badge(item.duplicate ? "BEREITS IMPORTIERT" : "IMPORTIERT", "ok"), " ", badge(item.gate));
+      case "failed": return el("td", {}, badge("FEHLER", "bad"), el("div", { class: "row-error", text: item.error }));
+      default: return el("td", {});
+    }
+  }
+
+  function renderQueue() {
+    const card = $("imp-queue-card");
+    card.hidden = queue.length === 0;
+    const ready = queue.filter((q) => q.status === "ready" || q.status === "failed").length;
+    $("imp-queue-title").textContent = `Dateien (${queue.length}) · ${ready} importierbar`;
+    $("imp-submit").textContent = ready > 1 ? `${ready} Dateien importieren` : "Importieren";
+    const key = $("imp-group").value;
+    const rows = [];
+    for (const group of groupBy(queue, key, labelFor[key] || ((v) => v))) {
+      if (key) rows.push(el("tr", { class: "group-row" }, el("td", { colspan: 8, text: `${{ chapterId: "Kapitel", language: "Sprache", role: "Rolle", domain: "Domäne", name: "Dateiname" }[key]}: ${group.label} (${group.items.length})` })));
+      for (const item of group.items) {
+        rows.push(el("tr", { dataset: { queueId: item.id, file: item.name } },
+          el("td", {}, el("div", { text: item.name }), el("span", { class: "origin", text: fmtSize(item.file.size) })),
+          ...FIELDS.map((f) => selectFor(item, f)),
+          statusCell(item),
+          el("td", {}, el("div", { class: "actions" },
+            item.result ? el("button", { type: "button", class: "small", text: "Ergebnis", onclick: () => renderImportResult(item.result.importRecord, item.result.coverage) }) : null,
+            el("button", { type: "button", class: "small", text: "Entfernen", disabled: importing, onclick: () => { queue.splice(queue.indexOf(item), 1); renderQueue(); } })))));
+      }
+    }
+    $("imp-queue").tBodies[0].replaceChildren(...rows);
+  }
+
+  for (const f of FIELDS) {
+    $(DEFAULT_IDS[f]).addEventListener("change", () => {
+      for (const item of queue) if (item.origin[f] === "default" && item.status !== "done") item[f] = $(DEFAULT_IDS[f]).value;
+      renderQueue();
+    });
+  }
+  $("imp-group").addEventListener("change", renderQueue);
+  $("imp-clear").addEventListener("click", () => { if (!importing) { queue.length = 0; renderQueue(); $("imp-batch-summary").replaceChildren(); } });
+  $("imp-file").addEventListener("change", (e) => { const files = [...e.target.files]; e.target.value = ""; addFiles(files); });
+  const drop = document.querySelector(".drop");
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, () => drop.classList.add("dragover")));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, () => drop.classList.remove("dragover")));
+
   function setProgress(text, value) {
     $("imp-status-text").textContent = text;
     const bar = $("imp-bar");
     if (value === null) { bar.classList.add("indeterminate"); } else { bar.classList.remove("indeterminate"); bar.style.width = `${value}%`; }
   }
 
-  function upload(form) {
+  function upload(item, onProgress) {
+    const form = new FormData();
+    form.append("file", item.file);
+    for (const f of FIELDS) form.append(f, item[f]);
+    if ($("imp-force").checked) form.append("force", "1");
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/import");
       xhr.setRequestHeader("X-oneSCM360", "1");
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const value = Math.round((e.loaded / e.total) * 60);
-          setProgress(e.loaded < e.total ? `Datei wird eingelesen … ${Math.round((e.loaded / e.total) * 100)} %` : "Analyse läuft (Parser, Tabellen, Regelwerk, Claims) …", e.loaded < e.total ? value : null);
-        }
-      };
-      xhr.upload.onload = () => setProgress("Analyse läuft (Parser, Tabellen, Regelwerk, Claims) …", null);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.upload.onload = () => onProgress(1);
       xhr.onload = () => {
         let data = null;
         try { data = JSON.parse(xhr.responseText); } catch { data = null; }
@@ -191,39 +336,70 @@
 
   $("import-form").addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (importing) return;
     const errorBox = $("imp-error");
     errorBox.hidden = true;
-    const file = $("imp-file").files[0];
     const fail = (msg) => { errorBox.textContent = msg; errorBox.hidden = false; };
-    if (!file) return fail("Bitte eine Datei auswählen.");
-    const ext = (file.name.split(".").pop() || "").toLowerCase();
-    if (!["docx", "html", "htm"].includes(ext) || !file.name.includes(".")) return fail(`Dateityp „.${ext}“ wird nicht unterstützt. Erlaubt sind .docx, .html und .htm.`);
-    if (file.size === 0) return fail("Die Datei ist leer.");
-    if (file.size > state.meta.maxUploadBytes) return fail("Die Datei ist größer als 50 MB (Pilotgrenze).");
-    const form = new FormData();
-    form.append("file", file);
-    form.append("chapterId", $("imp-chapter").value);
-    form.append("language", $("imp-language").value);
-    form.append("sourceType", $("imp-source").value);
-    if ($("imp-force").checked) form.append("force", "1");
-    const button = $("imp-submit");
-    button.disabled = true;
+    if (!queue.length) return fail("Bitte eine Datei auswählen.");
+    if (queue.some((q) => q.status === "checking")) return fail("Die Dateien werden noch geprüft. Bitte einen Moment warten.");
+    const todo = queue.filter((q) => q.status === "ready" || q.status === "failed");
+    if (!todo.length) {
+      const invalid = queue.filter((q) => q.status === "invalid");
+      return fail(invalid.length ? invalid.map((q) => `${q.name}: ${q.error}`).join(" · ") : "Alle Dateien der Liste sind bereits importiert.");
+    }
+    const incomplete = todo.filter((q) => !q.chapterId || !q.language);
+    if (incomplete.length) return fail(`Für ${incomplete.length} Datei(en) fehlen Kapitel oder Sprache: ${incomplete.map((q) => q.name).join(", ")}.`);
+
+    importing = true;
+    $("imp-submit").disabled = true;
+    $("imp-file").disabled = true;
     $("imp-progress").hidden = false;
     $("imp-result").replaceChildren();
-    setProgress("Datei wird eingelesen …", 2);
+    $("imp-batch-summary").replaceChildren();
+    let ok = 0, failed = 0, last = null, lastError = "";
     try {
-      const result = await upload(form);
+      for (const [index, item] of todo.entries()) {
+        item.status = "running";
+        item.error = "";
+        renderQueue();
+        const prefix = todo.length > 1 ? `Datei ${index + 1} von ${todo.length} · ${item.name}: ` : "";
+        setProgress(`${prefix}Datei wird eingelesen …`, Math.round((index / todo.length) * 100) + 1);
+        try {
+          const result = await upload(item, (fraction) => {
+            if (fraction < 1) setProgress(`${prefix}Datei wird eingelesen … ${Math.round(fraction * 100)} %`, Math.round(((index + fraction * 0.5) / todo.length) * 100));
+            else setProgress(`${prefix}Analyse läuft (Parser, Tabellen, Regelwerk, Claims) …`, todo.length > 1 ? Math.round(((index + 0.5) / todo.length) * 100) : null);
+          });
+          item.status = "done";
+          item.result = result;
+          item.duplicate = !!result.importRecord.duplicate;
+          item.gate = result.coverage.gate;
+          last = result;
+          ok += 1;
+        } catch (err) {
+          item.status = "failed";
+          item.error = err.message;
+          lastError = err.message;
+          failed += 1;
+        }
+        renderQueue();
+      }
       setProgress("Fertig.", 100);
-      renderImportResult(result.importRecord, result.coverage);
-      toast(result.importRecord.duplicate ? "Diese Datei wurde bereits importiert – vorhandenes Ergebnis angezeigt." : "Import abgeschlossen.");
-      window.dispatchEvent(new Event("onescm-changed"));
-    } catch (err) {
-      fail(err.message);
-      window.dispatchEvent(new Event("onescm-changed"));
     } finally {
-      button.disabled = false;
+      importing = false;
+      $("imp-submit").disabled = false;
+      $("imp-file").disabled = false;
       $("imp-progress").hidden = true;
       $("imp-bar").classList.remove("indeterminate");
+      renderQueue();
+      window.dispatchEvent(new Event("onescm-changed"));
+    }
+    if (todo.length > 1) {
+      $("imp-batch-summary").replaceChildren(el("div", { class: `alert ${failed ? "warn" : "ok"}`, id: "imp-batch-result", text: `${ok} von ${todo.length} Dateien importiert${failed ? `, ${failed} mit Fehler (siehe Liste)` : ""}.` }));
+    }
+    if (failed && !ok) fail(todo.length > 1 ? "Keine Datei konnte importiert werden. Details stehen in der Liste." : lastError);
+    if (last) {
+      renderImportResult(last.importRecord, last.coverage);
+      toast(todo.length > 1 ? `${ok} von ${todo.length} Dateien importiert.` : last.importRecord.duplicate ? "Diese Datei wurde bereits importiert – vorhandenes Ergebnis angezeigt." : "Import abgeschlossen.", failed > 0);
     }
   });
 
@@ -235,6 +411,7 @@
         el("dl", { class: "kv" },
           el("dt", { text: "Import-ID" }), el("dd", { class: "mono", id: "imp-result-id", text: record.importId }),
           el("dt", { text: "Kapitel" }), el("dd", { text: `${record.chapterId} · ${record.language} · ${record.sourceType}` }),
+          el("dt", { text: "Rolle · Domäne" }), el("dd", { id: "imp-result-scope", text: `${labelFor.role(record.role || "")} · ${labelFor.domain(record.domain || "")}` }),
           el("dt", { text: "Datei" }), el("dd", { text: `${record.sourceFile.name} (${fmtSize(record.sourceFile.size)})` }),
           el("dt", { text: "Status" }), el("dd", {}, badge(record.status), record.duplicate ? el("span", { class: "muted", text: " · bereits importiert (idempotent)" }) : ""),
           el("dt", { text: "Validierung" }), el("dd", {}, badge(record.validationStatus)),
@@ -368,7 +545,7 @@
       field("Subject", "subject", el("input", { value: claim.subject || "" })),
       field("Predicate", "predicate", el("input", { value: claim.predicate || "" })),
       el("label", { class: "wide" }, "Object (normalisierte Begriffe)", el("input", { "data-field": "object", value: claim.object || "" })),
-      field("Rolle", "role", select([["", "—"], ...cfg.roles.map((r) => [r, r])], claim.role || "")),
+      field("Rolle", "role", select([["", "—"], ...state.meta.roles.map((r) => [r.id, r.name]), ...(claim.role && !state.meta.roles.some((r) => r.id === claim.role) ? [[claim.role, claim.role]] : [])], claim.role || "")),
       field("Division", "division", select([["", "—"], "PC", "VAN", "BOTH"], claim.division || "")),
       field("Markt", "market", el("input", { value: claim.market || "" })),
       field("PI", "pi", el("input", { type: "number", min: 0, max: 99, value: claim.pi ?? "" })),
@@ -539,7 +716,7 @@
     const table = $("cov-roles");
     table.tHead.replaceChildren(el("tr", {}, el("th", { text: "Rolle" }), checks.map((c) => el("th", { text: c }))));
     if (!names.length) emptyRow(table.tBodies[0], 1, "Keine Rollen im Kapitel konfiguriert.");
-    else table.tBodies[0].replaceChildren(...names.map((n) => el("tr", {}, el("td", { text: n }), checks.map((c) => el("td", { text: roles[n][c] ? "✓" : "—" })))));
+    else table.tBodies[0].replaceChildren(...names.map((n) => el("tr", {}, el("td", { text: labelFor.role(n) }), checks.map((c) => el("td", { text: roles[n][c] ? "✓" : "—" })))));
   };
   $("cov-chapter").addEventListener("change", () => loaders.coverage());
   $("cov-refresh").addEventListener("click", () => loaders.coverage().then(() => toast("Coverage neu berechnet.")).catch((e) => toast(e.message, true)));
@@ -636,9 +813,12 @@
   async function init() {
     state.meta = await api("/api/meta");
     $("app-version").textContent = `v${state.meta.version}`;
-    for (const id of ["imp-chapter", "cov-chapter", "sync-chapter"]) fillSelect($(id), chapterOptions());
+    for (const id of ["cov-chapter", "sync-chapter"]) fillSelect($(id), chapterOptions());
+    fillSelect($("imp-chapter"), fieldOptions.chapterId());
+    fillSelect($("imp-role"), fieldOptions.role());
+    fillSelect($("imp-domain"), fieldOptions.domain());
     for (const id of ["claim-chapter", "ev-chapter", "tbl-chapter"]) fillSelect($(id), chapterOptions(), { empty: "Alle Kapitel" });
-    fillSelect($("imp-language"), state.meta.languages);
+    fillSelect($("imp-language"), state.meta.languages, { value: "DE" });
     fillSelect($("imp-source"), state.meta.sourceTypes);
     fillSelect($("claim-status"), state.meta.validationStatuses, { empty: "Alle" });
     fillSelect($("rule-category"), Object.entries(state.meta.ruleCategories));

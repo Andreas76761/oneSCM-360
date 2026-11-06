@@ -35,8 +35,9 @@ def file_type(name: str) -> str:
 
 
 class ImportService:
-    def __init__(self, data_dir, chapters, rules, knowledge, schema_path: Path):
+    def __init__(self, data_dir, chapters, rules, knowledge, schema_path: Path, classification=None):
         self.data = data_dir
+        self.classification = classification
         self.chapters = chapters
         self.rules = rules
         self.knowledge = knowledge
@@ -55,7 +56,8 @@ class ImportService:
                     "importId": record["importId"], "chapterId": record.get("chapterId", ""),
                     "file": record.get("sourceFile", {}).get("name", ""), "status": record.get("status", ""),
                     "validationStatus": record.get("validationStatus", ""), "language": record.get("language", ""),
-                    "sourceType": record.get("sourceType", ""),
+                    "sourceType": record.get("sourceType", ""), "role": record.get("role", ""),
+                    "domain": record.get("domain", ""),
                     "questions": sum(1 for q in record.get("questions", []) if q.get("answerStatus") == "ANSWERED"),
                     "tables": len(record.get("tables", [])), "createdAt": record.get("createdAt", ""),
                     "exportedAt": record.get("exportedAt", ""), "gate": record.get("gate", ""),
@@ -63,7 +65,7 @@ class ImportService:
             except (OSError, ValueError, json.JSONDecodeError):
                 result.append({"importId": path.stem, "chapterId": "", "file": path.name, "status": "INVALID_JSON",
                                "validationStatus": "BLOCKED", "gate": "BLOCKED", "questions": 0, "tables": 0,
-                               "createdAt": "", "exportedAt": "", "language": "", "sourceType": ""})
+                               "createdAt": "", "exportedAt": "", "language": "", "sourceType": "", "role": "", "domain": ""})
         return result
 
     def get(self, import_id: str) -> dict:
@@ -92,7 +94,8 @@ class ImportService:
         write_json_atomic(self.data.imports / f"{record['importId']}.json", record)
 
     # -- validation of the upload --------------------------------------------
-    def validate_upload(self, filename: str, data: bytes, chapter_id: str, language: str, source_type: str):
+    @staticmethod
+    def check_file(filename: str, data: bytes) -> tuple[str, str]:
         name = safe_filename(filename or "")
         ftype = file_type(name)
         if not filename:
@@ -103,7 +106,19 @@ class ImportService:
             raise ImportError_("Die Datei ist leer.", 400, "EMPTY")
         if len(data) > MAX_BYTES:
             raise ImportError_("Die Datei ist größer als 50 MB (Pilotgrenze).", 413, "TOO_LARGE")
+        return name, ftype
+
+    def validate_upload(self, filename: str, data: bytes, chapter_id: str, language: str, source_type: str,
+                        role: str = "", domain: str = ""):
+        name, ftype = self.check_file(filename, data)
         self.chapters.get(chapter_id)
+        if self.classification:
+            try:
+                self.classification.validate(role, domain)
+            except ValueError as exc:
+                raise ImportError_(str(exc)) from exc
+        elif role or domain:
+            raise ImportError_("Rolle und Domäne sind nicht konfiguriert.")
         if language not in LANGUAGES:
             raise ImportError_("Sprache muss DE, EN oder DE+EN sein.")
         if source_type not in claim_service.SOURCE_TYPES:
@@ -111,14 +126,28 @@ class ImportService:
         return name, ftype
 
     # -- main entry --------------------------------------------------------------
+    def classify(self, filename: str, data: bytes) -> dict:
+        """Read a file without importing it and suggest chapter, language, role and domain."""
+        name, ftype = self.check_file(filename, data)
+        try:
+            parsed = parse_docx(data) if ftype == "docx" else parse_html(data)
+        except ParseError as exc:
+            raise ImportError_(str(exc), 422, "PARSE_ERROR") from exc
+        if not any(b["kind"] == "table" or b["text"].strip() for b in parsed["blocks"]):
+            raise ImportError_("Das Dokument enthält keinen lesbaren Inhalt.", 422, "NO_CONTENT")
+        return {"name": name, "type": ftype, "size": len(data), **self.classification.classify(name, parsed["blocks"])}
+
     def run(self, filename: str, data: bytes, chapter_id: str, language: str, source_type: str = "ROVO",
-            force: bool = False) -> dict:
-        name, ftype = self.validate_upload(filename, data, chapter_id, language, source_type)
+            force: bool = False, role: str = "", domain: str = "") -> dict:
+        name, ftype = self.validate_upload(filename, data, chapter_id, language, source_type, role, domain)
+        if self.classification and role:
+            role = self.classification.normalize_role(role)
         digest = hashlib.sha256(data).hexdigest()
         with LOCK:
             existing = next((r for r in self.records(chapter_id)
                              if r.get("sourceFile", {}).get("sha256") == digest and r.get("language") == language
-                             and r.get("sourceType") == source_type and r.get("status") == "COMPLETED"), None)
+                             and r.get("sourceType") == source_type and r.get("role", "") == role
+                             and r.get("domain", "") == domain and r.get("status") == "COMPLETED"), None)
             if existing and not force:
                 return {**existing, "duplicate": True}
             import_id = existing["importId"] if existing else new_import_id()
@@ -126,6 +155,8 @@ class ImportService:
                 self.knowledge.remove_import(import_id)
             record = {
                 "importId": import_id, "chapterId": chapter_id, "language": language, "sourceType": source_type,
+                "role": role, "domain": domain,
+                "domainName": self.classification.domain_name(domain) if self.classification and domain else "",
                 "sourceFile": {"name": name, "type": ftype, "size": len(data), "sha256": digest},
                 "status": "RECEIVED", "validationStatus": "", "journal": (existing or {}).get("journal", []),
                 "questions": [], "tables": [], "media": [], "findings": [], "errors": [], "warnings": [],
@@ -142,7 +173,8 @@ class ImportService:
                 self._step(record, "PARSED")
                 self._analyse(record, parsed)
                 self._step(record, "ANALYZED")
-                bundle = claim_service.build_from_import(record, self.chapters.get(chapter_id), self.rules.systems(), source_type)
+                bundle = claim_service.build_from_import(record, self.chapters.get(chapter_id), self.rules.systems(), source_type,
+                                                         self.classification.role_catalog() if self.classification else None)
                 record["counts"] = {k: len(v) for k, v in bundle.items()}
                 jsonschema.validate(record, self.schema)
                 self.knowledge.add_import(bundle)

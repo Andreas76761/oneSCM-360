@@ -16,7 +16,7 @@
   ],
   "roles": [
     "Dealer",
-    "Market Operations"
+    "MO"
   ],
   "requiredDimensions": [
     "questions",

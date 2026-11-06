@@ -102,3 +102,15 @@ details > summary { cursor: pointer; font-weight: 600; }
 details[open] > summary { margin-bottom: 12px; }
 @media (max-width: 900px) { .topbar { flex-wrap: wrap; gap: 6px; padding: 10px 16px; } .brand { font-size: 15px; } main { padding: 14px 16px 48px; } .tabs { padding: 0 6px; } .tabs button { padding: 10px; } .split { grid-template-columns: 1fr; } .editor { position: static; max-height: none; } .editor .form-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .hourglass, .bar-fill.indeterminate { animation: none; } }
+
+/* multi import */
+.drop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px; border: 2px dashed #b7c4cf; border-radius: var(--radius); background: #fafcfd; cursor: pointer; text-align: center; color: var(--ink); }
+.drop:hover, .drop.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop-title { font-size: 15px; font-weight: 600; }
+.queue-head { margin: 0 0 10px; } .queue-head h2 { margin: 0; flex: 1; }
+tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font-size: 12.5px; padding: 6px 10px; }
+#imp-queue td select { min-width: 120px; }
+.origin { display: block; font-size: 10.5px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+.row-error { color: var(--bad); font-size: 12px; }
+.actions-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }

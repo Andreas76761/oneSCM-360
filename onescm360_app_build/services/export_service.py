@@ -192,7 +192,7 @@ class ExportService:
             tables = [t for r in imports for t in r.get("tables", [])]
             payload = {
                 "exportedAt": now_iso(), "chapter": {k: chapter[k] for k in ("chapterId", "title", "schemaStatus")},
-                "imports": [{k: r.get(k) for k in ("importId", "status", "validationStatus", "language", "sourceType", "sourceFile", "createdAt")} for r in imports],
+                "imports": [{k: r.get(k) for k in ("importId", "status", "validationStatus", "language", "sourceType", "role", "domain", "domainName", "sourceFile", "createdAt")} for r in imports],
                 "knowledgeBlocks": knowledge["knowledgeBlocks"], "claims": knowledge["claims"],
                 "evidence": [e for e in knowledge["evidence"] if e["claimId"] in claim_ids],
                 "conflicts": knowledge["conflicts"], "coverage": coverage, "tables": tables,
