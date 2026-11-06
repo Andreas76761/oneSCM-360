@@ -48,12 +48,13 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: python -m pip install -r requirements.txt playwright==1.62.0
-      - name: Install Chromium (retry, the apt download sometimes stalls)
+      # The runner image already has Chromium's system libraries; --with-deps only adds optional fonts
+      # from a mirror that sometimes stalls for many minutes. Install system packages only if Chromium cannot start.
+      - name: Install Chromium
         shell: bash
         run: |
-          for attempt in 1 2 3; do
-            timeout 300 python -m playwright install --with-deps chromium && exit 0
-            echo "Attempt $attempt failed or timed out, retrying"
-          done
-          exit 1
+          python -m playwright install chromium
+          if ! python -c "from playwright.sync_api import sync_playwright as s; p = s().start(); p.chromium.launch().close(); p.stop()"; then
+            python -m playwright install-deps chromium
+          fi
       - run: python tests/browser_workflow.py
