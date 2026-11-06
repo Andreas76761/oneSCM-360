@@ -90,7 +90,7 @@ def main():
                         text = b" ".join(archive.read(n) for n in archive.namelist() if n.endswith(".xml"))
                     assert b"SECRET-MATRIX-REMARK" not in text
                 # File import, local triage, explicit review and counts.
-                page.get_by_role("button", name="Quellen & Chunks", exact=True).click()
+                page.locator("#sources-button").click()
                 page.locator("#source-files").set_input_files({"name": "Jira-Export.txt", "mimeType": "text/plain", "buffer": "Retailer Vertrag prüfen. Finance Rechnung und Vertragsprüfung für den Markt.".encode()})
                 page.locator("#source-kind").select_option("Jira")
                 page.get_by_role("button", name="Dateien hochladen", exact=True).click()
@@ -128,7 +128,7 @@ def main():
                 page.get_by_role("button", name="Speichern", exact=True).click()
                 expect(page.locator("#save-state")).to_contain_text("Lokal gespeichert")
                 expect(page.locator('#chapter-tree [data-domain="d3"] > summary')).to_contain_text("2 Kapitel · 1 Chunks")
-                page.get_by_role("button", name="Quellen & Chunks", exact=True).click()
+                page.locator("#sources-button").click()
                 page.once("dialog", lambda dialog: dialog.accept())
                 page.get_by_role("button", name="Datei löschen", exact=True).click()
                 expect(page.locator("#source-list")).to_contain_text("Keine passenden Quellen")

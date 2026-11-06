@@ -70,7 +70,7 @@ def main():
                 page.locator('[data-action="delete"]').click()
                 page.get_by_role("button", name="Speichern", exact=True).click()
                 expect(page.locator("#save-state")).to_contain_text("Lokal gespeichert")
-                page.get_by_role("button", name="Alle Gliederungen", exact=True).click()
+                page.locator("#overview-button").click()
                 expect(page.locator("#overview-rows tr")).to_have_count(2)
                 page.locator("#overview-search").fill("Blueprint")
                 expect(page.locator("#overview-rows .compare-choice")).to_have_count(2)
@@ -106,7 +106,7 @@ def main():
                 # Leaving the editor for the overview does not discard unsaved metadata.
                 page.locator(".outline-item").filter(has_text="Retailer-Handbuch – Kopie").click()
                 page.locator('#outline-metadata [data-key="owner"]').fill("Noch nicht gespeichert")
-                page.get_by_role("button", name="Alle Gliederungen", exact=True).click()
+                page.locator("#overview-button").click()
                 page.locator(".outline-item").filter(has_text="Retailer-Handbuch – Kopie").click()
                 expect(page.locator('#outline-metadata [data-key="owner"]')).to_have_value("Noch nicht gespeichert")
                 assert not errors, errors
