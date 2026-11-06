@@ -207,6 +207,18 @@
         <div id="man-result"></div>
         <iframe id="man-frame" class="manual-frame" title="Vorschau Handbuchstand" sandbox="" hidden></iframe>
       </div>
+      <div class="card" id="book-card">
+        <h2>Gesamthandbuch</h2>
+        <p class="muted">Alle Kapitel mit abgeschlossenem Import in einem Dokument: Kapitelübersicht, Inhaltsverzeichnis, Kapitel 01–16 und Glossar. Ein Kapitel ist enthalten, wenn es die gewählte Stufe erreicht (Gate wie beim Handbuchstand). Ablage: <code>05_Manual_Generated/&lt;Stufe&gt;/Gesamthandbuch_…</code> als HTML, Word und Markdown.</p>
+        <div class="form-grid">
+          <label>Designvorlage<select id="book-design"></select></label>
+          <label>Stufe<select id="book-stage"><option value="Draft">Draft</option><option value="Reviewed">Reviewed</option><option value="Released">Released</option></select></label>
+          <div class="actions"><button type="button" id="book-preview" class="secondary">Vorschau</button><button type="button" id="book-docx" class="secondary">Word herunterladen</button><button type="button" id="book-generate" class="primary">Gesamthandbuch erzeugen</button></div>
+        </div>
+        <div class="table-wrap"><table id="book-overview"><thead><tr><th>Kapitel</th><th>Titel</th><th>Gate</th><th>Readiness</th><th>Im Gesamthandbuch</th></tr></thead><tbody></tbody></table></div>
+        <div id="book-result"></div>
+        <iframe id="book-frame" class="manual-frame" title="Vorschau Gesamthandbuch" sandbox="" hidden></iframe>
+      </div>
       <div class="card">
         <h2>Datenbereinigung</h2>
         <p class="muted">Regeln aus <code>cleanup_rules.json</code>. Zuerst Vorschau, dann ausgewählte Einträge bereinigen. Claims und Evidence bleiben beim Archivieren erhalten.</p>

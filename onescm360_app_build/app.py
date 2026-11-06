@@ -22,7 +22,7 @@ from services import claim_service, conflict_service, coverage_service
 from services.chapter_service import ChapterError, ChapterService
 from services.chat_service import ChatError, ChatService
 from services.cleanup_service import CleanupError, CleanupService
-from services.manual_service import ManualError, build_manual, safe_stamp, stage_allowed
+from services.manual_service import STAGES, ManualError, build_book, build_manual, safe_stamp, stage_allowed
 from services import design_service, icons as icon_set, word_template
 from services.design_service import DesignError, DesignService
 from services.policy_service import PolicyError, PolicyService, install_network_guard
@@ -600,22 +600,19 @@ def create_app(config: dict | None = None) -> Flask:
         response.headers["Content-Disposition"] = f'attachment; filename="{chapter_id}_Handbuch_{stage}.docx"'
         return response
 
-    @app.post("/api/manual/<chapter_id>")
-    def manual_generate(chapter_id):
-        payload = body()
-        stage = str(payload.get("stage", "Draft"))
-        manual = manual_for(chapter_id, stage, str(payload.get("design", "")))
+    def write_manual(prefix: str, stage: str, manual: dict) -> tuple[list[str], dict]:
+        """Store HTML, DOCX and Markdown under 05_Manual_Generated/<stage>/; existing files are never overwritten."""
         status = exporter.status()
         if status["localStatus"] != "READY_FOR_CLIENT":
             raise ManualError(f"{status['localStatus']}: {status['reason']}")
         root = Path(status["path"])
         folder = root / "05_Manual_Generated" / stage
         folder.mkdir(parents=True, exist_ok=True)
-        base = f"{chapter_id}_{safe_stamp()}_Handbuch_{stage}"
+        base = f"{prefix}_{safe_stamp()}_Handbuch_{stage}"
         counter = 1
         while (folder / f"{base}.html").exists():
             counter += 1
-            base = f"{chapter_id}_{safe_stamp()}-{counter}_Handbuch_{stage}"
+            base = f"{prefix}_{safe_stamp()}-{counter}_Handbuch_{stage}"
         files = []
         for suffix, content in (("html", manual["html"]), ("docx", manual["docx"]), ("md", manual["markdown"])):
             target = folder / f"{base}.{suffix}"
@@ -624,7 +621,64 @@ def create_app(config: dict | None = None) -> Flask:
             else:
                 target.write_text(content, encoding="utf-8")
             files.append(target.relative_to(root).as_posix())
+        return files, status
+
+    @app.post("/api/manual/<chapter_id>")
+    def manual_generate(chapter_id):
+        payload = body()
+        stage = str(payload.get("stage", "Draft"))
+        manual = manual_for(chapter_id, stage, str(payload.get("design", "")))
+        files, status = write_manual(chapter_id, stage, manual)
         return jsonify(chapterId=chapter_id, stage=stage, files=files, stats=manual["stats"],
+                       cloudStatus=status["cloudStatus"]), 201
+
+    # -- complete manual (Gesamthandbuch) ---------------------------------------------------------------
+    def book_for(stage: str, design_id: str = "") -> dict:
+        if stage not in STAGES:
+            raise ManualError("Stufe muss Draft, Reviewed oder Released sein.", 400)
+        kdata = knowledge.load()
+        entries = []
+        for item in chapters.list():
+            records = imports.records(item["chapterId"])
+            entries.append({"chapter": chapters.get(item["chapterId"]), "coverage": compute_coverage(item["chapterId"], persist=False),
+                            "tables": [t for r in records for t in r.get("tables", [])], "imports": records})
+        design = designs.get(design_id) if design_id else designs.default_for("handbuch")
+        return build_book(entries, stage, kdata["claims"], kdata["evidence"], rules.list(), design, media_root=data.media)
+
+    @app.get("/api/book/overview")
+    def book_overview():
+        stage = request.args.get("stage", "Draft")
+        try:
+            book = book_for(stage, request.args.get("design", ""))
+        except ManualError as exc:
+            if stage not in STAGES:
+                raise
+            return jsonify(stage=stage, overview=getattr(exc, "overview", []), stats=None, error=str(exc))
+        return jsonify(stage=stage, overview=book["overview"], stats=book["stats"])
+
+    @app.get("/api/book/preview")
+    def book_preview():
+        book = book_for(request.args.get("stage", "Draft"), request.args.get("design", ""))
+        response = app.response_class(book["html"], mimetype="text/html")
+        response.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        return response
+
+    @app.get("/api/book/docx")
+    def book_docx():
+        stage = request.args.get("stage", "Draft")
+        book = book_for(stage, request.args.get("design", ""))
+        response = app.response_class(book["docx"], mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        response.headers["Content-Disposition"] = f'attachment; filename="Gesamthandbuch_{stage}.docx"'
+        return response
+
+    @app.post("/api/book")
+    def book_generate():
+        payload = body()
+        stage = str(payload.get("stage", "Draft"))
+        book = book_for(stage, str(payload.get("design", "")))
+        files, status = write_manual("Gesamthandbuch", stage, book)
+        return jsonify(stage=stage, files=files, stats=book["stats"], overview=book["overview"],
                        cloudStatus=status["cloudStatus"]), 201
 
     # -- rule-based cleanup ----------------------------------------------------------------------------
