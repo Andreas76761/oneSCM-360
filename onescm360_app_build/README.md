@@ -138,6 +138,13 @@ Was beim Import mit Rolle und Domäne passiert:
 - `NOT_RELEVANT` braucht einen Nachweis.
 - Rovo-Inhalte ergeben nur `INDIRECT`-Evidence. Jira-Keys und Confluence-Links im Text werden als `DIRECT`-Vorschläge erfasst.
 
+**Sammelprüfung im Register Claims:** Über die Checkboxen wählen Sie mehrere Claims aus, „alle sichtbaren“ übernimmt alle Zeilen, die Kapitel-, Status- und Suchfilter gerade zeigen. Dann setzen Sie gemeinsam einen Status (REVIEWED, CONFIRMED, REJECTED oder zurück auf DRAFT), auf Wunsch mit Review-Notiz.
+
+- Es gelten dieselben Regeln wie beim einzelnen Claim. Ein unsicherer Claim wird z. B. nicht auf CONFIRMED gesetzt.
+- Claims, die eine Regel verletzen, werden mit Grund übersprungen und bleiben ausgewählt. Die übrigen werden gespeichert.
+- Danach wird die Coverage der betroffenen Kapitel neu berechnet.
+- Ausgeblendete Zeilen werden nie mitgeändert: Ändert sich der Filter, fallen sie aus der Auswahl.
+
 ### Evidence-Faktoren
 
 | Stufe | Faktor |

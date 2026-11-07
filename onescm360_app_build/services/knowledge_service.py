@@ -235,6 +235,51 @@ class KnowledgeService:
                     return updated
         raise KnowledgeError("Claim nicht gefunden.", 404)
 
+    def bulk_update(self, claim_ids: list, payload: dict) -> dict:
+        """Set the review status (and optionally a review note) of several claims at once.
+
+        The same rules as for a single claim apply; a claim that breaks one is skipped with the reason,
+        the others are saved together. Returns {"updated": [...], "skipped": [{"claimId", "reason"}], "chapters": [...]}."""
+        if not isinstance(payload, dict) or not isinstance(claim_ids, list) or not claim_ids:
+            raise KnowledgeError("Bitte mindestens einen Claim auswählen.")
+        if len(claim_ids) > 2000:
+            raise KnowledgeError("Höchstens 2000 Claims auf einmal.")
+        status = payload.get("validationStatus")
+        if status not in VALIDATION_STATUSES:
+            raise KnowledgeError(f"Status muss einer von {', '.join(VALIDATION_STATUSES)} sein.")
+        note = payload.get("reviewNote")
+        if note is not None and (not isinstance(note, str) or len(note) > 1000):
+            raise KnowledgeError("Die Review-Notiz muss Text mit höchstens 1000 Zeichen sein.")
+        changes = {"validationStatus": status} | ({"reviewNote": note.strip()} if note and note.strip() else {})
+        updated, skipped, chapters = [], [], set()
+        with LOCK:
+            data = self.load()
+            index = {c["claimId"]: i for i, c in enumerate(data["claims"])}
+            for claim_id in dict.fromkeys(str(x) for x in claim_ids):
+                if claim_id not in index:
+                    skipped.append({"claimId": claim_id, "reason": "Claim nicht gefunden."})
+                    continue
+                claim = data["claims"][index[claim_id]]
+                candidate = self._coerce_claim(changes, claim)
+                if candidate["validationStatus"] == "CONFIRMED" and candidate.get("uncertain"):
+                    skipped.append({"claimId": claim_id, "reason": "Unsichere Aussage – erst präzisieren und „unsicher“ entfernen."})
+                    continue
+                try:
+                    self._validate_claim(candidate, data)
+                except KnowledgeError as exc:
+                    skipped.append({"claimId": claim_id, "reason": str(exc)})
+                    continue
+                if candidate == claim:
+                    continue  # already in that state: nothing to save
+                candidate["updatedAt"] = now_iso()
+                data["claims"][index[claim_id]] = candidate
+                updated.append(claim_id)
+                chapters.add(candidate["chapterId"])
+            if updated:
+                self._refresh_claims(data)
+                self.save(data)
+        return {"updated": updated, "skipped": skipped, "chapters": sorted(chapters)}
+
     def delete_claim(self, claim_id: str):
         with LOCK:
             data = self.load()

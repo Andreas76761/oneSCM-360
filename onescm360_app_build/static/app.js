@@ -634,18 +634,61 @@
     }
     renderClaims();
   };
-  function renderClaims() {
+  state.checkedClaims = new Set();
+  function visibleClaims() {
     const term = $("claim-search").value.trim().toLowerCase();
-    const rows = state.claims.filter((c) => !term || [c.claimId, c.canonicalStatement, c.role, c.subject, c.questionId].join(" ").toLowerCase().includes(term));
+    return state.claims.filter((c) => !term || [c.claimId, c.canonicalStatement, c.role, c.subject, c.questionId].join(" ").toLowerCase().includes(term));
+  }
+  function updateBulkBar() {
+    const visible = new Set(visibleClaims().map((c) => c.claimId));
+    for (const id of [...state.checkedClaims]) if (!visible.has(id)) state.checkedClaims.delete(id); // never act on hidden rows
+    const n = state.checkedClaims.size;
+    $("claim-selected-count").textContent = `${n} ausgewählt`;
+    $("claim-bulk-apply").disabled = n === 0;
+    $("claim-select-all").checked = n > 0 && n === visible.size;
+    $("claim-select-all").indeterminate = n > 0 && n < visible.size;
+  }
+  function renderClaims() {
+    const rows = visibleClaims();
     const tbody = $("claims-table").tBodies[0];
-    if (!rows.length) return emptyRow(tbody, 6, "Keine Claims für diese Auswahl.");
+    if (!rows.length) { emptyRow(tbody, 7, "Keine Claims für diese Auswahl."); updateBulkBar(); return; }
     tbody.replaceChildren(...rows.map((c) => el("tr", { class: `clickable${state.selectedClaim === c.claimId ? " selected" : ""}`, dataset: { claimId: c.claimId }, onclick: () => openClaim(c.claimId) },
+      el("td", { class: "sel", onclick: (event) => event.stopPropagation() }, Object.assign(el("input", { type: "checkbox", "aria-label": `${c.claimId} auswählen`,
+        onchange: (event) => { if (event.target.checked) state.checkedClaims.add(c.claimId); else state.checkedClaims.delete(c.claimId); updateBulkBar(); } }),
+        { checked: state.checkedClaims.has(c.claimId) })),
       el("td", { class: "mono", text: c.claimId }), el("td", { class: "mono", text: c.questionId }),
       el("td", {}, c.canonicalStatement, c.uncertain ? el("span", { class: "badge warn", text: " unsicher" }) : ""),
       el("td", {}, badge(c.criticality)), el("td", { text: `${c.evidenceStatus} (${c.evidenceFactor.toFixed(2).replace(".", ",")})` }), el("td", {}, badge(c.validationStatus)))));
+    updateBulkBar();
   }
+  $("claim-select-all").addEventListener("change", (event) => {
+    state.checkedClaims = new Set(event.target.checked ? visibleClaims().map((c) => c.claimId) : []);
+    renderClaims();
+  });
+  $("claim-bulk-apply").addEventListener("click", async () => {
+    const ids = [...state.checkedClaims];
+    const status = $("claim-bulk-status").value;
+    if (!ids.length || !confirm(`${ids.length} Claim(s) auf ${status} setzen?`)) return;
+    const button = $("claim-bulk-apply");
+    button.disabled = true;
+    try {
+      const r = await api("/api/claims/bulk", { method: "POST", body: { claimIds: ids, validationStatus: status, reviewNote: $("claim-bulk-note").value } });
+      state.checkedClaims = new Set(r.skipped.map((x) => x.claimId));
+      const unchanged = ids.length - r.updated.length - r.skipped.length;
+      toast(`${r.updated.length} Claim(s) auf ${status} gesetzt${unchanged ? `, ${unchanged} hatten den Status schon` : ""}${r.skipped.length ? `, ${r.skipped.length} übersprungen` : ""}.`, r.skipped.length > 0);
+      $("claim-bulk-result").replaceChildren(...(r.skipped.length ? [el("div", { class: "alert warn", id: "claim-bulk-skipped" },
+        el("strong", { text: "Übersprungen (bleiben ausgewählt): " }),
+        el("ul", { class: "list" }, r.skipped.map((x) => el("li", {}, el("span", { class: "mono", text: x.claimId }), ` – ${x.reason}`))))] : []));
+      $("claim-bulk-note").value = "";
+      await loaders.claims();
+      if (state.selectedClaim) openClaim(state.selectedClaim);
+      window.dispatchEvent(new Event("onescm-changed"));
+    } catch (e) {
+      toast(e.message, true);
+    } finally { updateBulkBar(); }
+  });
   $("claim-search").addEventListener("input", renderClaims);
-  $("claim-chapter").addEventListener("change", () => { state.selectedClaim = null; $("claim-editor").hidden = true; loaders.claims(); });
+  $("claim-chapter").addEventListener("change", () => { state.selectedClaim = null; $("claim-editor").hidden = true; state.checkedClaims.clear(); $("claim-bulk-result").replaceChildren(); loaders.claims(); });
   $("claim-status").addEventListener("change", () => loaders.claims());
 
   async function openClaim(claimId) {

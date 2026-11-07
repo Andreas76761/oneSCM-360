@@ -146,7 +146,17 @@
         </form>
       </details>
       <div class="split">
-        <div class="table-wrap"><table id="claims-table"><thead><tr><th>Claim</th><th>Frage</th><th>Aussage</th><th>Krit.</th><th>Evidence</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div>
+        <div class="card bulk-bar" id="claim-bulk">
+          <label class="check"><input type="checkbox" id="claim-select-all" aria-label="Alle sichtbaren Claims auswählen"> alle sichtbaren</label>
+          <span id="claim-selected-count" class="muted">0 ausgewählt</span>
+          <label>Neuer Status<select id="claim-bulk-status"><option value="REVIEWED">REVIEWED – geprüft</option><option value="CONFIRMED">CONFIRMED – freigegeben</option><option value="REJECTED">REJECTED – abgelehnt</option><option value="DRAFT">DRAFT – zurück auf Entwurf</option></select></label>
+          <label class="wide-input">Review-Notiz (optional)<input id="claim-bulk-note" maxlength="1000" placeholder="z. B. Fachreview 07.11. mit Market Operations"></label>
+          <button type="button" id="claim-bulk-apply" class="primary" disabled>Auf Auswahl anwenden</button>
+        </div>
+        <div class="table-wrap"><table id="claims-table"><thead><tr><th class="sel"></th><th>Claim</th><th>Frage</th><th>Aussage</th><th>Krit.</th><th>Evidence</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div id="claim-bulk-result"></div>
+        </div>
         <div id="claim-editor" class="card editor" hidden></div>
       </div>
     </section>
