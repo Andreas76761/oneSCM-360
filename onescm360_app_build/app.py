@@ -310,6 +310,14 @@ def create_app(config: dict | None = None) -> Flask:
         compute_coverage(claim["chapterId"])
         return jsonify(claim), 201
 
+    @app.post("/api/claims/bulk")
+    def bulk_claims():
+        payload = body()
+        result = knowledge.bulk_update(payload.get("claimIds"), payload)
+        for chapter_id in result["chapters"]:
+            compute_coverage(chapter_id)
+        return jsonify(result)
+
     @app.put("/api/claims/<claim_id>")
     def update_claim(claim_id):
         claim = knowledge.update_claim(claim_id, body())

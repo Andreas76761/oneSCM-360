@@ -215,3 +215,9 @@ tr.group-row td { background: #eef3f6; font-weight: 600; color: var(--ink); font
 
 /* Handbuchstand / Gesamthandbuch: the three buttons get their own row instead of a narrow grid cell */
 #tab-sync .form-grid > .actions { grid-column: 1 / -1; }
+
+/* Claims: bulk review */
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; margin-bottom: 10px; }
+.bulk-bar .wide-input { flex: 1 1 260px; }
+.bulk-bar .wide-input input { width: 100%; }
+#claims-table th.sel, #claims-table td.sel { width: 32px; text-align: center; }

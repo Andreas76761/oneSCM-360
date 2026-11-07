@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from helpers import CH01_HTML, AppCase
+from helpers import CH01_HTML, AppCase, H
 from services import claim_service as cs
 from services import conflict_service
 
@@ -169,6 +169,55 @@ class ClaimApiTests(AppCase, unittest.TestCase):
         self.assertEqual(cov["gate"], "BLOCKED")
         self.assertTrue(any("Referentielle Integrität" in b and "EVD-ORPHAN" in b for b in cov["blockers"]))
         self.assertTrue(self.client.get("/api/integrity").get_json()["problems"])
+
+
+
+
+class BulkReviewTests(AppCase, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.upload(CH01_HTML, "ch01.html")
+        self.claims = self.client.get("/api/claims?chapterId=CH01").get_json()
+
+    def bulk(self, payload, headers=H):
+        return self.client.post("/api/claims/bulk", json=payload, headers=headers)
+
+    def test_sets_status_and_note_for_all(self):
+        ids = [c["claimId"] for c in self.claims[:3]]
+        r = self.bulk({"claimIds": ids, "validationStatus": "REVIEWED", "reviewNote": "  Fachreview MO  "})
+        self.assertEqual(r.status_code, 200, r.get_json())
+        self.assertEqual((sorted(r.get_json()["updated"]), r.get_json()["skipped"], r.get_json()["chapters"]), (sorted(ids), [], ["CH01"]))
+        after = {c["claimId"]: c for c in self.client.get("/api/claims?chapterId=CH01").get_json()}
+        self.assertTrue(all(after[i]["validationStatus"] == "REVIEWED" and after[i]["reviewNote"] == "Fachreview MO" for i in ids))
+        again = self.bulk({"claimIds": ids, "validationStatus": "REVIEWED"}).get_json()
+        self.assertEqual(again["updated"], [])  # unchanged claims are not saved again
+
+    def test_rule_breaking_claims_are_skipped(self):
+        uncertain = self.claims[0]
+        self.client.put(f"/api/claims/{uncertain['claimId']}", json={"uncertain": True}, headers=H)
+        others = [c["claimId"] for c in self.claims[1:3]]
+        r = self.bulk({"claimIds": [uncertain["claimId"], "CLM-FEHLT"] + others, "validationStatus": "CONFIRMED"}).get_json()
+        self.assertEqual(sorted(r["updated"]), sorted(others))
+        reasons = {x["claimId"]: x["reason"] for x in r["skipped"]}
+        self.assertIn("Unsichere Aussage", reasons[uncertain["claimId"]])
+        self.assertEqual(reasons["CLM-FEHLT"], "Claim nicht gefunden.")
+        status = {c["claimId"]: c["validationStatus"] for c in self.client.get("/api/claims?chapterId=CH01").get_json()}
+        self.assertNotEqual(status[uncertain["claimId"]], "CONFIRMED")
+
+    def test_invalid_requests(self):
+        ids = [self.claims[0]["claimId"]]
+        self.assertEqual(self.bulk({"claimIds": ids, "validationStatus": "REVIEWED"}, headers={}).status_code, 403)
+        self.assertEqual(self.bulk({"claimIds": [], "validationStatus": "REVIEWED"}).status_code, 400)
+        self.assertEqual(self.bulk({"claimIds": ids, "validationStatus": "DONE"}).status_code, 400)
+        self.assertEqual(self.bulk({"claimIds": ids, "validationStatus": "REVIEWED", "reviewNote": "x" * 1001}).status_code, 400)
+        self.assertEqual(self.bulk({"claimIds": "CLM-1", "validationStatus": "REVIEWED"}).status_code, 400)
+
+    def test_coverage_follows(self):
+        before = self.client.get("/api/coverage/CH01").get_json()
+        r = self.bulk({"claimIds": [c["claimId"] for c in self.claims], "validationStatus": "REJECTED"})
+        self.assertEqual(r.status_code, 200)
+        after = self.client.get("/api/coverage/CH01").get_json()
+        self.assertLess(after["readiness"], before["readiness"])
 
 
 if __name__ == "__main__":
